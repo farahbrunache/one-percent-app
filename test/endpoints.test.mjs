@@ -1,6 +1,6 @@
 // Exercises every request path that does not need a database: method rejection, input
-// validation, the bearer check on the paid gate, refusing an admin request with no cookie,
-// and the shape of every error.
+// validation, the bearer check on the paid gate, refusing an admin request with no session,
+// reading a Skills Economy address out of a publishable key, and the shape of every error.
 //
 // Anything reaching a query is not covered here and is checked against a real database.
 // Run with: npm test
@@ -23,6 +23,7 @@ function makeRes() {
     writableEnded: false,
     status(code) { this.statusCode = code; return this; },
     setHeader(k, v) { this.headers[k.toLowerCase()] = v; },
+    getHeader(k) { return this.headers[k.toLowerCase()]; },
     end(text) { this.payload = text ? JSON.parse(text) : null; this.writableEnded = true; },
   };
   return res;
@@ -104,13 +105,57 @@ check('rejects a code that is too short', r.statusCode === 400, r.payload);
 
 console.log('admin');
 r = await run(admin, 'GET', '/api/admin?action=list');
-check('list refuses without a cookie', r.statusCode === 401, r.payload);
+check('list refuses without a session', r.statusCode === 401, r.payload);
 r = await run(admin, 'POST', '/api/admin?action=decide', { id: 1, decision: 'confirm' });
-check('decide refuses without a cookie', r.statusCode === 401, r.payload);
+check('decide refuses without a session', r.statusCode === 401, r.payload);
 r = await run(admin, 'POST', '/api/admin?action=nonsense', {});
 check('an unknown action is refused', r.statusCode === 400, r.payload);
 r = await run(admin, 'DELETE', '/api/admin');
 check('rejects an unsupported method', r.statusCode === 405, r.payload);
+
+console.log('signing in with Skills Economy');
+// The workflow supplies this. Set it here too so the file runs on its own.
+process.env.CARD_ENCRYPTION_KEY =
+  process.env.CARD_ENCRYPTION_KEY || 'test-key-that-is-long-enough-to-pass-0123456789';
+const auth = await import('../lib/auth.js');
+const crypto = await import('../lib/crypto.js');
+const authEndpoint = (await import('../api/auth.js')).default;
+
+process.env.AUTH_PUBLISHABLE_KEY = 'pk_live_' + Buffer.from('clerk.example.com$').toString('base64');
+check('finds Skills Economy inside the publishable key',
+  auth.issuer() === 'https://clerk.example.com', auth.issuer());
+try {
+  auth.issuer('not-a-key');
+  check('refuses something that is not a publishable key', false);
+} catch (error) {
+  check('refuses something that is not a publishable key', /pk_live_/.test(error.message));
+}
+
+const signed = crypto.signSession('user_abc');
+check('a signed session names the account back', crypto.readSession(signed) === 'user_abc');
+check('an altered session is refused', crypto.readSession(signed.slice(0, -1) + 'x') === null);
+check('an expired session is refused', crypto.readSession(crypto.signSession('user_abc', -1)) === null);
+check('no session at all is refused', crypto.readSession('') === null);
+
+process.env.ADMIN_ACCOUNT_IDS = 'user_abc, user_def';
+check('an account on the admin list is an admin', auth.isAdmin('user_abc'));
+check('an account not on it is not', !auth.isAdmin('user_zzz'));
+process.env.ADMIN_ACCOUNT_IDS = '';
+check('nobody is an admin when the list is empty', !auth.isAdmin('user_abc'));
+
+r = await run(admin, 'GET', '/api/admin?action=list', undefined,
+  { cookie: `op_session=${encodeURIComponent(signed)}` });
+check('a signed-in account that is not an admin is refused', r.statusCode === 403, r.payload);
+
+r = await run(authEndpoint, 'GET', '/api/auth?action=callback&code=x&state=y');
+check('a sign-in with no handshake goes back with a reason',
+  r.statusCode === 302 && /problem=/.test(r.headers.location || ''), r.headers);
+r = await run(authEndpoint, 'GET', '/api/auth?action=callback&code=x&state=wrong', undefined,
+  { cookie: 'op_signin=' + encodeURIComponent('right.verifier.' + Buffer.from('/admin').toString('base64url')) });
+check('a sign-in whose state does not match goes back with a reason',
+  r.statusCode === 302 && /did\+not\+match|did%20not%20match/.test(r.headers.location || ''), r.headers);
+r = await run(authEndpoint, 'POST', '/api/auth?action=nonsense', {});
+check('an unknown sign-in action is refused', r.statusCode === 400, r.payload);
 
 console.log('starting a session');
 r = await run(call, 'GET', '/api/call');
