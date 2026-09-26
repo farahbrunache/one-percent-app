@@ -170,6 +170,9 @@ delete process.env.AUTH_CLIENT_SECRET;
 r = await run(admin, 'GET', '/api/admin?action=list', undefined,
   { cookie: `op_session=${encodeURIComponent(signed)}` });
 check('a signed-in account that is not an admin is refused', r.statusCode === 403, r.payload);
+check('and the refusal names the account, so it can be added',
+  /user_abc/.test(r.payload?.error || '') && /ADMIN_ACCOUNT_IDS/.test(r.payload?.error || ''),
+  r.payload);
 
 r = await run(authEndpoint, 'GET', '/api/auth?action=callback&code=x&state=y');
 check('a sign-in with no handshake goes back with a reason',
