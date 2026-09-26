@@ -13,6 +13,30 @@ self-service. Nothing here requires an account anywhere.
 The stylesheet is a copy of the landing page's, taken at the split. The two are expected to
 drift as these screens grow. Do not build a shared package for one CSS file.
 
+## This repository is public
+
+Everything committed here is world-readable, and a commit cannot be unsaid. Nothing secret
+goes in a file, a test fixture, a comment, a commit message or a pull request body: no key,
+no client secret, no token, no account id, no real payment reference, and nothing about a
+person who has paid.
+
+A value read off a dashboard is not repository material. It becomes an environment variable
+and the repository refers to it by name — `AUTH_CLIENT_ID`, `ADMIN_ACCOUNT_IDS` — never by
+value, not even in an example. Where an example is needed, invent one that is obviously not
+real, as the tests do.
+
+Nothing here is defended by being hard to find. Every rule this site enforces holds with the
+source in front of somebody: the price, the reference alphabet, the rate limits, the three
+starts in twenty-four hours. Reading the code has to be no help at all in taking money out
+of it, and that is a constraint on every change, not a property of today's code.
+
+Never copy anything out of the private `one-percent` repository into this one. Session
+transcripts, notes on people, consent records and the method itself live there and stay
+there.
+
+If a secret ever reaches a commit, rotate it at the service that issued it. Deleting the line
+does not help — the old commit is still readable by anybody who cloned it.
+
 ## One phone-width layout at every viewport
 
 The same column at every screen size, centred on anything wider than a phone. Never a second
