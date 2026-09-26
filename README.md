@@ -31,13 +31,22 @@ on the first request, so there is no migration step.
 | Name | What it is |
 |---|---|
 | `CARD_ENCRYPTION_KEY` | 32 characters or more, from a password manager. Everything secret in the database is encrypted or keyed under it. |
-| `ADMIN_SECRET` | 16 characters or more. What you type to sign in at `/admin`. Different from the one above. |
+| `AUTH_PUBLISHABLE_KEY` | The Skills Economy publishable key, starting `pk_live_`. Public, and the address of the sign-in service is encoded inside it. |
+| `AUTH_CLIENT_ID` | The client id of the One Percent application registered in the Skills Economy dashboard, whose return address is `https://app.farahbrunache.com/auth/callback`. |
+| `AUTH_CLIENT_SECRET` | Its client secret. Set it when the application's Public toggle is off, and leave it unset when that toggle is on — the code proves itself with the secret in the first case and with PKCE in the second. |
+| `ADMIN_ACCOUNT_IDS` | Skills Economy account ids allowed on `/admin`, separated by commas. |
 | `RETELL_SECRET_KEY` | The row named Secret Key on the API Keys tab in the Retell dashboard. |
 | `RETELL_AGENT_ID` | The agent that runs the session. |
 | `PAY_WISE` | Where a Wise payment goes, exactly as somebody should type it. A handle stays as text; a link becomes a link to tap. |
 
 Set `CARD_ENCRYPTION_KEY` once, before anybody pays. Changing it later makes every stored
-card code unreadable.
+card code unreadable, and it signs the sign-in cookie, so changing it also signs everybody out.
+
+`/admin` has no password of its own. Signing in happens at Skills Economy and comes back as
+an account id; `ADMIN_ACCOUNT_IDS` says which ids are allowed in. One Percent is registered
+there as its own application, so it holds none of Skills Economy's keys, cannot read an
+account beyond the id, and cannot sign in anybody who has not signed themselves in. The two
+products stay on their own domains and nothing is shared between them.
 
 `PAY_WISE` missing does not break the site — that route refuses with a message naming the
 setting, and the gift card keeps working.
@@ -69,7 +78,9 @@ hash of the caller's address rather than the address itself.
 | `api/status.js` | What a claim link shows |
 | `api/recover.js` | Issues a new claim link against a reference or card code |
 | `api/call.js` | Checks the order and opens the session |
-| `api/admin.js` | Sign in, list what is waiting, confirm or reject |
+| `api/admin.js` | List what is waiting, confirm or reject |
+| `api/auth.js` | Signing in and out against Skills Economy |
+| `lib/auth.js` | Where Skills Economy signs people in, and who is an admin here |
 | `lib/crypto.js` | Encryption, keyed hashing, token and reference generation |
 | `lib/db.js` | Schema, queries, rate limiting |
 | `lib/orders.js` | Price, payment methods, rejection reasons, session limits |

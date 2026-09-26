@@ -1,47 +1,17 @@
-// The one screen with manual work on it. Sign in, read the pending cards, redeem each one
-// somewhere else, then confirm or reject it here.
+// The one screen with manual work on it. Sign in with Skills Economy, read the pending
+// cards, redeem each one somewhere else, then confirm or reject it here.
 //
 // Confirming destroys the stored card code. By that point it has been redeemed, so keeping
 // it would be holding somebody's spent money for no reason.
+//
+// There is no password here and no account of its own. Signing in happens at Skills
+// Economy and comes back as an account id; this checks that id against the admin list.
 
-import { ensureSchema, sql, underLimit } from '../lib/db.js';
-import {
-  callerKey,
-  decrypt,
-  signAdminToken,
-  timingSafeEqual,
-  verifyAdminToken,
-} from '../lib/crypto.js';
+import { ensureSchema, sql } from '../lib/db.js';
+import { decrypt } from '../lib/crypto.js';
+import { requireAdmin } from '../lib/auth.js';
 import { PAYMENT_METHODS, REJECT_REASONS } from '../lib/orders.js';
-import { HttpError, handle, readCookie, readJson, send, setCookie } from '../lib/http.js';
-
-const COOKIE = 'op_admin';
-
-function requireAdmin(req) {
-  if (!verifyAdminToken(readCookie(req, COOKIE))) {
-    throw new HttpError(401, 'Sign in first.');
-  }
-}
-
-async function login(req, res) {
-  await ensureSchema();
-  if (!(await underLimit('admin-login', callerKey(req), 10, 900))) {
-    throw new HttpError(429, 'Too many sign-in attempts. Wait fifteen minutes.');
-  }
-  const expected = process.env.ADMIN_SECRET;
-  if (!expected || expected.length < 16) {
-    throw new HttpError(
-      503,
-      'ADMIN_SECRET is missing or shorter than 16 characters. Set it in the project settings.',
-    );
-  }
-  const body = await readJson(req);
-  if (!timingSafeEqual(String(body.secret || ''), expected)) {
-    throw new HttpError(401, 'That is not the admin secret.');
-  }
-  setCookie(res, COOKIE, signAdminToken(), 12 * 3600);
-  send(res, 200, { ok: true });
-}
+import { HttpError, handle, readJson, send } from '../lib/http.js';
 
 async function list(req, res) {
   requireAdmin(req);
@@ -119,13 +89,8 @@ async function decide(req, res) {
 export default handle(['GET', 'POST'], async (req, res) => {
   const action = new URL(req.url, 'https://placeholder.invalid').searchParams.get('action');
 
-  if (req.method === 'POST' && action === 'login') return login(req, res);
   if (req.method === 'GET' && action === 'list') return list(req, res);
   if (req.method === 'POST' && action === 'decide') return decide(req, res);
-  if (req.method === 'POST' && action === 'logout') {
-    setCookie(res, COOKIE, '', 0);
-    return send(res, 200, { ok: true });
-  }
 
-  throw new HttpError(400, 'Use action=login, action=list, action=decide or action=logout.');
+  throw new HttpError(400, 'Use action=list or action=decide.');
 });

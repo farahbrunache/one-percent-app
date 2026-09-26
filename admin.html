@@ -15,17 +15,13 @@
 
   <h1>Payments</h1>
 
-  <div id="signin">
-    <p class="lede">Sign in to see what is waiting.</p>
-    <form class="fields" id="login" novalidate>
-      <div class="field">
-        <label for="secret">Admin secret</label>
-        <input id="secret" type="password" autocomplete="current-password" required>
-      </div>
-      <div class="actions"><button type="submit" id="lgo">Sign in</button></div>
-    </form>
+  <div id="signin" hidden>
+    <p class="lede">Sign in with Skills Economy to see what is waiting.</p>
+    <div class="actions"><a class="button" id="lgo" href="/api/auth?action=start&amp;to=/admin">Sign in with Skills Economy</a></div>
     <div id="lmsg" hidden></div>
   </div>
+
+  <div id="starting"><p class="meta">Checking who you are.</p></div>
 
   <div id="work" hidden>
     <div id="counts" class="status-line"></div>
@@ -49,6 +45,7 @@
   };
 
   const signin = document.getElementById('signin');
+  const starting = document.getElementById('starting');
   const work = document.getElementById('work');
   const rows = document.getElementById('rows');
   const counts = document.getElementById('counts');
@@ -183,39 +180,32 @@
       }
       for (const order of data.pending) rows.append(renderRow(order));
     } catch (error) {
+      starting.hidden = true;
       signin.hidden = false;
       work.hidden = true;
-      if (!/sign in first/i.test(error.message)) msg('lmsg', error.message, 'bad');
+      if (!/^sign in with skills economy first/i.test(error.message)) {
+        msg('lmsg', error.message, 'bad');
+      }
     }
   }
 
-  document.getElementById('login').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const button = document.getElementById('lgo');
-    button.disabled = true;
-    try {
-      await call('/api/admin?action=login', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ secret: document.getElementById('secret').value }),
-      });
-      document.getElementById('secret').value = '';
-      document.getElementById('lmsg').hidden = true;
-      await load();
-    } catch (error) {
-      msg('lmsg', error.message, 'bad');
-    } finally {
-      button.disabled = false;
-    }
-  });
-
   document.getElementById('refresh').addEventListener('click', load);
   document.getElementById('logout').addEventListener('click', async () => {
-    await call('/api/admin?action=logout', { method: 'POST' });
-    location.reload();
+    await call('/api/auth?action=signout', { method: 'POST' });
+    location.replace('/admin');
   });
 
-  load();
+  // A sign-in that failed comes back here with the reason in the address. Take it out of the
+  // address bar once it is on the page, so a refresh does not show it again.
+  const problem = new URLSearchParams(location.search).get('problem');
+  if (problem) {
+    history.replaceState(null, '', '/admin');
+    signin.hidden = false;
+    starting.hidden = true;
+    msg('lmsg', problem, 'bad');
+  } else {
+    load().finally(() => { starting.hidden = true; });
+  }
 </script>
 </body>
 </html>

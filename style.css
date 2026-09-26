@@ -245,7 +245,13 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 select { appearance: none; background-image: none; }
 
-button {
+/* a.button is a link that has to look like a button: signing in leaves the site, so it is a
+   link and not a form. */
+button,
+a.button {
+  display: inline-block;
+  text-align: center;
+  text-decoration: none;
   font-family: inherit;
   font-size: 1.02rem;
   font-weight: 600;
@@ -256,8 +262,8 @@ button {
   padding: 0.85rem 1.6rem;
   cursor: pointer;
 }
-button:hover { filter: brightness(0.93); }
-button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+button:hover, a.button:hover { filter: brightness(0.93); }
+button:focus-visible, a.button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 button[disabled] { opacity: 0.55; cursor: default; filter: none; }
 
 button.quiet {

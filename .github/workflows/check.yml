@@ -23,4 +23,3 @@ jobs:
         env:
           # Test-only values. Nothing real is needed, because no test reaches a database.
           CARD_ENCRYPTION_KEY: test-key-that-is-long-enough-to-pass-0123456789
-          ADMIN_SECRET: admin-secret-long-enough
