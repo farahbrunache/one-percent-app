@@ -143,6 +143,30 @@ check('an account not on it is not', !auth.isAdmin('user_zzz'));
 process.env.ADMIN_ACCOUNT_IDS = '';
 check('nobody is an admin when the list is empty', !auth.isAdmin('user_abc'));
 
+// Which proof the sign-in carries follows the application's Public toggle, and the secret
+// being set is how that toggle reaches the code.
+process.env.AUTH_CLIENT_ID = 'client_test';
+const fakeDiscovery = { authorization_endpoint: 'https://clerk.example.com/oauth/authorize' };
+delete process.env.AUTH_CLIENT_SECRET;
+let url = new URL(auth.signInUrl(
+  { state: 's', codeChallenge: 'c', returnTo: 'https://app.example.net/auth/callback' },
+  fakeDiscovery));
+check('a client with no secret proves itself with PKCE',
+  url.searchParams.get('code_challenge') === 'c' &&
+    url.searchParams.get('code_challenge_method') === 'S256', url.search);
+process.env.AUTH_CLIENT_SECRET = 'secret';
+url = new URL(auth.signInUrl(
+  { state: 's', codeChallenge: 'c', returnTo: 'https://app.example.net/auth/callback' },
+  fakeDiscovery));
+check('a client with a secret sends no PKCE challenge',
+  !url.searchParams.has('code_challenge') && !url.searchParams.has('code_challenge_method'),
+  url.search);
+check('the return address and state always travel',
+  url.searchParams.get('redirect_uri') === 'https://app.example.net/auth/callback' &&
+    url.searchParams.get('state') === 's' &&
+    url.searchParams.get('scope') === 'openid profile', url.search);
+delete process.env.AUTH_CLIENT_SECRET;
+
 r = await run(admin, 'GET', '/api/admin?action=list', undefined,
   { cookie: `op_session=${encodeURIComponent(signed)}` });
 check('a signed-in account that is not an admin is refused', r.statusCode === 403, r.payload);
