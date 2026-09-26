@@ -32,7 +32,7 @@ on the first request, so there is no migration step.
 |---|---|
 | `CARD_ENCRYPTION_KEY` | 32 characters or more, from a password manager. Everything secret in the database is encrypted or keyed under it. |
 | `AUTH_PUBLISHABLE_KEY` | The Skills Economy publishable key, starting `pk_live_`. Public, and the address of the sign-in service is encoded inside it. |
-| `AUTH_CLIENT_ID` | The client id of the One Percent application registered in the Skills Economy dashboard. |
+| `AUTH_CLIENT_ID` | The client id of the One Percent application registered in the Skills Economy dashboard, whose return address is `https://app.farahbrunache.com/auth/callback`. |
 | `AUTH_CLIENT_SECRET` | Its client secret. Leave it unset if the application was registered as a public client. |
 | `ADMIN_ACCOUNT_IDS` | Skills Economy account ids allowed on `/admin`, separated by commas. |
 | `RETELL_SECRET_KEY` | The row named Secret Key on the API Keys tab in the Retell dashboard. |
