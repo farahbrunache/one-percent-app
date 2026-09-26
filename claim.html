@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Your session — One Percent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&display=swap">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main class="wrap">
+
+  <a class="back" href="https://farahbrunache.com">&larr; One Percent</a>
+
+  <h1>Your session</h1>
+
+  <div id="body" aria-live="polite">
+    <p class="lede">Reading your order&hellip;</p>
+  </div>
+
+  <footer class="stack gap-s">
+    <p>
+      Save this link. It is the only record of your order, and nothing about you was recorded
+      that could find it any other way.
+    </p>
+    <p class="actions" style="margin-top:0.3rem;">
+      <button type="button" class="quiet" id="copylink">Copy this page's link</button>
+    </p>
+    <p>
+      Lost it? <a href="/buy">Enter your reference or gift card code</a> and you get a new link.
+    </p>
+  </footer>
+
+</main>
+
+<script type="module">
+  const body = document.getElementById('body');
+  const token = new URLSearchParams(location.search).get('t');
+
+  function el(tag, text, className) {
+    const node = document.createElement(tag);
+    if (text) node.textContent = text;
+    if (className) node.className = className;
+    return node;
+  }
+
+  function clear() { body.textContent = ''; }
+
+  function lede(text) { body.append(el('p', text, 'lede')); }
+
+  function statusLine(label, value) {
+    const wrap = el('div', null, 'status-line');
+    wrap.append(el('div', label, 'label'));
+    wrap.append(el('div', value, 'value'));
+    body.append(wrap);
+    return wrap;
+  }
+
+  function note(lines) {
+    const box = el('div', null, 'note stack gap-s');
+    for (const line of lines) box.append(el('p', line));
+    body.append(box);
+  }
+
+  function render(data) {
+    clear();
+
+    if (data.status === 'pending') {
+      statusLine('Status', 'Waiting on your payment');
+
+      if (data.payTo) {
+        lede(`Send $7 by ${data.label}, with your reference in the note.`);
+        const wrap = el('div', null, 'status-line');
+        wrap.append(el('div', `Send $7 by ${data.label}`, 'label'));
+        if (/^https?:\/\//i.test(data.payTo)) {
+          const value = el('div', null, 'value');
+          const a = el('a', 'Open the payment page');
+          a.href = data.payTo;
+          a.rel = 'noopener noreferrer';
+          a.target = '_blank';
+          value.append(a);
+          const raw = el('div', data.payTo, 'meta mono');
+          raw.style.cssText = 'margin-top:0.4rem;font-size:0.85rem;word-break:break-all;';
+          value.append(raw);
+          wrap.append(value);
+        } else {
+          wrap.append(el('div', data.payTo, 'value mono'));
+        }
+        body.append(wrap);
+      } else {
+        lede('Your card is in and has not been checked yet. This is done by hand, so it is not instant.');
+      }
+
+      if (data.reference) {
+        body.append(el('p', data.payTo ? 'Put this in the note:' : 'Your reference:', 'lede'));
+        body.append(el('div', data.reference, 'big-code'));
+      }
+
+      note([
+        'Come back to this page. Once the payment is matched, the button to start your session appears here.',
+        'Nothing is sent to you, because nothing about you was recorded to send it to.',
+      ]);
+      return;
+    }
+
+    if (data.status === 'rejected') {
+      statusLine('Status', 'That payment did not check out');
+      lede(data.reason || 'The card did not check out.');
+      note([
+        'No session was opened, and nothing was taken for this order.',
+        'If you think this is wrong, start a new order — nothing was taken for this one.',
+      ]);
+      return;
+    }
+
+    if (data.status === 'used') {
+      statusLine('Status', 'This session has been used');
+      lede('The session on this order has been used and cannot be opened again.');
+      note(['To speak again, pay for another session.']);
+      const again = el('p', null, 'cta');
+      const link = el('a', 'Pay for another session');
+      link.href = '/buy';
+      again.append(link);
+      body.append(again);
+      return;
+    }
+
+    if (data.status === 'confirmed') {
+      statusLine('Status', 'Your session is ready');
+
+      lede('This runs in your browser. You will be asked for your microphone — that is the '
+        + 'session starting, and nothing is asked of you before it.');
+
+      const start = el('p', null, 'cta');
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.id = 'start';
+      button.textContent = 'Start my session';
+      start.append(button);
+      body.append(start);
+
+      const liveMsg = el('div');
+      liveMsg.id = 'callmsg';
+      liveMsg.setAttribute('aria-live', 'polite');
+      body.append(liveMsg);
+
+      note([
+        'It is an automated assistant, not a person. It runs about thirty minutes and it '
+          + 'works through what you do, what you would charge, who your first customer is, '
+          + 'and one thing to do next.',
+        'A person reads everything it takes down.',
+        'If it drops, come back to this page and start it again. It opens a few times inside '
+          + 'a day, which covers a call that fails without letting the link be passed around.',
+      ]);
+
+      button.addEventListener('click', () => startSession(button, liveMsg));
+
+      return;
+    }
+
+    lede('This order is in a state this page does not recognize.');
+  }
+
+  async function load() {
+    if (!token) {
+      clear();
+      lede('This link is missing its claim token.');
+      note(['Open the link you were given in full, or recover it with your card code from the payment page.']);
+      return;
+    }
+    try {
+      const response = await fetch(`/api/status?t=${encodeURIComponent(token)}`);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || `The server returned ${response.status}.`);
+      try { localStorage.setItem('onepercent.claim', location.pathname + location.search); } catch {}
+      render(data);
+    } catch (error) {
+      clear();
+      lede(error.message);
+    }
+  }
+
+  function callMessage(target, text, kind) {
+    target.textContent = '';
+    target.className = 'msg ' + (kind || '');
+    target.append(el('p', text));
+  }
+
+  async function startSession(button, target) {
+    button.disabled = true;
+    callMessage(target, 'Opening the session…');
+
+    let data;
+    try {
+      const response = await fetch('/api/call', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ t: token }),
+      });
+      data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || `The server returned ${response.status}.`);
+    } catch (error) {
+      callMessage(target, error.message, 'bad');
+      button.disabled = false;
+      return;
+    }
+
+    let RetellWebClient;
+    try {
+      ({ RetellWebClient } = await import('https://cdn.jsdelivr.net/npm/retell-client-js-sdk/+esm'));
+    } catch (error) {
+      callMessage(
+        target,
+        'Your session opened but this browser could not load the voice client. Try a different '
+          + 'browser — Chrome, Safari or Firefox, kept up to date.',
+        'bad',
+      );
+      return;
+    }
+
+    try {
+      const client = new RetellWebClient();
+      client.on('call_started', () => callMessage(target, 'You are connected. Speak when ready.', 'good'));
+      client.on('call_ended', () => {
+        callMessage(target, 'The session has ended. A person reads what was taken down.', 'good');
+        button.disabled = false;
+        button.textContent = 'Start again';
+      });
+      client.on('error', (err) => {
+        callMessage(target, `The session stopped: ${err?.message || err}`, 'bad');
+        button.disabled = false;
+      });
+      await client.startCall({ accessToken: data.accessToken });
+    } catch (error) {
+      callMessage(
+        target,
+        `Could not start the session: ${error.message}. If your browser refused the `
+          + 'microphone, allow it and try again.',
+        'bad',
+      );
+      button.disabled = false;
+    }
+  }
+
+  const copy = document.getElementById('copylink');
+  copy.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(location.href);
+      copy.textContent = 'Copied';
+    } catch {
+      copy.textContent = 'Copy it from the address bar';
+    }
+    setTimeout(() => { copy.textContent = "Copy this page's link"; }, 2500);
+  });
+
+  load();
+</script>
+</body>
+</html>

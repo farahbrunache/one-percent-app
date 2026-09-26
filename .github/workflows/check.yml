@@ -1,0 +1,26 @@
+name: Check
+
+# One run per commit. Running on every branch push as well as on pull_request meant a pull
+# request got two identical runs, which GitHub reports as an unstable head and which refuses
+# auto-merge until the duplicate finishes. Pushes are checked on the trunk; everything else
+# is checked through its pull request.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-audit --no-fund
+      - run: npm run check
+      - run: npm test
+        env:
+          # Test-only values. Nothing real is needed, because no test reaches a database.
+          CARD_ENCRYPTION_KEY: test-key-that-is-long-enough-to-pass-0123456789
+          ADMIN_SECRET: admin-secret-long-enough

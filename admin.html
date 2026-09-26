@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Payments — One Percent</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&display=swap">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main class="wrap">
+
+  <h1>Payments</h1>
+
+  <div id="signin">
+    <p class="lede">Sign in to see what is waiting.</p>
+    <form class="fields" id="login" novalidate>
+      <div class="field">
+        <label for="secret">Admin secret</label>
+        <input id="secret" type="password" autocomplete="current-password" required>
+      </div>
+      <div class="actions"><button type="submit" id="lgo">Sign in</button></div>
+    </form>
+    <div id="lmsg" hidden></div>
+  </div>
+
+  <div id="work" hidden>
+    <div id="counts" class="status-line"></div>
+    <div class="actions">
+      <button type="button" class="quiet" id="refresh">Refresh</button>
+      <button type="button" class="quiet" id="logout">Sign out</button>
+    </div>
+    <div id="rows" class="rows" aria-live="polite"></div>
+  </div>
+
+</main>
+
+<script type="module">
+  const REASONS = {
+    not_received: 'Nothing arrived',
+    short: 'Less than $7 arrived',
+    empty: 'Gift card had no balance',
+    used: 'Gift card already redeemed',
+    invalid: 'Gift card code did not work',
+    duplicate: 'Already submitted here',
+  };
+
+  const signin = document.getElementById('signin');
+  const work = document.getElementById('work');
+  const rows = document.getElementById('rows');
+  const counts = document.getElementById('counts');
+
+  function el(tag, text, className) {
+    const node = document.createElement(tag);
+    if (text) node.textContent = text;
+    if (className) node.className = className;
+    return node;
+  }
+
+  function msg(id, text, kind) {
+    const box = document.getElementById(id);
+    box.hidden = false;
+    box.className = 'msg ' + (kind || '');
+    box.textContent = text;
+  }
+
+  async function call(url, options) {
+    const response = await fetch(url, options);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `The server returned ${response.status}.`);
+    return data;
+  }
+
+  function renderCounts(map) {
+    counts.textContent = '';
+    counts.append(el('div', 'Waiting on you', 'label'));
+    counts.append(el('div', String(map.pending || 0), 'value'));
+    const rest = el('p', null, 'meta');
+    rest.style.marginTop = '0.5rem';
+    rest.textContent = `${map.confirmed || 0} confirmed · ${map.rejected || 0} rejected`;
+    counts.append(rest);
+  }
+
+  function renderRow(order) {
+    const row = el('div', null, 'row');
+    row.append(el('div', `${order.label} · $${order.amount.toFixed(2)}`, null));
+    row.append(el('div', new Date(order.submitted).toLocaleString(), 'meta'));
+
+    // The reference is what to look for in Wise. The code only exists on a card.
+    row.append(el('div', order.reference, 'code'));
+    if (order.code) row.append(el('div', order.code, 'code'));
+
+    const copies = el('div', null, 'actions');
+    const decide = el('div', null, 'actions');
+    const reject = el('div', null, 'actions');
+
+    function copyButton(label, text) {
+      const b = el('button', label, 'quiet');
+      b.type = 'button';
+      b.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          b.textContent = 'Copied';
+        } catch {
+          b.textContent = 'Select it by hand';
+        }
+        setTimeout(() => { b.textContent = label; }, 1500);
+      });
+      return b;
+    }
+
+    copies.append(copyButton('Copy reference', order.reference));
+    if (order.code) copies.append(copyButton('Copy card code', order.code));
+
+    const confirm = el('button', 'Confirm');
+    confirm.type = 'button';
+    confirm.style.flex = '1';
+    confirm.addEventListener('click', async () => {
+      confirm.disabled = true;
+      try {
+        await call('/api/admin?action=decide', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ id: order.id, decision: 'confirm' }),
+        });
+        await load();
+      } catch (error) {
+        row.append(el('p', error.message, 'meta'));
+        confirm.disabled = false;
+      }
+    });
+    decide.append(confirm);
+
+    const reason = document.createElement('select');
+    reason.setAttribute('aria-label', 'Reason for rejecting');
+    reason.style.width = 'auto';
+    for (const [value, label] of Object.entries(REASONS)) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      reason.append(option);
+    }
+    reason.style.flex = '1';
+    reject.append(reason);
+
+    const rejectButton = el('button', 'Reject', 'danger');
+    rejectButton.type = 'button';
+    rejectButton.addEventListener('click', async () => {
+      rejectButton.disabled = true;
+      try {
+        await call('/api/admin?action=decide', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ id: order.id, decision: 'reject', reason: reason.value }),
+        });
+        await load();
+      } catch (error) {
+        row.append(el('p', error.message, 'meta'));
+        rejectButton.disabled = false;
+      }
+    });
+    reject.append(rejectButton);
+
+    row.append(copies);
+    row.append(decide);
+    row.append(reject);
+    return row;
+  }
+
+  async function load() {
+    try {
+      const data = await call('/api/admin?action=list');
+      signin.hidden = true;
+      work.hidden = false;
+      renderCounts(data.counts || {});
+      rows.textContent = '';
+      if (!data.pending.length) {
+        rows.append(el('p', 'Nothing waiting.', 'meta'));
+        return;
+      }
+      for (const order of data.pending) rows.append(renderRow(order));
+    } catch (error) {
+      signin.hidden = false;
+      work.hidden = true;
+      if (!/sign in first/i.test(error.message)) msg('lmsg', error.message, 'bad');
+    }
+  }
+
+  document.getElementById('login').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const button = document.getElementById('lgo');
+    button.disabled = true;
+    try {
+      await call('/api/admin?action=login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ secret: document.getElementById('secret').value }),
+      });
+      document.getElementById('secret').value = '';
+      document.getElementById('lmsg').hidden = true;
+      await load();
+    } catch (error) {
+      msg('lmsg', error.message, 'bad');
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  document.getElementById('refresh').addEventListener('click', load);
+  document.getElementById('logout').addEventListener('click', async () => {
+    await call('/api/admin?action=logout', { method: 'POST' });
+    location.reload();
+  });
+
+  load();
+</script>
+</body>
+</html>
