@@ -18,6 +18,11 @@ on:
         description: 'Render workspace to create it in, by name. Leave empty if the key sees only one.'
         required: false
         type: string
+      domain:
+        description: 'Address to attach to it. Leave as is unless it has changed.'
+        required: false
+        default: app.farahbrunache.com
+        type: string
 
 jobs:
   create:
@@ -31,4 +36,5 @@ jobs:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           WORKSPACE: ${{ inputs.workspace }}
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          DOMAIN: ${{ inputs.domain }}
         run: bash .github/scripts/create-render-service.sh

@@ -16,6 +16,7 @@
 #   WORKSPACE         the Render workspace to create it in, by name
 #   SERVICE_NAME      defaults to the name in render.yaml
 #   REPO_URL          the repository the service builds from
+#   DOMAIN            the address to attach, e.g. app.example.com
 set -euo pipefail
 
 die() { echo "::error title=Service not created::$*"; exit 1; }
@@ -85,10 +86,32 @@ esac
 id=$(jq -r '.service.id // .id // empty' /tmp/created.json)
 [ -n "$id" ] || die "Render created something but named no service."
 echo "Created ${name}."
+
+# A service nobody can reach is not finished. Attaching the address is another API call, so
+# it happens here rather than being handed over as a thing to go and click.
+domain_note="No domain was given, so none was attached."
+if [ -n "${DOMAIN:-}" ]; then
+  dstatus=$(api -o /tmp/domain.json -w '%{http_code}' -X POST \
+    --data "$(jq -n --arg n "$DOMAIN" '{name: $n}')" \
+    "https://api.render.com/v1/services/${id}/custom-domains")
+  case "$dstatus" in
+    2*) domain_note="${DOMAIN} is attached. It serves once DNS points at this service and Render verifies it." ;;
+    409|422)
+      domain_note="${DOMAIN} could not be attached because something else already holds it — most likely the old Vercel project. Remove it there, then attach it here."
+      ;;
+    *)
+      domain_note="${DOMAIN} was not attached; Render answered ${dstatus}. The service itself is fine."
+      ;;
+  esac
+  echo "$domain_note"
+fi
+
 {
   echo "### ${name} exists now"
   echo ""
   echo "- Plan: ${plan}. Auto-deploy off, as render.yaml asks — deploys come from the Deploy workflow."
-  echo "- Next: attach the domain to it, and add RENDER_API_KEY to this repository if it is not there."
+  echo "- ${domain_note}"
+  echo "- It has no settings yet. The first deploy writes them once Infisical is set up; until then"
+  echo "  it will start and fail its health check, which is expected rather than broken."
   echo "- Then delete this workflow and its script. They have done their job."
 } >> "${GITHUB_STEP_SUMMARY:-/dev/stdout}"
