@@ -7,7 +7,7 @@ Deployed to `app.farahbrunache.com`. The page One Percent is sold from lives sep
 
 1. `/buy` asks only how somebody is paying: Wise from anywhere, or an Amazon gift card for
    somebody with no bank account. No name, no email address, no phone number, no location.
-2. They get a claim link and a six-character reference. A transfer goes to the destination
+2. They get a claim link and a reference. A transfer goes to the destination
    shown with that reference in the note; a gift card carries its code instead. The link is
    their only record, and nothing else stored could find their order.
 3. `/admin` shows what is waiting — the reference to match in Wise, or the card code to

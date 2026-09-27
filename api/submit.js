@@ -85,7 +85,7 @@ export default handle('POST', async (req, res) => {
 
   const token = claimToken();
 
-  // Six characters from a reduced alphabet collide eventually. Try a few rather than
+  // A random reference collides eventually, however long it is. Try a few rather than
   // handing two live orders the same reference for the owner to tell apart.
   let reference = null;
   for (let attempt = 0; attempt < 8 && !reference; attempt += 1) {
