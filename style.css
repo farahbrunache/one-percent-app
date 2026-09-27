@@ -328,10 +328,12 @@ button.danger { background: transparent; color: var(--ink-soft); border: 1px sol
   letter-spacing: 0.06em;
 }
 
+/* Sized for a ten-character reference and its dash on a phone. It was larger when a reference
+   was six characters; at that size the longer one runs off the side of the screen. */
 .big-code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 2.6rem;
-  letter-spacing: 0.18em;
+  font-size: 2rem;
+  letter-spacing: 0.14em;
   font-variant-numeric: tabular-nums;
   margin-top: 0.3rem;
 }

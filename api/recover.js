@@ -3,7 +3,7 @@
 
 import { ensureSchema, sql, underLimit } from '../lib/db.js';
 import { callerKey, claimToken, keyedHash, normalizeCardCode } from '../lib/crypto.js';
-import { normalizeReference } from '../lib/orders.js';
+import { looksLikeReference, normalizeReference } from '../lib/orders.js';
 import { HttpError, handle, readJson, send } from '../lib/http.js';
 
 export default handle('POST', async (req, res) => {
@@ -12,9 +12,10 @@ export default handle('POST', async (req, res) => {
   const reference = normalizeReference(raw);
   const cardCode = normalizeCardCode(raw);
 
-  // A reference is six characters plus a dash; a gift card code is longer. Either is accepted
-  // without asking which one somebody is holding.
-  if (reference.length !== 7 && cardCode.length < 8) {
+  // A reference is a grouped run of readable characters; a gift card code is longer and has no
+  // group. Either is accepted without asking which one somebody is holding.
+  const asReference = looksLikeReference(reference);
+  if (!asReference && cardCode.length < 8) {
     throw new HttpError(400, 'Enter your reference, or the gift card code you sent.');
   }
 
@@ -26,7 +27,7 @@ export default handle('POST', async (req, res) => {
 
   const rows = await sql()`
     select id from orders
-     where reference_code = ${reference.length === 7 ? reference : null}
+     where reference_code = ${asReference ? reference : null}
         or card_code_hash = ${cardCode.length >= 8 ? keyedHash(cardCode) : null}
      limit 1
   `;

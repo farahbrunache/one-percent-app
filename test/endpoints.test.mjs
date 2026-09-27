@@ -121,15 +121,21 @@ check('wise: names the missing setting', /PAY_WISE/.test(r.payload?.error || '')
 
 check('every rejection carries a message', typeof r.payload?.error === 'string' && r.payload.error.length > 20, r.payload);
 
-// The reference is spoken and typed, so it must avoid characters people confuse.
-const { referenceCode, normalizeReference } = await import('../lib/orders.js');
+// The reference is spoken and typed, so it must avoid characters people confuse. It is also
+// what the recovery form accepts, so it has to be long enough that guessing one is hopeless.
+const { referenceCode, normalizeReference, looksLikeReference } = await import('../lib/orders.js');
 let refOk = true;
 for (let i = 0; i < 500; i += 1) {
   const ref = referenceCode((n) => Math.floor(Math.random() * n));
-  if (!/^[A-Z0-9]{3}-[A-Z0-9]{3}$/.test(ref) || /[O0I1S5]/.test(ref)) { refOk = false; break; }
+  if (!/^[A-Z0-9]{5}-[A-Z0-9]{5}$/.test(ref) || /[O0I1S5]/.test(ref)) { refOk = false; break; }
 }
-check('reference is six readable characters, no lookalikes', refOk);
-check('reference normalizes from loose typing', normalizeReference(' abc def ') === 'ABC-DEF', normalizeReference(' abc def '));
+check('reference is ten readable characters, no lookalikes', refOk);
+check('reference normalizes from loose typing', normalizeReference(' abcde fghjk ') === 'ABCDE-FGHJK', normalizeReference(' abcde fghjk '));
+// References issued before the change are six characters. They stay valid, so both shapes
+// normalize and both are recognized.
+check('a six-character reference still normalizes', normalizeReference(' abc def ') === 'ABC-DEF', normalizeReference(' abc def '));
+check('both lengths are recognized', looksLikeReference('ABC-DEF') && looksLikeReference('ABCDE-FGHJK'));
+check('a partial reference is not', !looksLikeReference('ABCD') && !looksLikeReference('') && !looksLikeReference('ABCDEFGHJ'));
 
 console.log('status');
 r = await run(status, 'GET', '/api/status');
