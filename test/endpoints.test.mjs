@@ -131,11 +131,8 @@ for (let i = 0; i < 500; i += 1) {
 }
 check('reference is ten readable characters, no lookalikes', refOk);
 check('reference normalizes from loose typing', normalizeReference(' abcde fghjk ') === 'ABCDE-FGHJK', normalizeReference(' abcde fghjk '));
-// References issued before the change are six characters. They stay valid, so both shapes
-// normalize and both are recognized.
-check('a six-character reference still normalizes', normalizeReference(' abc def ') === 'ABC-DEF', normalizeReference(' abc def '));
-check('both lengths are recognized', looksLikeReference('ABC-DEF') && looksLikeReference('ABCDE-FGHJK'));
-check('a partial reference is not', !looksLikeReference('ABCD') && !looksLikeReference('') && !looksLikeReference('ABCDEFGHJ'));
+check('a full reference is recognized', looksLikeReference('ABCDE-FGHJK'));
+check('anything shorter is not', !looksLikeReference('ABC-DEF') && !looksLikeReference('ABCD') && !looksLikeReference('') && !looksLikeReference('ABCDEFGHJ'));
 
 console.log('status');
 r = await run(status, 'GET', '/api/status');
