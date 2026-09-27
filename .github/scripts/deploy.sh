@@ -16,10 +16,21 @@
 # green build that shipped nothing is worse than a red one.
 #
 # Inputs (environment variables)
+# Before Infisical is set up
+# ─────────────────────────
+# Infisical can only be administered from a laptop, and this has to work before there is
+# one. With no Infisical credentials configured, the settings step is skipped and Render
+# deploys with whatever it already holds — entered by hand in its dashboard, which a phone
+# can do. The skip is announced rather than silent, because a deploy that quietly used
+# whatever was lying around is the kind of thing nobody notices until it is wrong.
+#
+# Adding the Infisical secrets to the repository later switches it over. No code changes.
+#
+# Inputs (environment variables)
 #   RENDER_API_KEY        required — rnd_…
 #   RENDER_SERVICE_NAME   the service's name in Render; its id is looked up from that
-#   INFISICAL_TOKEN       required — from a machine identity login
-#   INFISICAL_PROJECT_ID  required — the One Percent project
+#   INFISICAL_TOKEN       optional — from a machine identity login; without it, see above
+#   INFISICAL_PROJECT_ID  optional — the One Percent project; without it, see above
 set -euo pipefail
 
 # Every setting the service needs. The list lives here rather than being read from somewhere
@@ -39,32 +50,38 @@ KEYS=(
 die() { echo "::error title=Deploy stopped::$*"; exit 1; }
 
 [ -n "${RENDER_API_KEY:-}" ] || die "RENDER_API_KEY is not set."
-[ -n "${INFISICAL_TOKEN:-}" ] || die "INFISICAL_TOKEN is not set."
-[ -n "${INFISICAL_PROJECT_ID:-}" ] || die "INFISICAL_PROJECT_ID is not set."
 name="${RENDER_SERVICE_NAME:-one-percent-app}"
 
-echo "Reading the settings out of Infisical…"
-infisical export \
-  --projectId "$INFISICAL_PROJECT_ID" \
-  --env production \
-  --format json \
-  --token "$INFISICAL_TOKEN" > /tmp/secrets.json
-
-# Refuse before touching Render if anything is missing. A write replaces every variable on
-# the service, so sending an incomplete set would take the site down.
-missing=()
-for key in "${KEYS[@]}"; do
-  jq -e --arg k "$key" \
-    'map(select(.secretKey == $k and (.secretValue | length) > 0)) | length > 0' \
-    /tmp/secrets.json > /dev/null 2>&1 || missing+=("$key")
-done
-if [ "${#missing[@]}" -gt 0 ]; then
-  die "Infisical has no value for: ${missing[*]}. Nothing was changed on Render."
+sync_settings=yes
+if [ -z "${INFISICAL_TOKEN:-}" ] || [ -z "${INFISICAL_PROJECT_ID:-}" ]; then
+  sync_settings=no
+  echo "::notice title=Settings not synced::Infisical is not configured for this repository, so Render will deploy with the settings already on the service. Add INFISICAL_CLIENT_ID, INFISICAL_CLIENT_SECRET, INFISICAL_PROJECT_ID and INFISICAL_URL to switch this on."
 fi
 
-jq -c --argjson keys "$(printf '%s\n' "${KEYS[@]}" | jq -R . | jq -sc .)" \
-  'map(select(.secretKey as $k | $keys | index($k))) | map({key: .secretKey, value: .secretValue})' \
-  /tmp/secrets.json > /tmp/env-vars.json
+if [ "$sync_settings" = yes ]; then
+  echo "Reading the settings out of Infisical…"
+  infisical export \
+    --projectId "$INFISICAL_PROJECT_ID" \
+    --env production \
+    --format json \
+    --token "$INFISICAL_TOKEN" > /tmp/secrets.json
+
+  # Refuse before touching Render if anything is missing. A write replaces every variable on
+  # the service, so sending an incomplete set would take the site down.
+  missing=()
+  for key in "${KEYS[@]}"; do
+    jq -e --arg k "$key" \
+      'map(select(.secretKey == $k and (.secretValue | length) > 0)) | length > 0' \
+      /tmp/secrets.json > /dev/null 2>&1 || missing+=("$key")
+  done
+  if [ "${#missing[@]}" -gt 0 ]; then
+    die "Infisical has no value for: ${missing[*]}. Nothing was changed on Render."
+  fi
+
+  jq -c --argjson keys "$(printf '%s\n' "${KEYS[@]}" | jq -R . | jq -sc .)" \
+    'map(select(.secretKey as $k | $keys | index($k))) | map({key: .secretKey, value: .secretValue})' \
+    /tmp/secrets.json > /tmp/env-vars.json
+fi
 
 echo "Finding the Render service named '${name}'…"
 curl -sS -f -H "Authorization: Bearer $RENDER_API_KEY" \
@@ -74,13 +91,17 @@ id=$(jq -r --arg n "$name" \
   'map(.service) | map(select(.name == $n)) | .[0].id // empty' /tmp/services.json)
 [ -n "$id" ] || die "No Render service named '${name}' exists under this API key."
 
-echo "Writing ${#KEYS[@]} settings to Render…"
-curl -sS -f -X PUT \
-  -H "Authorization: Bearer $RENDER_API_KEY" \
-  -H "Content-Type: application/json" \
-  --data @/tmp/env-vars.json \
-  "https://api.render.com/v1/services/${id}/env-vars" > /dev/null \
-  || die "Render refused the settings. Nothing was deployed."
+if [ "$sync_settings" = yes ]; then
+  echo "Writing ${#KEYS[@]} settings to Render…"
+  curl -sS -f -X PUT \
+    -H "Authorization: Bearer $RENDER_API_KEY" \
+    -H "Content-Type: application/json" \
+    --data @/tmp/env-vars.json \
+    "https://api.render.com/v1/services/${id}/env-vars" > /dev/null \
+    || die "Render refused the settings. Nothing was deployed."
+else
+  echo "Leaving the settings on Render as they are."
+fi
 
 echo "Asking Render to deploy…"
 curl -sS -f -X POST \

@@ -113,6 +113,12 @@ would take the site down.
 
 Never put a value in either file. This repository is public.
 
+Infisical can only be administered from a laptop, and the owner works from a phone. Until it
+is set up, the settings are entered by hand in Render and the deploy leaves them alone,
+saying so in its log rather than passing over it silently. Adding the four Infisical secrets
+to the repository switches it over; nothing in the code changes. Do not build a second path
+for the interim — there is one deploy, and it already handles both.
+
 ### One instance, two projects
 
 The Infisical instance is Charging The Future's. One Percent has its own project inside it

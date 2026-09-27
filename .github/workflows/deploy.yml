@@ -32,7 +32,23 @@ jobs:
           # Test-only values. No test reaches a database or a network.
           CARD_ENCRYPTION_KEY: test-key-that-is-long-enough-to-pass-0123456789
 
+      # Infisical can only be administered from a laptop, so this has to work before one
+      # exists. Without those secrets the settings step is skipped and Render deploys with
+      # what it already holds; adding them later switches it over with no code change.
+      - name: Is Infisical configured yet?
+        id: settings
+        env:
+          CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+        run: |
+          if [ -n "$CLIENT_ID" ] && [ -n "$PROJECT_ID" ]; then
+            echo "ready=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=no" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install the Infisical command line
+        if: steps.settings.outputs.ready == 'yes'
         run: |
           curl -1sLf 'https://dl.cloudsmith.io/public/infisical/infisical-cli/setup.deb.sh' \
             | sudo -E bash
@@ -40,6 +56,7 @@ jobs:
 
       - name: Sign in to Infisical
         id: infisical
+        if: steps.settings.outputs.ready == 'yes'
         env:
           INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}

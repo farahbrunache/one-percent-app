@@ -24,7 +24,10 @@ link somebody paid for, so the gate is structural rather than a secret.
 ## Settings
 
 Settings are written in Infisical, once, and the deploy workflow copies them onto the Render
-service on its way past. Nothing is typed into a hosting dashboard, and adding one to the
+service on its way past. Until Infisical is set up — it can only be administered from a
+laptop — the settings are entered by hand in the Render dashboard, which a phone can do, and
+the workflow leaves them alone and says in its log that it did. Adding the four Infisical
+secrets to the repository switches it over with no code change. Nothing is typed into a hosting dashboard, and adding one to the
 list is a change to `.github/scripts/deploy.sh` that somebody reviews.
 
 Render needs the copy because the service reads ordinary environment variables at boot: a
