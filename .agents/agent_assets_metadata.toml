@@ -14,3 +14,17 @@ mtime_ms = 1790525412982
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:310f8762-2454-4b7e-b638-3811dacd5f10/44f4bfd4-265f-46e2-899d-2d431fd3aef5/aa4006d6-fe3b-4cb2-8d9e-be5de6630c8e"
 storage_version_token = "1790525428770439"
 content_type = "image/jpeg"
+
+[[outputs]]
+id = "muvYcWJ8fVA-TIFCSb2dr"
+uri = "file://artifacts/operator-command-center/command-center-mobile-shell.jpg"
+type = "image"
+title = "Operator command center — fixed mobile viewport"
+description = "Desktop verification screenshot showing the same centered mobile-first operator shell used at every viewport size."
+logical_id = "29e86035-b821-4d17-b98f-d0da4dac7875"
+content_hash = "sha256:fde1d740e2368122f6fa160d96c215396ae49de5cc11f1240f7f3c52987bac70"
+size = 34112
+mtime_ms = 1790525877718
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:310f8762-2454-4b7e-b638-3811dacd5f10/29e86035-b821-4d17-b98f-d0da4dac7875/d851d896-71b7-4311-9a36-a01c86b7873d"
+storage_version_token = "1790525893323081"
+content_type = "image/jpeg"
