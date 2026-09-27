@@ -74,6 +74,12 @@ check('the payments screen is never cached or indexed',
   r.headers['cache-control'] === 'no-store' &&
     r.headers['x-robots-tag'] === 'noindex, nofollow', r.headers);
 r = makeRes();
+await route(makeReq('GET', '/desk'), r);
+check('the desk is served', r.statusCode === 200 && /Desk/.test(r.body || ''), r.statusCode);
+check('the desk is never cached or indexed',
+  r.headers['cache-control'] === 'no-store' &&
+    r.headers['x-robots-tag'] === 'noindex, nofollow', r.headers);
+r = makeRes();
 await route(makeReq('GET', '/buy.html'), r);
 check('the file name sends you to the address', r.statusCode === 308 &&
   r.headers.location === '/buy', r.headers);
@@ -237,8 +243,35 @@ r = await run(client, 'POST', '/api/client?action=nonsense', {});
 check('an unknown client action is refused', r.statusCode === 400, r.payload);
 r = await run(client, 'DELETE', '/api/client');
 check('rejects an unsupported method', r.statusCode === 405, r.payload);
-r = await run(admin, 'POST', '/api/admin?action=approve-client', { id: 1 });
-check('approving a client refuses without a session', r.statusCode === 401, r.payload);
+
+console.log('the desk');
+const desk = (await import('../api/desk.js')).default;
+r = await run(desk, 'GET', '/api/desk?action=queue');
+check('the queue refuses without a session', r.statusCode === 401, r.payload);
+r = await run(desk, 'GET', '/api/desk?action=person&id=1');
+check('a person refuses without a session', r.statusCode === 401, r.payload);
+r = await run(desk, 'POST', '/api/desk?action=assess', { id: 1, assessment: 'go' });
+check('a decision refuses without a session', r.statusCode === 401, r.payload);
+r = await run(desk, 'POST', '/api/desk?action=milestone-record', { id: 1, milestoneId: 1, status: 'worked' });
+check('recording an outcome refuses without a session', r.statusCode === 401, r.payload);
+r = await run(desk, 'GET', '/api/desk?action=nonsense');
+check('an unknown desk action is refused', r.statusCode === 400, r.payload);
+check('and the refusal names the ones that exist', /queue/.test(r.payload?.error || ''), r.payload);
+r = await run(desk, 'DELETE', '/api/desk');
+check('the desk rejects an unsupported method', r.statusCode === 405, r.payload);
+
+// The vocabulary is closed so that every screen can render a label for every value.
+const vocab = await import('../lib/desk.js');
+check('the two paths are the ones the pitches name',
+  vocab.isPlanPath('reach') && vocab.isPlanPath('smallest') && !vocab.isPlanPath('other'));
+check('a milestone can be recorded as stalled or ghosted',
+  vocab.isMilestoneStatus('stalled') && vocab.isMilestoneStatus('ghosted'));
+check('an invented status is refused', !vocab.isMilestoneStatus('abandoned'));
+check('the decision is go or no-go and nothing else',
+  vocab.isAssessment('go') && vocab.isAssessment('no-go') && !vocab.isAssessment('maybe'));
+check('the queues are the three that exist',
+  vocab.isQueueState('waiting') && vocab.isQueueState('active') && vocab.isQueueState('closed')
+    && !vocab.isQueueState('all'));
 
 console.log('the transcript coming back');
 const retell = (await import('../api/retell.js')).default;
@@ -282,8 +315,6 @@ r = await run(authEndpoint, 'GET', '/api/auth?action=callback&code=x&state=y&to=
 check('a backslash address cannot send the browser away',
   r.statusCode === 302 && !/evil\.example/.test(r.headers.location || ''), r.headers);
 
-r = await run(admin, 'GET', '/api/admin?action=transcript&id=1');
-check('a transcript refuses without a session', r.statusCode === 401, r.payload);
 
 console.log('starting a session');
 r = await run(call, 'GET', '/api/call');

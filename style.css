@@ -369,3 +369,24 @@ button.danger { background: transparent; color: var(--ink-soft); border: 1px sol
   overflow-wrap: anywhere;
   color: var(--ink);
 }
+
+/* The three queues on the desk. Links rather than toggles, because which one is open belongs
+   in the address — a place in a list has to survive the back button. */
+.tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+.tab {
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 0.3rem 0.85rem;
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+.tab.on {
+  border-color: var(--accent);
+  color: var(--ink);
+}

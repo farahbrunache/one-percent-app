@@ -1,6 +1,6 @@
 // The web server.
 //
-// Five pages and five endpoints. Everything a platform used to do from a configuration
+// Six pages and eight endpoints. Everything a platform used to do from a configuration
 // file — which file answers which address, the headers, the one redirect, the one rewrite —
 // is in this file instead, where it can be read and tested rather than trusted.
 //
@@ -20,6 +20,7 @@ const PAGES = {
   '/buy': ['buy.html', 'text/html; charset=utf-8'],
   '/claim': ['claim.html', 'text/html; charset=utf-8'],
   '/admin': ['admin.html', 'text/html; charset=utf-8'],
+  '/desk': ['desk.html', 'text/html; charset=utf-8'],
   '/style.css': ['style.css', 'text/css; charset=utf-8'],
   '/robots.txt': ['robots.txt', 'text/plain; charset=utf-8'],
 };
@@ -30,14 +31,16 @@ const ENDPOINTS = {
   '/api/recover': () => import('./api/recover.js'),
   '/api/call': () => import('./api/call.js'),
   '/api/admin': () => import('./api/admin.js'),
+  '/api/desk': () => import('./api/desk.js'),
   '/api/auth': () => import('./api/auth.js'),
   '/api/retell': () => import('./api/retell.js'),
   '/api/client': () => import('./api/client.js'),
 };
 
-// The claim link and the payments screen must never be held by a browser or anything
-// between it and here: one shows an order's live state, the other shows card codes.
-const NEVER_CACHE = new Set(['/claim', '/admin']);
+// The claim link, the payments screen and the desk must never be held by a browser or
+// anything between it and here: one shows an order's live state, one shows card codes, and
+// the third shows what somebody said in half an hour of their life.
+const NEVER_CACHE = new Set(['/claim', '/admin', '/desk']);
 
 function securityHeaders(res) {
   res.setHeader('x-content-type-options', 'nosniff');

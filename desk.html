@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Desk — One Percent</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&display=swap">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main class="wrap">
+
+  <div id="signin" hidden>
+    <h1>Desk</h1>
+    <p class="lede">Sign in with Skills Economy to read what came back.</p>
+    <div class="actions"><a class="button" id="lgo" href="/api/auth?action=start&amp;to=/desk">Sign in with Skills Economy</a></div>
+    <div id="lmsg" hidden></div>
+  </div>
+
+  <div id="starting"><p class="meta">Checking who you are.</p></div>
+
+  <!-- The queue. Which one and which page are both in the address, so a place in a list can
+       be returned to and the back button does what it looks like it does. -->
+  <div id="queue" hidden>
+    <h1>Desk</h1>
+    <nav class="tabs" id="tabs"></nav>
+    <p class="meta" id="qcount"></p>
+    <div id="people" class="rows" aria-live="polite"></div>
+    <div class="actions" id="pager" hidden></div>
+    <div class="actions">
+      <a class="button quiet-link" href="/admin">Payments</a>
+      <button type="button" class="quiet" id="logout">Sign out</button>
+    </div>
+  </div>
+
+  <!-- One person. Its own address, so it can be linked, bookmarked and come back to. -->
+  <div id="record" hidden>
+    <p class="meta"><a href="/desk" id="back">Back to the queue</a></p>
+    <h1 id="ref"></h1>
+    <p class="meta" id="called"></p>
+    <div id="rmsg" hidden></div>
+
+    <h2>The call</h2>
+    <details id="tdetails">
+      <summary>Read the transcript</summary>
+      <div class="transcript"><pre id="transcript"></pre></div>
+      <div class="actions"><button type="button" class="quiet" id="copy">Copy the transcript</button></div>
+    </details>
+
+    <h2>Go or no-go</h2>
+    <p class="meta">Read it first. Nothing here decides on its own, and a decision can be changed — both stay on the record.</p>
+    <p id="assessed" class="status-line" hidden></p>
+    <div class="actions" id="assess"></div>
+
+    <h2>The path</h2>
+    <p class="meta">Two paths, neither above the other.</p>
+    <div id="plan"></div>
+
+    <h2>Milestones</h2>
+    <p class="meta">A stalled step is something that happened, not a verdict on anybody.</p>
+    <div id="steps" class="rows"></div>
+    <form class="fields" id="addstep" hidden novalidate>
+      <div class="field">
+        <label for="steptitle">Add a step</label>
+        <input id="steptitle" type="text" autocomplete="off" maxlength="300">
+      </div>
+      <div class="actions"><button type="submit" class="quiet">Add</button></div>
+    </form>
+
+    <h2>The record</h2>
+    <form class="fields" id="addnote" novalidate>
+      <div class="field">
+        <label for="note">Add a note</label>
+        <textarea id="note" rows="3"></textarea>
+      </div>
+      <div class="actions"><button type="submit" class="quiet">Write it down</button></div>
+    </form>
+    <div id="events" class="rows"></div>
+  </div>
+
+</main>
+
+<script type="module">
+  const STATES = [
+    ['waiting', 'Waiting on you'],
+    ['active', 'Working'],
+    ['closed', 'Closed'],
+  ];
+  const STATUSES = ['planned', 'in progress', 'worked', 'changed direction', 'stalled', 'ghosted'];
+
+  const here = new URL(window.location.href);
+  const personId = here.searchParams.get('id');
+  const state = here.searchParams.get('state') || 'waiting';
+  const page = Math.max(1, Number(here.searchParams.get('page')) || 1);
+
+  function el(tag, text, className) {
+    const node = document.createElement(tag);
+    if (text) node.textContent = text;
+    if (className) node.className = className;
+    return node;
+  }
+
+  function link(text, href, className) {
+    const a = el('a', text, className);
+    a.href = href;
+    return a;
+  }
+
+  function msg(id, text, kind) {
+    const box = document.getElementById(id);
+    box.hidden = false;
+    box.className = 'msg ' + (kind || '');
+    box.textContent = text;
+  }
+
+  async function call(url, options) {
+    const response = await fetch(url, options);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error(data.error || `The server returned ${response.status}.`);
+      error.status = response.status;
+      throw error;
+    }
+    return data;
+  }
+
+  function post(action, body) {
+    return call(`/api/desk?action=${action}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  }
+
+  function when(value) {
+    return value ? new Date(value).toLocaleString() : 'not yet';
+  }
+
+  function minutes(seconds) {
+    return seconds ? `${Math.round(seconds / 60)} min` : 'length not recorded';
+  }
+
+  // ---- the queue -------------------------------------------------------------------
+
+  function renderTabs(active) {
+    const tabs = document.getElementById('tabs');
+    tabs.textContent = '';
+    for (const [value, label] of STATES) {
+      const a = link(label, `/desk?state=${value}`, value === active ? 'tab on' : 'tab');
+      if (value === active) a.setAttribute('aria-current', 'page');
+      tabs.append(a);
+    }
+  }
+
+  function renderPager(data) {
+    const pager = document.getElementById('pager');
+    pager.textContent = '';
+    const last = Math.max(1, Math.ceil(data.total / data.perPage));
+    if (last === 1) { pager.hidden = true; return; }
+    pager.hidden = false;
+    if (data.page > 1) pager.append(link('Newer', `/desk?state=${data.state}&page=${data.page - 1}`, 'button quiet-link'));
+    pager.append(el('span', `Page ${data.page} of ${last}`, 'meta'));
+    if (data.page < last) pager.append(link('Older', `/desk?state=${data.state}&page=${data.page + 1}`, 'button quiet-link'));
+  }
+
+  function renderQueue(data) {
+    renderTabs(data.state);
+    const first = (data.page - 1) * data.perPage + 1;
+    const last = first + data.people.length - 1;
+    document.getElementById('qcount').textContent = data.total
+      ? `Showing ${first} to ${last} of ${data.total}.`
+      : 'Nothing in this one.';
+
+    const list = document.getElementById('people');
+    list.textContent = '';
+    for (const person of data.people) {
+      const row = el('div', null, 'row');
+      row.append(link(person.reference || `Order ${person.id}`, `/desk?id=${person.id}`, 'code'));
+      row.append(el('div', `${when(person.calledAt)} · ${minutes(person.seconds)}`, 'meta'));
+      if (person.planLabel) row.append(el('div', person.planLabel, 'meta'));
+      if (!person.linked) row.append(el('div', 'No account linked yet', 'meta'));
+      list.append(row);
+    }
+    renderPager(data);
+  }
+
+  // ---- one person ------------------------------------------------------------------
+
+  function renderAssess(person) {
+    const box = document.getElementById('assess');
+    const said = document.getElementById('assessed');
+    box.textContent = '';
+    if (person.assessment) {
+      said.hidden = false;
+      said.textContent = `${person.assessment === 'go' ? 'Go' : 'No-go'}, ${when(person.assessedAt)}.`;
+    } else {
+      said.hidden = true;
+    }
+    for (const [value, label] of [['go', 'Go'], ['no-go', 'No-go']]) {
+      const button = el('button', label, value === person.assessment ? null : 'quiet');
+      button.type = 'button';
+      button.style.flex = '1';
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        try {
+          await post('assess', { id: person.id, assessment: value });
+          window.location.reload();
+        } catch (error) {
+          button.disabled = false;
+          msg('rmsg', error.message, 'bad');
+        }
+      });
+      box.append(button);
+    }
+  }
+
+  function renderPlan(person) {
+    const box = document.getElementById('plan');
+    box.textContent = '';
+    if (person.plan) {
+      const now = el('div', null, 'row');
+      now.append(el('div', person.plan.label, null));
+      now.append(el('div', `Set ${when(person.plan.setAt)}`, 'meta'));
+      box.append(now);
+    }
+    const choices = el('div', null, 'actions');
+    for (const [value, label] of [['reach', 'Reaching past the average'], ['smallest', 'The smallest number']]) {
+      if (person.plan && person.plan.path === value) continue;
+      const button = el('button', label, 'quiet');
+      button.type = 'button';
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        try {
+          await post('plan', { id: person.id, path: value });
+          window.location.reload();
+        } catch (error) {
+          button.disabled = false;
+          msg('rmsg', error.message, 'bad');
+        }
+      });
+      choices.append(button);
+    }
+    box.append(choices);
+    for (const former of person.formerPlans) {
+      box.append(el('p', `Was on ${former.label} from ${when(former.setAt)}.`, 'meta'));
+    }
+  }
+
+  function renderSteps(person) {
+    const list = document.getElementById('steps');
+    list.textContent = '';
+    document.getElementById('addstep').hidden = !person.plan;
+    if (!person.plan) {
+      list.append(el('p', 'Set a path first. A milestone belongs to one.', 'meta'));
+      return;
+    }
+    if (!person.milestones.length) {
+      list.append(el('p', 'No steps yet.', 'meta'));
+    }
+    for (const step of person.milestones) {
+      const row = el('div', null, 'row');
+      row.append(el('div', `${step.position}. ${step.title}`, null));
+      row.append(el('div', `${step.status} · ${when(step.updatedAt)}`, 'meta'));
+      if (step.outcome) row.append(el('div', step.outcome, 'meta'));
+
+      const form = el('form', null, 'fields');
+      const field = el('div', null, 'field');
+      const label = el('label', 'What happened');
+      const outcome = el('textarea');
+      outcome.rows = 2;
+      outcome.value = step.outcome || '';
+      outcome.id = `outcome-${step.id}`;
+      label.htmlFor = outcome.id;
+      field.append(label, outcome);
+
+      const pickField = el('div', null, 'field');
+      const pickLabel = el('label', 'Status');
+      const pick = el('select');
+      pick.id = `status-${step.id}`;
+      pickLabel.htmlFor = pick.id;
+      for (const status of STATUSES) {
+        const option = el('option', status);
+        option.value = status;
+        if (status === step.status) option.selected = true;
+        pick.append(option);
+      }
+      pickField.append(pickLabel, pick);
+
+      const actions = el('div', null, 'actions');
+      const save = el('button', 'Record it', 'quiet');
+      save.type = 'submit';
+      actions.append(save);
+      form.append(pickField, field, actions);
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        save.disabled = true;
+        try {
+          await post('milestone-record', {
+            id: person.id,
+            milestoneId: step.id,
+            status: pick.value,
+            outcome: outcome.value,
+          });
+          window.location.reload();
+        } catch (error) {
+          save.disabled = false;
+          msg('rmsg', error.message, 'bad');
+        }
+      });
+      row.append(form);
+      list.append(row);
+    }
+  }
+
+  function renderEvents(person) {
+    const list = document.getElementById('events');
+    list.textContent = '';
+    if (!person.events.length) {
+      list.append(el('p', 'Nothing written down yet.', 'meta'));
+      return;
+    }
+    for (const event of person.events) {
+      const row = el('div', null, 'row');
+      row.append(el('div', event.label, null));
+      row.append(el('div', when(event.at), 'meta'));
+      if (event.detail) row.append(el('div', event.detail, 'meta'));
+      list.append(row);
+    }
+  }
+
+  function renderPerson(person) {
+    document.getElementById('ref').textContent = person.reference || `Order ${person.id}`;
+    document.getElementById('called').textContent =
+      `Called ${when(person.calledAt)} · ${minutes(person.seconds)}` +
+      (person.linked ? '' : ' · no account linked yet');
+    const transcript = document.getElementById('transcript');
+    const copy = document.getElementById('copy');
+    if (person.transcript) {
+      transcript.textContent = person.transcript;
+      // The next conversation gets started somewhere else, so getting the words out as plain
+      // text is the point rather than a convenience.
+      copy.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(person.transcript);
+          copy.textContent = 'Copied';
+        } catch {
+          copy.textContent = 'Select it by hand';
+        }
+        setTimeout(() => { copy.textContent = 'Copy the transcript'; }, 2000);
+      });
+    } else {
+      document.getElementById('tdetails').hidden = true;
+    }
+    renderAssess(person);
+    renderPlan(person);
+    renderSteps(person);
+    renderEvents(person);
+
+    document.getElementById('addstep').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const input = document.getElementById('steptitle');
+      try {
+        await post('milestone-add', { id: person.id, title: input.value });
+        window.location.reload();
+      } catch (error) {
+        msg('rmsg', error.message, 'bad');
+      }
+    });
+
+    document.getElementById('addnote').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const input = document.getElementById('note');
+      try {
+        await post('note', { id: person.id, note: input.value });
+        window.location.reload();
+      } catch (error) {
+        msg('rmsg', error.message, 'bad');
+      }
+    });
+  }
+
+  // ---- getting started -------------------------------------------------------------
+
+  document.getElementById('logout').addEventListener('click', () => {
+    window.location.href = '/api/auth?action=signout&to=/desk';
+  });
+
+  async function start() {
+    const url = personId
+      ? `/api/desk?action=person&id=${encodeURIComponent(personId)}`
+      : `/api/desk?action=queue&state=${encodeURIComponent(state)}&page=${page}`;
+    try {
+      const data = await call(url);
+      document.getElementById('starting').hidden = true;
+      if (personId) {
+        document.getElementById('record').hidden = false;
+        renderPerson(data);
+      } else {
+        document.getElementById('queue').hidden = false;
+        renderQueue(data);
+      }
+    } catch (error) {
+      document.getElementById('starting').hidden = true;
+      if (error.status === 401) {
+        document.getElementById('signin').hidden = false;
+        document.getElementById('lgo').href =
+          `/api/auth?action=start&to=${encodeURIComponent(here.pathname + here.search)}`;
+        return;
+      }
+      document.getElementById('signin').hidden = false;
+      msg('lmsg', error.message, 'bad');
+    }
+  }
+
+  start();
+</script>
+
+</body>
+</html>
