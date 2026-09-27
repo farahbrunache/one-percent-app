@@ -130,8 +130,8 @@
     if (data.status === 'confirmed') {
       statusLine('Status', 'Your session is ready');
 
-      lede('This runs in your browser. You will be asked for your microphone — that is the '
-        + 'session starting, and nothing is asked of you before it.');
+      lede('This runs in your browser. Your microphone is asked for first, then it counts down '
+        + 'and starts speaking. Thirty minutes, and nothing is asked of you beforehand.');
 
       const start = el('p', null, 'cta');
       const button = document.createElement('button');
@@ -188,10 +188,64 @@
     target.append(el('p', text));
   }
 
+  // Why the microphone is asked for here, before anything else happens: a browser that will
+  // not allow it was never going to work, and finding that out after the session has been
+  // opened spends one of three starts on a call that cannot happen.
+  async function microphone(target) {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      callMessage(
+        target,
+        'This browser will not let the page use a microphone at all. Open this link in '
+          + 'Safari, Chrome or Firefox and it will work.',
+        'bad',
+      );
+      return false;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Permission is all that was wanted. The voice client opens its own.
+      for (const track of stream.getTracks()) track.stop();
+      return true;
+    } catch (error) {
+      const name = error?.name || '';
+      if (name === 'NotFoundError' || name === 'OverconstrainedError') {
+        callMessage(target, 'This device has no microphone the browser can find.', 'bad');
+      } else if (name === 'NotReadableError') {
+        callMessage(
+          target,
+          'Something else on this device is holding the microphone. Close any other call or '
+            + 'recording and try again.',
+          'bad',
+        );
+      } else {
+        // Everything else is the browser refusing, and most of the time it refused without
+        // ever asking. Say what to change rather than what went wrong.
+        callMessage(
+          target,
+          'This browser is not letting the page ask for your microphone. Check its privacy '
+            + 'settings and allow the microphone prompt to appear, then reload this page. On '
+            + 'an iPhone, turning off Lockdown Mode for this site is usually what does it.',
+          'bad',
+        );
+      }
+      return false;
+    }
+  }
+
+  function wait(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
   async function startSession(button, target) {
     button.disabled = true;
-    callMessage(target, 'Opening the session…');
 
+    callMessage(target, 'Allow the microphone when your browser asks.');
+    if (!(await microphone(target))) {
+      button.disabled = false;
+      return;
+    }
+
+    callMessage(target, 'Opening the session…');
     let data;
     try {
       const response = await fetch('/api/call', {
@@ -210,7 +264,7 @@
     let RetellWebClient;
     try {
       ({ RetellWebClient } = await import('https://cdn.jsdelivr.net/npm/retell-client-js-sdk/+esm'));
-    } catch (error) {
+    } catch {
       callMessage(
         target,
         'Your session opened but this browser could not load the voice client. Try a different '
@@ -218,6 +272,14 @@
         'bad',
       );
       return;
+    }
+
+    // It speaks the moment it connects, and its first sentence is the one saying it is not a
+    // person and that the session is recorded. Counting in costs three seconds of thirty
+    // minutes and means somebody is listening when that sentence is said.
+    for (const count of [3, 2, 1]) {
+      callMessage(target, `Starting in ${count}. It speaks as soon as it connects.`);
+      await wait(1000);
     }
 
     try {
@@ -236,8 +298,8 @@
     } catch (error) {
       callMessage(
         target,
-        `Could not start the session: ${error.message}. If your browser refused the `
-          + 'microphone, allow it and try again.',
+        `The session did not start: ${error.message}. Reload this page and press the button `
+          + 'again — your session is still there.',
         'bad',
       );
       button.disabled = false;
