@@ -96,11 +96,67 @@ the site returns a database error on a page somebody is trying to pay from.
 
 There is no migration tool and no terminal to run one from. This function is the whole of it.
 
+## Settings are written once, in Infisical
+
+Infisical is the one place a setting is written. The deploy workflow reads them and copies
+them onto the Render service, so nothing is ever typed into a hosting dashboard and no two
+places can disagree about a value.
+
+Render holds the copy the service reads at boot. Nothing has to reach Infisical for the site
+to start, which matters for a site that takes money.
+
+A new setting is added to `KEYS` in `.github/scripts/deploy.sh` and to `render.yaml`. The
+list is in the repository rather than read from somewhere else so that adding one is a
+change somebody reviews. The deploy refuses before touching Render if Infisical has no value
+for one of them, because writing the settings replaces all of them and an incomplete set
+would take the site down.
+
+Never put a value in either file. This repository is public.
+
+Infisical can only be administered from a laptop, and the owner works from a phone. Until it
+is set up, the settings are entered by hand in Render and the deploy leaves them alone,
+saying so in its log rather than passing over it silently. Adding the four Infisical secrets
+to the repository switches it over; nothing in the code changes. Do not build a second path
+for the interim — there is one deploy, and it already handles both.
+
+### One instance, two projects
+
+The Infisical instance is Charging The Future's. One Percent has its own project inside it
+rather than its own instance.
+
+A project is the boundary, not a folder in one. A machine identity is scoped to a single
+project, so the credentials this repository's deploy workflow holds cannot read Charging The
+Future's secrets, and that product's credentials cannot read these. Nothing is shared but
+the server the two projects sit on.
+
+If both products ever need the same value, that is two secrets with two lifetimes, each
+rotated on its own. Copying one across makes a change in one place silently wrong in the
+other.
+
+The instance itself is Charging The Future's infrastructure and its cost belongs to that
+product. One Percent's expenses are counted separately and include no share of it — what is
+counted here is what appears on a bill because One Percent exists.
+
+A second instance would buy one thing a project does not: something to hand over. If One
+Percent ever needs separate ownership, that is when it gets its own. Until then it would be
+a second server, database and cache to patch, back up and keep online, and a second thing
+whose downtime stops deploys.
+
+The instance address and the project are repository secrets in GitHub, never written down
+here. Pointing this repository at a different instance is two values changed and no code
+touched.
+
+## Deploys come from the workflow, never from Render
+
+Render's auto-deploy is off. The deploy workflow runs the checks, writes the settings, asks
+Render to deploy, and then waits for it to go live — a build that reports success for having
+asked is a build that hides a site which never came back.
+
 ## The owner works from a phone and has no terminal
 
 Never end a piece of work with a command for them to run. Anything they have to do must be
-doable in a web dashboard. Everything configurable is an environment variable so it changes
-without a deploy.
+doable in a web dashboard. Everything configurable is a setting so it changes without a
+code change.
 
 ## Voice
 

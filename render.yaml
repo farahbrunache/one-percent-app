@@ -9,8 +9,14 @@ services:
     buildCommand: npm install --omit=dev
     startCommand: node server.js
     healthCheckPath: /buy
+    # Deploys come from the deploy workflow, after the checks pass, never from Render
+    # watching the repository — otherwise a commit that fails its checks ships anyway.
+    autoDeploy: false
     envVars:
-      # Values are set in the Render dashboard. Names only here — this repository is public.
+      # Names only here — this repository is public. The values are written in Infisical and
+      # copied onto the service by the deploy workflow, so none of them is ever typed into a
+      # hosting dashboard. Render holds the copy the service reads at boot, so nothing has
+      # to reach Infisical for the site to start.
       - key: DATABASE_URL
         sync: false
       - key: CARD_ENCRYPTION_KEY

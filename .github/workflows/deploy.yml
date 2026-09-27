@@ -1,0 +1,80 @@
+name: Deploy
+
+# Every deploy comes from here, never from Render watching the repository. The checks run
+# first, so a commit that fails them cannot reach anybody who has paid.
+#
+# Settings come from Infisical and are written to Render on the way past, so a value is
+# entered once, in one place, and never typed into a hosting dashboard.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Check, sync settings, deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-audit --no-fund
+      - run: npm run check
+      - run: npm test
+        env:
+          # Test-only values. No test reaches a database or a network.
+          CARD_ENCRYPTION_KEY: test-key-that-is-long-enough-to-pass-0123456789
+
+      # Infisical can only be administered from a laptop, so this has to work before one
+      # exists. Without those secrets the settings step is skipped and Render deploys with
+      # what it already holds; adding them later switches it over with no code change.
+      - name: Is Infisical configured yet?
+        id: settings
+        env:
+          CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+        run: |
+          if [ -n "$CLIENT_ID" ] && [ -n "$PROJECT_ID" ]; then
+            echo "ready=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=no" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install the Infisical command line
+        if: steps.settings.outputs.ready == 'yes'
+        run: |
+          curl -1sLf 'https://dl.cloudsmith.io/public/infisical/infisical-cli/setup.deb.sh' \
+            | sudo -E bash
+          sudo apt-get install -y infisical
+
+      - name: Sign in to Infisical
+        id: infisical
+        if: steps.settings.outputs.ready == 'yes'
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_API_URL: ${{ secrets.INFISICAL_URL }}
+        run: |
+          token=$(infisical login --method=universal-auth \
+            --client-id="$INFISICAL_CLIENT_ID" \
+            --client-secret="$INFISICAL_CLIENT_SECRET" \
+            --silent --plain)
+          [ -n "$token" ] || { echo "::error::Infisical would not issue a token."; exit 1; }
+          echo "::add-mask::$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+
+      - name: Put the settings on Render and deploy
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_NAME: one-percent-app
+          INFISICAL_TOKEN: ${{ steps.infisical.outputs.token }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+          INFISICAL_API_URL: ${{ secrets.INFISICAL_URL }}
+        run: bash .github/scripts/deploy.sh
