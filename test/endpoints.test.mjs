@@ -224,6 +224,33 @@ check('a sign-in whose state does not match goes back with a reason',
 r = await run(authEndpoint, 'POST', '/api/auth?action=nonsense', {});
 check('an unknown sign-in action is refused', r.statusCode === 400, r.payload);
 
+console.log('the transcript coming back');
+const retell = (await import('../api/retell.js')).default;
+delete process.env.RETELL_WEBHOOK_SECRET;
+r = await run(retell, 'POST', '/api/retell', { call: { call_id: 'c1' } });
+check('refuses while the shared secret is unset', r.statusCode === 503 &&
+  /RETELL_WEBHOOK_SECRET/.test(r.payload?.error || ''), r.payload);
+
+process.env.RETELL_WEBHOOK_SECRET = 'a-webhook-secret-long-enough';
+r = await run(retell, 'POST', '/api/retell', { call: { call_id: 'c1' } });
+check('refuses a delivery with no secret on it', r.statusCode === 401, r.payload);
+r = await run(retell, 'POST', '/api/retell', { call: { call_id: 'c1' } },
+  { 'x-retell-secret': 'not-the-secret-but-long-enough' });
+check('refuses a delivery with the wrong secret', r.statusCode === 401, r.payload);
+r = await run(retell, 'POST', '/api/retell', { nothing: true },
+  { 'x-retell-secret': 'a-webhook-secret-long-enough' });
+check('refuses a delivery that names no call', r.statusCode === 400 &&
+  /names no call/.test(r.payload?.error || ''), r.payload);
+r = await run(retell, 'POST', '/api/retell', { call: { call_id: 'c1', metadata: {} } },
+  { 'x-retell-secret': 'a-webhook-secret-long-enough' });
+check('refuses a call that carries no order', r.statusCode === 400 &&
+  /nothing to file it against/.test(r.payload?.error || ''), r.payload);
+r = await run(retell, 'GET', '/api/retell');
+check('rejects GET', r.statusCode === 405, r.payload);
+
+r = await run(admin, 'GET', '/api/admin?action=transcript&id=1');
+check('a transcript refuses without a session', r.statusCode === 401, r.payload);
+
 console.log('starting a session');
 r = await run(call, 'GET', '/api/call');
 check('rejects GET', r.statusCode === 405, r.payload);

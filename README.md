@@ -49,6 +49,7 @@ first request, so there is no migration step.
 | `ADMIN_ACCOUNT_IDS` | Skills Economy account ids allowed on `/admin`, separated by commas. |
 | `RETELL_SECRET_KEY` | The row named Secret Key on the API Keys tab in the Retell dashboard. |
 | `RETELL_AGENT_ID` | The agent that runs the session. |
+| `RETELL_WEBHOOK_SECRET` | 16 characters or more. Given to Retell when the webhook is set up, and sent back on every delivery so a stranger cannot file a transcript. |
 | `PAY_WISE` | Where a Wise payment goes, exactly as somebody should type it. A handle stays as text; a link becomes a link to tap. |
 
 Set `CARD_ENCRYPTION_KEY` once, before anybody pays. Changing it later makes every stored
@@ -64,6 +65,12 @@ products stay on their own domains and nothing is shared between them.
 setting, and the gift card keeps working.
 
 ## Rules built into the code
+
+The transcript comes back from the voice service when the session ends and is kept against
+the order it was bought with — the reference travels out with the call, so nothing is matched
+by hand. It is encrypted at rest, because a transcript is somebody's trade, their rate and
+what is standing in their way. The payments screen shows it and copies it out as plain text,
+which is how the next conversation starts from a phone.
 
 A gift card code is money in bearer form, so it is encrypted at rest and destroyed the moment
 a decision is recorded. Nothing spendable survives. The order itself is kept — reference,
@@ -95,6 +102,7 @@ hash of the caller's address rather than the address itself.
 | `api/status.js` | What a claim link shows |
 | `api/recover.js` | Issues a new claim link against a reference or card code |
 | `api/call.js` | Checks the order and opens the session |
+| `api/retell.js` | Takes the transcript back from the voice service |
 | `api/admin.js` | List what is waiting, confirm or reject, and everything decided so far |
 | `api/auth.js` | Signing in and out against Skills Economy |
 | `server.js` | Which address serves which page, the headers, the one redirect |

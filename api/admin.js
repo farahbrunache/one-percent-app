@@ -92,7 +92,49 @@ async function history(req, res) {
       decided: r.decided_at,
       sessionStarts: r.session_starts,
       firstStarted: r.first_started_at,
+      hasTranscript: r.has_transcript,
+      callSeconds: r.call_seconds,
     })),
+  });
+}
+
+// One transcript, asked for by the row that says it exists. The list does not carry them:
+// they are long, and a screen that loads twenty-five of them to show none is a screen that
+// takes a while to say nothing.
+async function transcript(req, res) {
+  await requireAdmin(req);
+  await ensureSchema();
+  const id = Number(new URL(req.url, 'https://placeholder.invalid').searchParams.get('id'));
+  if (!Number.isInteger(id) || id <= 0) throw new HttpError(400, 'Which order?');
+
+  const rows = await sql()`
+    select reference_code, transcript_encrypted, call_summary_encrypted, call_ended_at,
+           call_seconds
+      from orders where id = ${id}
+  `;
+  if (!rows.length) throw new HttpError(404, 'No order with that number.');
+  const row = rows[0];
+  if (!row.transcript_encrypted) {
+    throw new HttpError(404, 'No transcript was ever filed against that order.');
+  }
+
+  let summary = null;
+  if (row.call_summary_encrypted) {
+    try {
+      summary = JSON.parse(decrypt(row.call_summary_encrypted));
+    } catch {
+      // What the voice service sent was not the shape it usually is. The transcript is the
+      // part that matters and it is right here, so this does not fail the request.
+      summary = null;
+    }
+  }
+
+  send(res, 200, {
+    reference: row.reference_code,
+    transcript: decrypt(row.transcript_encrypted),
+    summary,
+    endedAt: row.call_ended_at,
+    seconds: row.call_seconds,
   });
 }
 
@@ -145,7 +187,8 @@ export default handle(['GET', 'POST'], async (req, res) => {
 
   if (req.method === 'GET' && action === 'list') return list(req, res);
   if (req.method === 'GET' && action === 'history') return history(req, res);
+  if (req.method === 'GET' && action === 'transcript') return transcript(req, res);
   if (req.method === 'POST' && action === 'decide') return decide(req, res);
 
-  throw new HttpError(400, 'Use action=list, action=history or action=decide.');
+  throw new HttpError(400, 'Use action=list, action=history, action=transcript or action=decide.');
 });
