@@ -70,6 +70,22 @@ owner.
 Search before deleting — readers, writers, the pages, the tests and the schema — and delete
 the setting from the project's environment variables too, or it sits there looking required.
 
+## The bare address says where you are
+
+`app.farahbrunache.com` used to redirect to the sales page, because this site has no front
+page in the usual sense. It was a mistake twice over.
+
+It reads as a fault. The owner asked what was wrong with it twice, and on one of those
+occasions the domain genuinely was misconfigured — the symptom was identical, so the real
+problem could not be told apart from the intended behaviour.
+
+And it fails the person most likely to type this address from memory: somebody who lost
+their claim link. Bouncing them to a page about buying a session says nothing about getting
+their own back.
+
+`index.html` says what the address is, points at recovery first and the sales page second,
+and explains nothing about the product — that is the other site's job.
+
 ## One server, not functions
 
 `server.js` holds the routing table: which address serves which page, which serves which

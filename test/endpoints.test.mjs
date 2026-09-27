@@ -58,8 +58,8 @@ const call = (await import('../api/call.js')).default;
 console.log('routing');
 let r = makeRes();
 await route(makeReq('GET', '/'), r);
-check('the bare address goes to the page that explains this',
-  r.statusCode === 302 && r.headers.location === 'https://farahbrunache.com', r.headers);
+check('the bare address says where you are rather than redirecting',
+  r.statusCode === 200 && /lost your link/i.test(r.body || ''), r.statusCode);
 r = makeRes();
 await route(makeReq('GET', '/buy'), r);
 check('the payment page is served', r.statusCode === 200 &&

@@ -94,10 +94,11 @@ hash of the caller's address rather than the address itself.
 
 | Path | What it is |
 |---|---|
+| `index.html` | What this address is, and how to get a lost link back |
 | `buy.html` | The payment form and the lost-link recovery |
 | `claim.html` | Order status, and where the session starts |
 | `admin.html` | The one screen with manual work on it |
-| `style.css` | Shared across the three pages |
+| `style.css` | Shared across the pages |
 | `api/submit.js` | Takes a payment, returns a claim link |
 | `api/status.js` | What a claim link shows |
 | `api/recover.js` | Issues a new claim link against a reference or card code |
