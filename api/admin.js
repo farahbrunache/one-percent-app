@@ -61,8 +61,7 @@ async function history(req, res) {
         sql()`
           select id, reference_code, payment_method, card_amount_cents, status, reject_reason,
                  created_at, decided_at, session_starts, first_started_at,
-                 transcript_encrypted is not null as has_transcript, call_seconds,
-                 client_account_id, approved_as_client_at
+                 transcript_encrypted is not null as has_transcript, call_seconds
             from orders where reference_code = ${reference}
            order by created_at desc limit ${PER_PAGE} offset ${offset}
         `,
@@ -72,8 +71,7 @@ async function history(req, res) {
         sql()`
           select id, reference_code, payment_method, card_amount_cents, status, reject_reason,
                  created_at, decided_at, session_starts, first_started_at,
-                 transcript_encrypted is not null as has_transcript, call_seconds,
-                 client_account_id, approved_as_client_at
+                 transcript_encrypted is not null as has_transcript, call_seconds
             from orders
            order by created_at desc limit ${PER_PAGE} offset ${offset}
         `,
@@ -98,71 +96,8 @@ async function history(req, res) {
       firstStarted: r.first_started_at,
       hasTranscript: r.has_transcript,
       callSeconds: r.call_seconds,
-      linked: Boolean(r.client_account_id),
-      approvedClient: Boolean(r.approved_as_client_at),
     })),
   });
-}
-
-// One transcript, asked for by the row that says it exists. The list does not carry them:
-// they are long, and a screen that loads twenty-five of them to show none is a screen that
-// takes a while to say nothing.
-async function transcript(req, res) {
-  await requireAdmin(req);
-  await ensureSchema();
-  const id = Number(new URL(req.url, 'https://placeholder.invalid').searchParams.get('id'));
-  if (!Number.isInteger(id) || id <= 0) throw new HttpError(400, 'Which order?');
-
-  const rows = await sql()`
-    select reference_code, transcript_encrypted, call_summary_encrypted, call_ended_at,
-           call_seconds
-      from orders where id = ${id}
-  `;
-  if (!rows.length) throw new HttpError(404, 'No order with that number.');
-  const row = rows[0];
-  if (!row.transcript_encrypted) {
-    throw new HttpError(404, 'No transcript was ever filed against that order.');
-  }
-
-  let summary = null;
-  if (row.call_summary_encrypted) {
-    try {
-      summary = JSON.parse(decrypt(row.call_summary_encrypted));
-    } catch {
-      // What the voice service sent was not the shape it usually is. The transcript is the
-      // part that matters and it is right here, so this does not fail the request.
-      summary = null;
-    }
-  }
-
-  send(res, 200, {
-    reference: row.reference_code,
-    transcript: decrypt(row.transcript_encrypted),
-    summary,
-    endedAt: row.call_ended_at,
-    seconds: row.call_seconds,
-  });
-}
-
-// Taking somebody on after reading their call. Separate from confirming the payment, and
-// later: the payment says the session was bought, this says the owner read what it produced
-// and wants to keep working with them.
-async function approveClient(req, res) {
-  await requireAdmin(req);
-  await ensureSchema();
-  const body = await readJson(req);
-  const id = Number(body.id);
-  if (!Number.isInteger(id) || id <= 0) throw new HttpError(400, 'Which order?');
-
-  const rows = await sql()`
-    update orders set approved_as_client_at = now()
-     where id = ${id} and status = 'confirmed' and approved_as_client_at is null
-     returning id
-  `;
-  if (!rows.length) {
-    throw new HttpError(409, 'That order is not a confirmed one, or it is already approved.');
-  }
-  send(res, 200, { ok: true });
 }
 
 async function decide(req, res) {
@@ -214,9 +149,7 @@ export default handle(['GET', 'POST'], async (req, res) => {
 
   if (req.method === 'GET' && action === 'list') return list(req, res);
   if (req.method === 'GET' && action === 'history') return history(req, res);
-  if (req.method === 'GET' && action === 'transcript') return transcript(req, res);
   if (req.method === 'POST' && action === 'decide') return decide(req, res);
-  if (req.method === 'POST' && action === 'approve-client') return approveClient(req, res);
 
-  throw new HttpError(400, 'Use action=list, action=history, action=transcript, action=decide or action=approve-client.');
+  throw new HttpError(400, 'Use action=list, action=history or action=decide.');
 });

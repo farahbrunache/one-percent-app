@@ -216,64 +216,18 @@
     }
     row.append(session);
 
+    // The transcript is read and worked from on the desk, which is where a decision about
+    // somebody is made. This screen is money arriving, and one reader in one place beats the
+    // same words on two screens that can disagree about what was done with them.
     if (order.hasTranscript) {
       const length = order.callSeconds
         ? `${Math.round(order.callSeconds / 60)} minutes`
         : 'the session';
       const actions = el('div', null, 'actions');
-      const show = el('button', `Read ${length}`, 'quiet');
-      show.type = 'button';
-      const box = el('div', null, 'transcript');
-      box.hidden = true;
-
-      let loaded = null;
-      async function fetchOnce() {
-        if (!loaded) loaded = await call(`/api/admin?action=transcript&id=${order.id}`);
-        return loaded;
-      }
-
-      show.addEventListener('click', async () => {
-        if (!box.hidden) {
-          box.hidden = true;
-          show.textContent = `Read ${length}`;
-          return;
-        }
-        show.disabled = true;
-        try {
-          const data = await fetchOnce();
-          box.textContent = '';
-          box.append(el('pre', data.transcript, null));
-          box.hidden = false;
-          show.textContent = 'Hide';
-        } catch (error) {
-          box.textContent = '';
-          box.append(el('p', error.message, 'meta'));
-          box.hidden = false;
-        } finally {
-          show.disabled = false;
-        }
-      });
-
-      // The owner reads this on a phone and starts the next conversation from it somewhere
-      // else, so getting it out as plain text is the point rather than a convenience.
-      const copy = el('button', 'Copy the transcript', 'quiet');
-      copy.type = 'button';
-      copy.addEventListener('click', async () => {
-        copy.disabled = true;
-        try {
-          const data = await fetchOnce();
-          await navigator.clipboard.writeText(data.transcript);
-          copy.textContent = 'Copied';
-        } catch {
-          copy.textContent = 'Open it and select it by hand';
-        }
-        setTimeout(() => { copy.textContent = 'Copy the transcript'; copy.disabled = false; }, 2000);
-      });
-
-      actions.append(show);
-      actions.append(copy);
+      const open = el('a', `Open ${length} on the desk`, 'button quiet-link');
+      open.href = `/desk?id=${order.id}`;
+      actions.append(open);
       row.append(actions);
-      row.append(box);
     }
 
     return row;
