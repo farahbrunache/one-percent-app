@@ -190,6 +190,21 @@ Run `npm test` before pushing. It covers every request path that does not need a
 Never watch a pull request. After opening one, do not subscribe to its activity and do not
 wait for its checks. The harness subscribes on its own; unsubscribe straight away.
 
+Auto-merge is on in this repository. Turn it on for the pull request as soon as it is open,
+squash, and it merges itself when the checks pass. Do not wait around to see it happen.
+
+Not for everything. A change that touches money, signing in, the database or the deploy
+waits for a person to read it — `api/submit.js`, `api/call.js`, `api/admin.js`,
+`lib/crypto.js`, `lib/auth.js`, `lib/db.js`, `server.js`, `render.yaml`, and anything under
+`.github/`. Open those ready for review and leave auto-merge off.
+
+Everything else goes in on its own: a page's copy, a message somebody reads when something
+fails, the stylesheet, documentation, a test.
+
+The reason is the owner's time rather than speed. Every pull request that waits is a tap on
+a phone, and the ones worth a tap are the ones where a mistake costs money or lets somebody
+in.
+
 ## What the money rules are
 
 Every bill this pays is charged in cash, and a gift card cannot pay one — it only offsets
