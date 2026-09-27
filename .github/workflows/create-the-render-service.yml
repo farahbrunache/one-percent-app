@@ -1,0 +1,34 @@
+name: Create the Render service (one-off)
+
+# TEMPORARY, and deliberately so. It exists to create the web service this repository
+# deploys to, using the Render API rather than a list of buttons to press in a dashboard.
+#
+# Run it once. Confirm the service exists. Then delete this file and
+# .github/scripts/create-render-service.sh in the same piece of work — a finished one-off
+# left in the Actions list makes the dangerous press and the routine one look alike.
+#
+# It reads render.yaml for the name, plan, commands and health check, so what it creates and
+# what this repository describes cannot disagree. It refuses rather than duplicating if the
+# service is already there.
+
+on:
+  workflow_dispatch:
+    inputs:
+      workspace:
+        description: 'Render workspace to create it in, by name. Leave empty if the key sees only one.'
+        required: false
+        type: string
+
+jobs:
+  create:
+    name: Create the service
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create it
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          WORKSPACE: ${{ inputs.workspace }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: bash .github/scripts/create-render-service.sh

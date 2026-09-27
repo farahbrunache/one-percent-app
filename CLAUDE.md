@@ -159,6 +159,17 @@ The instance address and the project are repository secrets in GitHub, never wri
 here. Pointing this repository at a different instance is two values changed and no code
 touched.
 
+## Render is driven by its API, not by a dashboard walkthrough
+
+The platform was chosen so that an agent can do this work end to end, and the premium is
+paid for that. So when something has to happen on Render — create a service, change one,
+deploy one — it happens through the API from a workflow. Handing over a list of buttons to
+press is not using what is being paid for, and the owner works from a phone.
+
+A workflow written to do something once is deleted once it has done it, along with any
+script only it used, in the same piece of work. Say so in its own header when you write it.
+Everything with a next run stays: the deploy, the checks.
+
 ## Deploys come from the workflow, never from Render
 
 Render's auto-deploy is off. The deploy workflow runs the checks, writes the settings, asks
