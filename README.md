@@ -55,7 +55,9 @@ setting, and the gift card keeps working.
 ## Rules built into the code
 
 A gift card code is money in bearer form, so it is encrypted at rest and destroyed the moment
-a decision is recorded. Nothing spendable survives.
+a decision is recorded. Nothing spendable survives. The order itself is kept — reference,
+amount, method, decision, reason and whether the session was started — and the payments
+screen shows all of it, newest first, with a box to find one by reference.
 
 A lost claim link is recovered with the reference or the gift card code — whichever the
 person is holding, typed into the same box. Only a keyed hash of a card code is kept, so the
@@ -79,7 +81,7 @@ hash of the caller's address rather than the address itself.
 | `api/status.js` | What a claim link shows |
 | `api/recover.js` | Issues a new claim link against a reference or card code |
 | `api/call.js` | Checks the order and opens the session |
-| `api/admin.js` | List what is waiting, confirm or reject |
+| `api/admin.js` | List what is waiting, confirm or reject, and everything decided so far |
 | `api/auth.js` | Signing in and out against Skills Economy |
 | `server.js` | Which address serves which page, the headers, the one redirect |
 | `lib/auth.js` | Where Skills Economy signs people in, and who is an admin here |

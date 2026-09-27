@@ -226,7 +226,7 @@ form.fields { margin-top: 1.8rem; }
   margin-bottom: 0.5rem;
 }
 
-input[type="text"], input[type="password"], select, textarea {
+input[type="text"], input[type="password"], input[type="search"], select, textarea {
   width: 100%;
   box-sizing: border-box;
   font-family: inherit;
