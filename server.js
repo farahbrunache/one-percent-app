@@ -32,6 +32,7 @@ const ENDPOINTS = {
   '/api/admin': () => import('./api/admin.js'),
   '/api/auth': () => import('./api/auth.js'),
   '/api/retell': () => import('./api/retell.js'),
+  '/api/client': () => import('./api/client.js'),
 };
 
 // The claim link and the payments screen must never be held by a browser or anything

@@ -58,8 +58,8 @@ const call = (await import('../api/call.js')).default;
 console.log('routing');
 let r = makeRes();
 await route(makeReq('GET', '/'), r);
-check('the bare address says where you are rather than redirecting',
-  r.statusCode === 200 && /lost your link/i.test(r.body || ''), r.statusCode);
+check('the bare address is the sign-in door',
+  r.statusCode === 200 && /Sign in with Skills Economy/i.test(r.body || ''), r.statusCode);
 r = makeRes();
 await route(makeReq('GET', '/buy'), r);
 check('the payment page is served', r.statusCode === 200 &&
@@ -223,6 +223,19 @@ check('a sign-in whose state does not match goes back with a reason',
   r.statusCode === 302 && /did\+not\+match|did%20not%20match/.test(r.headers.location || ''), r.headers);
 r = await run(authEndpoint, 'POST', '/api/auth?action=nonsense', {});
 check('an unknown sign-in action is refused', r.statusCode === 400, r.payload);
+
+console.log('the client area');
+const client = (await import('../api/client.js')).default;
+r = await run(client, 'GET', '/api/client?action=mine');
+check('refuses to say anything without a session', r.statusCode === 401, r.payload);
+r = await run(client, 'POST', '/api/client?action=link', { t: 'x' });
+check('refuses to link without a session', r.statusCode === 401, r.payload);
+r = await run(client, 'POST', '/api/client?action=nonsense', {});
+check('an unknown client action is refused', r.statusCode === 400, r.payload);
+r = await run(client, 'DELETE', '/api/client');
+check('rejects an unsupported method', r.statusCode === 405, r.payload);
+r = await run(admin, 'POST', '/api/admin?action=approve-client', { id: 1 });
+check('approving a client refuses without a session', r.statusCode === 401, r.payload);
 
 console.log('the transcript coming back');
 const retell = (await import('../api/retell.js')).default;

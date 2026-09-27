@@ -94,7 +94,7 @@ hash of the caller's address rather than the address itself.
 
 | Path | What it is |
 |---|---|
-| `index.html` | What this address is, and how to get a lost link back |
+| `index.html` | Sign in, and the sessions belonging to whoever signed in |
 | `buy.html` | The payment form and the lost-link recovery |
 | `claim.html` | Order status, and where the session starts |
 | `admin.html` | The one screen with manual work on it |
@@ -104,7 +104,8 @@ hash of the caller's address rather than the address itself.
 | `api/recover.js` | Issues a new claim link against a reference or card code |
 | `api/call.js` | Checks the order and opens the session |
 | `api/retell.js` | Takes the transcript back from the voice service |
-| `api/admin.js` | List what is waiting, confirm or reject, and everything decided so far |
+| `api/admin.js` | List what is waiting, confirm or reject, everything decided so far, and taking somebody on as a client |
+| `api/client.js` | What a signed-in person's own sessions are, and linking one to their account |
 | `api/auth.js` | Signing in and out against Skills Economy |
 | `server.js` | Which address serves which page, the headers, the one redirect |
 | `lib/auth.js` | Where Skills Economy signs people in, and who is an admin here |

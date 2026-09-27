@@ -13,32 +13,167 @@
 <main class="wrap">
 
   <p class="eyebrow">One Percent</p>
+  <h1 id="head">Sign in</h1>
 
-  <h1>This is where sessions run</h1>
+  <div id="starting"><p class="meta">Checking whether you are signed in.</p></div>
 
-  <p class="lede">
-    Paying happens here, and so does the call you paid for. If you arrived with a link, open
-    that link — it is the only way into your own session.
-  </p>
-
-  <section>
-    <h3>You have lost your link</h3>
-    <p>
-      It can be recovered with your reference, or with the gift card code you sent, whichever
-      you still have. Nothing else is needed and no account is involved.
+  <div id="out" hidden>
+    <p class="lede">
+      Sign in with Skills Economy to reach your own sessions. Everything before that — paying,
+      and the call itself — needs no account at all.
     </p>
-    <p class="cta"><a class="button" href="/buy">Recover a link, or pay for a session</a></p>
-  </section>
-
-  <section>
-    <h3>You have not paid yet</h3>
-    <p>
-      The page that explains what a session is, what it costs and what happens in it is at
-      <a href="https://farahbrunache.com">farahbrunache.com</a>. Read that first — nothing
-      here explains it.
+    <p class="cta">
+      <a class="button" id="go" href="/api/auth?action=start&amp;to=/">Sign in with Skills Economy</a>
     </p>
-  </section>
+    <p class="cta after">
+      Signing in does not buy anything and does not get you a session. It is how somebody who
+      has already had their call reaches what came out of it.
+    </p>
+    <section>
+      <h3>You have not paid yet</h3>
+      <p>
+        What a session is, what it costs and what happens in it is at
+        <a href="https://farahbrunache.com">farahbrunache.com</a>. You can buy one and have
+        the call without signing in to anything.
+      </p>
+      <p class="cta"><a class="button quiet-link" href="/buy">Pay for a session</a></p>
+    </section>
+  </div>
+
+  <div id="in" hidden>
+    <div id="state"></div>
+    <div id="rows" class="rows" aria-live="polite"></div>
+
+    <section id="linker" hidden>
+      <h3>Link the session you paid for</h3>
+      <p>
+        Paste the link you were given after paying. It is the one thing only you hold, which is
+        why it is what this asks for rather than your reference.
+      </p>
+      <form class="fields" id="linkform" novalidate>
+        <div class="field">
+          <label for="t">Your link</label>
+          <input id="t" type="text" inputmode="url" autocomplete="off"
+                 placeholder="Paste the whole link">
+        </div>
+        <div class="actions"><button type="submit">Link it</button></div>
+      </form>
+      <div id="lmsg" hidden></div>
+    </section>
+
+    <div class="actions">
+      <button type="button" class="quiet" id="out-btn">Sign out</button>
+    </div>
+  </div>
 
 </main>
+
+<script type="module">
+  const starting = document.getElementById('starting');
+  const out = document.getElementById('out');
+  const inside = document.getElementById('in');
+  const rows = document.getElementById('rows');
+  const state = document.getElementById('state');
+  const linker = document.getElementById('linker');
+  const head = document.getElementById('head');
+
+  function el(tag, text, className) {
+    const node = document.createElement(tag);
+    if (text) node.textContent = text;
+    if (className) node.className = className;
+    return node;
+  }
+
+  function msg(id, text, kind) {
+    const box = document.getElementById(id);
+    box.hidden = false;
+    box.className = 'msg ' + (kind || '');
+    box.textContent = text;
+  }
+
+  async function call(url, options) {
+    const response = await fetch(url, options);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `The server returned ${response.status}.`);
+    return data;
+  }
+
+  function when(value) {
+    return value ? new Date(value).toLocaleDateString() : null;
+  }
+
+  function render(data) {
+    state.textContent = '';
+    rows.textContent = '';
+    linker.hidden = data.sessions.length > 0;
+
+    if (!data.sessions.length) {
+      head.textContent = 'Your sessions';
+      state.append(el('p', 'You are signed in, and no session is linked to this account yet.', 'lede'));
+      return;
+    }
+    head.textContent = 'Your sessions';
+
+    if (data.approved) {
+      state.append(el('p', 'You are a client.', 'lede'));
+      state.append(el('p',
+        'The chat is not built yet. When it is, it opens here, and nothing you have to do '
+        + 'will change in the meantime.', 'meta'));
+    } else {
+      state.append(el('p', 'Your session is linked to this account.', 'lede'));
+      state.append(el('p',
+        'What happens next is that the call gets read. That is a person reading it, not a '
+        + 'queue position, so there is no number to watch here.', 'meta'));
+    }
+
+    for (const s of data.sessions) {
+      const row = el('div', null, 'row');
+      row.append(el('div', s.reference, 'code'));
+      if (s.approved) {
+        row.append(el('div', 'Approved', 'meta'));
+      } else if (s.hasTranscript) {
+        row.append(el('div', `Called ${when(s.calledAt)}. Waiting to be read.`, 'meta'));
+      } else if (s.sessionStarts > 0) {
+        row.append(el('div', `Started ${when(s.calledAt)}. Nothing came back from it.`, 'meta'));
+      } else {
+        row.append(el('div', 'Paid for. The session has not been started yet.', 'meta'));
+      }
+      rows.append(row);
+    }
+  }
+
+  document.getElementById('linkform').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const field = document.getElementById('t');
+    try {
+      render(await call('/api/client?action=link', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ t: field.value }),
+      }));
+      field.value = '';
+      document.getElementById('lmsg').hidden = true;
+    } catch (error) {
+      msg('lmsg', error.message, 'bad');
+    }
+  });
+
+  document.getElementById('out-btn').addEventListener('click', async () => {
+    await call('/api/auth?action=signout', { method: 'POST' });
+    location.replace('/');
+  });
+
+  try {
+    const data = await call('/api/client?action=mine');
+    starting.hidden = true;
+    inside.hidden = false;
+    render(data);
+  } catch {
+    // Any failure here means not signed in as far as this page is concerned. There is
+    // nothing behind it to protect, so there is nothing to explain either.
+    starting.hidden = true;
+    out.hidden = false;
+  }
+</script>
 </body>
 </html>

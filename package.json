@@ -11,7 +11,7 @@
   },
   "scripts": {
     "test": "node test/endpoints.test.mjs",
-    "check": "node --check server.js && node --check lib/auth.js && node --check lib/crypto.js && node --check lib/db.js && node --check lib/http.js && node --check lib/orders.js && node --check api/submit.js && node --check api/status.js && node --check api/recover.js && node --check api/admin.js && node --check api/auth.js && node --check api/call.js && node --check api/retell.js",
+    "check": "node --check server.js && node --check lib/auth.js && node --check lib/crypto.js && node --check lib/db.js && node --check lib/http.js && node --check lib/orders.js && node --check api/submit.js && node --check api/status.js && node --check api/recover.js && node --check api/admin.js && node --check api/auth.js && node --check api/call.js && node --check api/retell.js && node --check api/client.js",
     "start": "node server.js"
   }
 }
