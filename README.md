@@ -23,7 +23,15 @@ link somebody paid for, so the gate is structural rather than a secret.
 
 ## Settings
 
-All of it is done in the Render dashboard. There is no command to run.
+Settings are written in Infisical, once, and the deploy workflow copies them onto the Render
+service on its way past. Nothing is typed into a hosting dashboard, and adding one to the
+list is a change to `.github/scripts/deploy.sh` that somebody reviews.
+
+Render needs the copy because the service reads ordinary environment variables at boot: a
+site that takes money should not fail to start because a secrets service is unreachable.
+
+Render's own auto-deploy is off. Every deploy comes from the workflow, after the checks, and
+the workflow waits for it to go live rather than reporting success for having asked.
 
 It runs as one web service built from `render.yaml`: `npm install` then `node server.js`.
 `DATABASE_URL` points at the same Neon database as before. The tables are created on the
