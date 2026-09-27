@@ -1,0 +1,19 @@
+kind = "design"
+previewPath = "/__mockup/"
+title = "Operator Command Center Mockup"
+description = "An isolated visual prototype for managing high-volume AI intake, human assessment, planning, and chat follow-up."
+version = "1.0.0"
+id = "artifacts/operator-command-center"
+router = "path"
+
+[[services]]
+name = "Component Preview Server"
+paths = [ "/__mockup/" ]
+localPort = 23654
+
+[services.development]
+run = "npm run dev"
+
+[services.env]
+PORT = "23654"
+BASE_PATH = "/__mockup/"
