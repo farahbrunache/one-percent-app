@@ -60,7 +60,9 @@ async function history(req, res) {
     ? await Promise.all([
         sql()`
           select id, reference_code, payment_method, card_amount_cents, status, reject_reason,
-                 created_at, decided_at, session_starts, first_started_at
+                 created_at, decided_at, session_starts, first_started_at,
+                 transcript_encrypted is not null as has_transcript, call_seconds,
+                 client_account_id, approved_as_client_at
             from orders where reference_code = ${reference}
            order by created_at desc limit ${PER_PAGE} offset ${offset}
         `,
@@ -69,7 +71,9 @@ async function history(req, res) {
     : await Promise.all([
         sql()`
           select id, reference_code, payment_method, card_amount_cents, status, reject_reason,
-                 created_at, decided_at, session_starts, first_started_at
+                 created_at, decided_at, session_starts, first_started_at,
+                 transcript_encrypted is not null as has_transcript, call_seconds,
+                 client_account_id, approved_as_client_at
             from orders
            order by created_at desc limit ${PER_PAGE} offset ${offset}
         `,

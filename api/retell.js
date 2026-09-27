@@ -26,10 +26,10 @@ function checkSecret(req) {
         'service settings and give Retell the same value.',
     );
   }
-  const sent =
-    req.headers['x-retell-secret'] ||
-    new URL(req.url, 'https://placeholder.invalid').searchParams.get('k') ||
-    '';
+  // A header only. The same value in the address ends up in access logs, in anything between
+  // here and there, and in a browser's history if it is ever opened by hand — and one leaked
+  // line is all a forged delivery needs.
+  const sent = req.headers['x-retell-secret'] || '';
   if (!timingSafeEqual(String(sent), expected)) {
     throw new HttpError(401, 'That is not this webhook.');
   }
@@ -89,6 +89,9 @@ export default handle('POST', async (req, res) => {
 
   // Two statements rather than one with a condition inside it: this driver does not compose
   // a query out of pieces, and a query built by joining strings is how an injection gets in.
+  // The order has to be expecting this call. api/call.js writes the id it was given when the
+  // session started, so a delivery cannot be aimed at an order it does not belong to — the
+  // caller chooses the order id in the payload, and that is not enough on its own.
   const rows = call.orderId
     ? await sql()`
         update orders set
@@ -97,7 +100,7 @@ export default handle('POST', async (req, res) => {
           call_summary_encrypted = coalesce(${summary}, call_summary_encrypted),
           call_ended_at = coalesce(${call.endedAt}, call_ended_at),
           call_seconds = coalesce(${call.seconds}, call_seconds)
-        where id = ${call.orderId}
+        where id = ${call.orderId} and call_id = ${call.id}
         returning id
       `
     : await sql()`
@@ -107,13 +110,14 @@ export default handle('POST', async (req, res) => {
           call_summary_encrypted = coalesce(${summary}, call_summary_encrypted),
           call_ended_at = coalesce(${call.endedAt}, call_ended_at),
           call_seconds = coalesce(${call.seconds}, call_seconds)
-        where reference_code = ${call.reference}
+        where reference_code = ${call.reference} and call_id = ${call.id}
         returning id
       `;
   if (!rows.length) {
     throw new HttpError(
       404,
-      `No order matches ${call.orderId ? `id ${call.orderId}` : `reference ${call.reference}`}.`,
+      `No order is expecting call ${call.id}. Either it names an order that does not exist, ` +
+        'or that order was never started with this call.',
     );
   }
 

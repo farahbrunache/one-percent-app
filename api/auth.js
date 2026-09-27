@@ -23,10 +23,14 @@ const HANDSHAKE_MINUTES = 10;
 // cookie is not sent on that hop, which would lose the handshake every time.
 const ACROSS_THE_RETURN = 'Lax';
 
+// Only ever a path on this site. Checking for a leading slash is not enough: a browser reads
+// `/\evil.com` as an authority and leaves, and this redirect fires after the session cookie
+// is set, which is exactly when being sent somewhere else is worth something to somebody.
+const A_PATH_HERE = /^\/[A-Za-z0-9/_\-.]*(\?[A-Za-z0-9/_\-.=&%]*)?$/;
+
 function landing(req) {
-  // Only ever a path on this site. Somebody who alters it cannot send the browser elsewhere.
   const asked = new URL(req.url, 'https://placeholder.invalid').searchParams.get('to') || '/admin';
-  return asked.startsWith('/') && !asked.startsWith('//') ? asked : '/admin';
+  return asked.startsWith('//') || !A_PATH_HERE.test(asked) ? '/admin' : asked;
 }
 
 async function start(req, res) {

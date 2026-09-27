@@ -50,6 +50,36 @@ export default handle('POST', async (req, res) => {
     );
   }
 
+  // Take the slot before spending money, in one statement that only succeeds if a slot is
+  // actually free. Reading the count and then deciding leaves a gap: two requests arriving
+  // together both read the same number, both pass, and both buy a paid session on one order.
+  const taken = await sql()`
+    update orders set
+      session_starts = session_starts + 1,
+      first_started_at = coalesce(first_started_at, now())
+    where id = ${order.id}
+      and status = 'confirmed'
+      and session_starts < ${MAX_SESSION_STARTS}
+      and (
+        first_started_at is null
+        or first_started_at > now() - ${SESSION_WINDOW_HOURS} * interval '1 hour'
+      )
+    returning session_starts
+  `;
+  if (!taken.length) {
+    throw new HttpError(
+      409,
+      `This session has been used. It opens ${MAX_SESSION_STARTS} times within ` +
+        `${SESSION_WINDOW_HOURS} hours of the first, which covers one that drops.`,
+    );
+  }
+
+  // Giving the slot back if the voice service refuses, so their failure still costs nobody
+  // one of their three.
+  const release = async () => {
+    await sql()`update orders set session_starts = session_starts - 1 where id = ${order.id}`;
+  };
+
   let response;
   try {
     response = await fetch(RETELL_CREATE_WEB_CALL, {
@@ -66,11 +96,13 @@ export default handle('POST', async (req, res) => {
       }),
     });
   } catch (error) {
+    await release();
     throw new HttpError(502, `Could not reach the voice service: ${error.message}`);
   }
 
   const text = await response.text();
   if (!response.ok) {
+    await release();
     // Retell's own words rather than a blank failure — this is the one part of the flow
     // that cannot be tested without a live account.
     throw new HttpError(
@@ -88,24 +120,23 @@ export default handle('POST', async (req, res) => {
 
   const accessToken = data.access_token || data.accessToken;
   if (!accessToken) {
+    await release();
     throw new HttpError(
       502,
       `The voice service started a session but returned no access token. It sent: ${text.slice(0, 300)}`,
     );
   }
 
-  // Counted only once the session actually exists, so a failure on their side costs nobody
-  // one of their three.
-  await sql()`
-    update orders set
-      session_starts = session_starts + 1,
-      first_started_at = coalesce(first_started_at, now())
-    where id = ${order.id}
-  `;
+  // The call this order is now expecting. The webhook checks it before writing a transcript,
+  // so a delivery cannot be aimed at an order it does not belong to.
+  const callId = data.call_id || data.callId || null;
+  if (callId) {
+    await sql()`update orders set call_id = ${callId} where id = ${order.id}`;
+  }
 
   send(res, 200, {
     accessToken,
-    callId: data.call_id || data.callId || null,
-    remaining: MAX_SESSION_STARTS - Number(order.session_starts || 0) - 1,
+    callId,
+    remaining: Math.max(0, MAX_SESSION_STARTS - Number(taken[0].session_starts || 0)),
   });
 });
