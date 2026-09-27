@@ -1,10 +1,12 @@
 # Agent instructions — One Percent app
 
 The checkout, the claim page somebody keeps, and the screen the owner confirms payments on.
-Deployed to `app.farahbrunache.com` by Vercel, with its own database and its own secrets.
+Deployed to `app.farahbrunache.com` by Render, as one web service with its own database and
+its own settings. Skills Economy is on Render too, so there is one dashboard, one bill and
+one place settings live. Vercel is for landing pages here and nothing else.
 
 The page One Percent is sold from is a separate repository, `one-percent-landing-page`, on
-`farahbrunache.com`. That split is deliberate: a change to sales copy must not redeploy the
+`farahbrunache.com`, and that one is static and stays on Vercel. That split is deliberate: a change to sales copy must not redeploy the
 code that holds money, and the two do not share environment variables.
 
 One Percent is paid work and a separate product from Skills Economy, which is free and
@@ -67,6 +69,20 @@ owner.
 
 Search before deleting — readers, writers, the pages, the tests and the schema — and delete
 the setting from the project's environment variables too, or it sits there looking required.
+
+## One server, not functions
+
+`server.js` holds the routing table: which address serves which page, which serves which
+endpoint, the security headers, the one redirect and the one rewrite. A platform
+configuration file used to do that, invisibly and untestably; now it is code with tests
+over it.
+
+A path is never turned into a file name. The address is the key and the file is the value,
+so there is no directory to walk out of.
+
+It is a long-running service rather than a function billed per request, which is what the
+chat has to be: streaming an answer and watching a live conversation both need a connection
+that stays open.
 
 ## Every schema statement must survive running twice
 

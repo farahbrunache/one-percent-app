@@ -1,0 +1,31 @@
+# One Percent runs as one small web service. Not serverless: a chat that streams an answer
+# and a screen that watches a conversation both need a connection that stays open, and a
+# function that is billed by the request cannot hold one.
+services:
+  - type: web
+    name: one-percent-app
+    runtime: node
+    plan: starter
+    buildCommand: npm install --omit=dev
+    startCommand: node server.js
+    healthCheckPath: /buy
+    envVars:
+      # Values are set in the Render dashboard. Names only here — this repository is public.
+      - key: DATABASE_URL
+        sync: false
+      - key: CARD_ENCRYPTION_KEY
+        sync: false
+      - key: AUTH_PUBLISHABLE_KEY
+        sync: false
+      - key: AUTH_CLIENT_ID
+        sync: false
+      - key: AUTH_CLIENT_SECRET
+        sync: false
+      - key: ADMIN_ACCOUNT_IDS
+        sync: false
+      - key: RETELL_SECRET_KEY
+        sync: false
+      - key: RETELL_AGENT_ID
+        sync: false
+      - key: PAY_WISE
+        sync: false

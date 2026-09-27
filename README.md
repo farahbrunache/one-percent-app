@@ -23,10 +23,11 @@ link somebody paid for, so the gate is structural rather than a secret.
 
 ## Settings
 
-All of it is done in the Vercel dashboard. There is no command to run.
+All of it is done in the Render dashboard. There is no command to run.
 
-Add a Postgres database under Storage and Vercel sets `DATABASE_URL`. The tables are created
-on the first request, so there is no migration step.
+It runs as one web service built from `render.yaml`: `npm install` then `node server.js`.
+`DATABASE_URL` points at the same Neon database as before. The tables are created on the
+first request, so there is no migration step.
 
 | Name | What it is |
 |---|---|
@@ -80,6 +81,7 @@ hash of the caller's address rather than the address itself.
 | `api/call.js` | Checks the order and opens the session |
 | `api/admin.js` | List what is waiting, confirm or reject |
 | `api/auth.js` | Signing in and out against Skills Economy |
+| `server.js` | Which address serves which page, the headers, the one redirect |
 | `lib/auth.js` | Where Skills Economy signs people in, and who is an admin here |
 | `lib/crypto.js` | Encryption, keyed hashing, token and reference generation |
 | `lib/db.js` | Schema, queries, rate limiting |
