@@ -160,9 +160,15 @@ code change.
 
 ## Voice
 
-No pleasantries, no first-person feeling words, no jargon. State the result and stop. The
-full list is in `chargingthefuture/chargingthefuture` → `CLAUDE.md`, and it applies to page
-copy, commit messages and pull request bodies alike.
+No pleasantries, no first-person feeling words, no jargon. State the result and stop. It
+applies to page copy, commit messages and pull request bodies alike.
+
+The rule and its banned-term list come from `chargingthefuture/agents`, the baseline every
+repository here starts from. They are settled there and are not re-argued per repository.
+
+`.claude/hooks/check-no-pleasantries.mjs` in this repository enforces them and is the source
+of truth when the two disagree. It is a copy, so a change to the baseline is copied across
+rather than inherited automatically — change both or they drift.
 
 Never quote the owner's messages in a commit message, a pull request body, or a file. Write
 what changed in your own words.
