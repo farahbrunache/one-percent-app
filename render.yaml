@@ -6,6 +6,10 @@ services:
     name: one-percent-app
     runtime: node
     plan: starter
+    # Ohio, because Charging The Future's services and the Neon database are there. Render
+    # defaults to Oregon, which would put every query on a round trip across the continent,
+    # and a service cannot be moved between regions afterwards — only rebuilt somewhere else.
+    region: ohio
     buildCommand: npm install --omit=dev
     startCommand: node server.js
     healthCheckPath: /buy
