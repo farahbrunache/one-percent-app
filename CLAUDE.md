@@ -113,6 +113,33 @@ would take the site down.
 
 Never put a value in either file. This repository is public.
 
+### One instance, two projects
+
+The Infisical instance is Charging The Future's. One Percent has its own project inside it
+rather than its own instance.
+
+A project is the boundary, not a folder in one. A machine identity is scoped to a single
+project, so the credentials this repository's deploy workflow holds cannot read Charging The
+Future's secrets, and that product's credentials cannot read these. Nothing is shared but
+the server the two projects sit on.
+
+If both products ever need the same value, that is two secrets with two lifetimes, each
+rotated on its own. Copying one across makes a change in one place silently wrong in the
+other.
+
+The instance itself is Charging The Future's infrastructure and its cost belongs to that
+product. One Percent's expenses are counted separately and include no share of it — what is
+counted here is what appears on a bill because One Percent exists.
+
+A second instance would buy one thing a project does not: something to hand over. If One
+Percent ever needs separate ownership, that is when it gets its own. Until then it would be
+a second server, database and cache to patch, back up and keep online, and a second thing
+whose downtime stops deploys.
+
+The instance address and the project are repository secrets in GitHub, never written down
+here. Pointing this repository at a different instance is two values changed and no code
+touched.
+
 ## Deploys come from the workflow, never from Render
 
 Render's auto-deploy is off. The deploy workflow runs the checks, writes the settings, asks
