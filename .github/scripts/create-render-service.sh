@@ -30,7 +30,9 @@ plan=$(grep -E '^\s+plan:' render.yaml | head -1 | awk '{print $2}')
 build=$(grep -E '^\s+buildCommand:' render.yaml | head -1 | cut -d: -f2- | sed 's/^ *//')
 start=$(grep -E '^\s+startCommand:' render.yaml | head -1 | cut -d: -f2- | sed 's/^ *//')
 health=$(grep -E '^\s+healthCheckPath:' render.yaml | head -1 | awk '{print $2}')
-echo "From render.yaml: name=${name} plan=${plan} health=${health}"
+region=$(grep -E '^\s+region:' render.yaml | head -1 | awk '{print $2}')
+[ -n "$region" ] || die "render.yaml names no region. Render defaults to Oregon, and a service cannot be moved between regions afterwards."
+echo "From render.yaml: name=${name} plan=${plan} region=${region} health=${health}"
 echo "  build: ${build}"
 echo "  start: ${start}"
 
@@ -57,7 +59,8 @@ fi
 echo "Creating it in workspace $(jq -r --arg i "$owner" 'map(.owner) | map(select(.id == $i)) | .[0].name' /tmp/owners.json)."
 
 jq -n --arg name "$name" --arg owner "$owner" --arg repo "${REPO_URL}" \
-      --arg plan "$plan" --arg build "$build" --arg start "$start" --arg health "$health" '{
+      --arg plan "$plan" --arg build "$build" --arg start "$start" --arg health "$health" \
+      --arg region "$region" '{
   type: "web_service",
   name: $name,
   ownerId: $owner,
@@ -67,6 +70,7 @@ jq -n --arg name "$name" --arg owner "$owner" --arg repo "${REPO_URL}" \
   serviceDetails: {
     env: "node",
     plan: $plan,
+    region: $region,
     healthCheckPath: $health,
     envSpecificDetails: { buildCommand: $build, startCommand: $start }
   }
@@ -109,7 +113,8 @@ fi
 {
   echo "### ${name} exists now"
   echo ""
-  echo "- Plan: ${plan}. Auto-deploy off, as render.yaml asks — deploys come from the Deploy workflow."
+  echo "- Plan: ${plan}, in ${region} — the same region as the database and the other product's services."
+  echo "- Auto-deploy off, as render.yaml asks. Deploys come from the Deploy workflow."
   echo "- ${domain_note}"
   echo "- It has no settings yet. The first deploy writes them once Infisical is set up; until then"
   echo "  it will start and fail its health check, which is expected rather than broken."
