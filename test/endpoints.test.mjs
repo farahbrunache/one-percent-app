@@ -260,6 +260,24 @@ check('refuses a call that carries no order', r.statusCode === 400 &&
   /nothing to file it against/.test(r.payload?.error || ''), r.payload);
 r = await run(retell, 'GET', '/api/retell');
 check('rejects GET', r.statusCode === 405, r.payload);
+r = await run(retell, 'POST', '/api/retell?k=a-webhook-secret-long-enough',
+  { call: { call_id: 'c1', metadata: { order_id: '1' } } });
+check('the secret is not accepted from the address', r.statusCode === 401, r.payload);
+
+console.log('who the rate limit counts');
+const { callerKey } = await import('../lib/crypto.js');
+const forged = { headers: { 'x-forwarded-for': '9.9.9.9, 10.0.0.1' } };
+const plain = { headers: { 'x-forwarded-for': '10.0.0.1' } };
+check('a caller cannot choose their own bucket by prepending an address',
+  callerKey(forged) === callerKey(plain));
+check('two real callers still get different buckets',
+  callerKey({ headers: { 'x-forwarded-for': '10.0.0.2' } }) !== callerKey(plain));
+
+console.log('where sign-in comes back to');
+r = await run(authEndpoint, 'GET', '/api/auth?action=callback&code=x&state=y&to=' +
+  encodeURIComponent('/\\evil.example'));
+check('a backslash address cannot send the browser away',
+  r.statusCode === 302 && !/evil\.example/.test(r.headers.location || ''), r.headers);
 
 r = await run(admin, 'GET', '/api/admin?action=transcript&id=1');
 check('a transcript refuses without a session', r.statusCode === 401, r.payload);
