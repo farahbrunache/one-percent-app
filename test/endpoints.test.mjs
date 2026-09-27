@@ -24,7 +24,13 @@ function makeRes() {
     status(code) { this.statusCode = code; return this; },
     setHeader(k, v) { this.headers[k.toLowerCase()] = v; },
     getHeader(k) { return this.headers[k.toLowerCase()]; },
-    end(text) { this.payload = text ? JSON.parse(text) : null; this.writableEnded = true; },
+    end(text) {
+      // Endpoints answer in JSON and pages answer in HTML, so keep whichever this is.
+      const body = text === undefined || text === null ? '' : String(text);
+      try { this.payload = body ? JSON.parse(body) : null; } catch { this.payload = body; }
+      this.body = body;
+      this.writableEnded = true;
+    },
   };
   return res;
 }
@@ -41,14 +47,46 @@ function check(label, condition, detail) {
   else { failures += 1; console.log('  FAIL ' + label + (detail ? ' -> ' + JSON.stringify(detail) : '')); }
 }
 
+process.env.NODE_ENV = 'test';
+const { route } = await import('../server.js');
 const submit = (await import('../api/submit.js')).default;
 const status = (await import('../api/status.js')).default;
 const recover = (await import('../api/recover.js')).default;
 const admin = (await import('../api/admin.js')).default;
 const call = (await import('../api/call.js')).default;
 
+console.log('routing');
+let r = makeRes();
+await route(makeReq('GET', '/'), r);
+check('the bare address goes to the page that explains this',
+  r.statusCode === 302 && r.headers.location === 'https://farahbrunache.com', r.headers);
+r = makeRes();
+await route(makeReq('GET', '/buy'), r);
+check('the payment page is served', r.statusCode === 200 &&
+  r.headers['content-type'].startsWith('text/html'), r.headers);
+check('every response carries the security headers',
+  r.headers['x-content-type-options'] === 'nosniff' &&
+    r.headers['x-frame-options'] === 'DENY' &&
+    r.headers['referrer-policy'] === 'no-referrer', r.headers);
+r = makeRes();
+await route(makeReq('GET', '/admin'), r);
+check('the payments screen is never cached or indexed',
+  r.headers['cache-control'] === 'no-store' &&
+    r.headers['x-robots-tag'] === 'noindex, nofollow', r.headers);
+r = makeRes();
+await route(makeReq('GET', '/buy.html'), r);
+check('the file name sends you to the address', r.statusCode === 308 &&
+  r.headers.location === '/buy', r.headers);
+r = makeRes();
+await route(makeReq('GET', '/../lib/crypto.js'), r);
+check('a path that climbs out is nothing, not a file', r.statusCode === 404, r.statusCode);
+r = makeRes();
+await route(makeReq('GET', '/auth/callback?code=x&state=y'), r);
+check('the sign-in return reaches the endpoint',
+  r.statusCode === 302 && /problem=/.test(r.headers.location || ''), r.headers);
+
 console.log('submit');
-let r = await run(submit, 'GET', '/api/submit');
+r = await run(submit, 'GET', '/api/submit');
 check('rejects GET with 405', r.statusCode === 405, r.payload);
 check('names the allowed method', r.headers.allow === 'POST', r.headers);
 
