@@ -84,6 +84,19 @@ It is a long-running service rather than a function billed per request, which is
 chat has to be: streaming an answer and watching a live conversation both need a connection
 that stays open.
 
+## The transcript is the product, not a by-product
+
+A session nobody can read produced nothing. The voice service keeps its own copy in its own
+dashboard, and that is not a place the work can be done from: the owner reads a transcript on
+a phone and starts the next conversation out of it.
+
+So it is copied here when the call ends, filed against the order it was bought with, and
+encrypted at rest along with everything else. It is somebody's trade, their rate, their first
+customer and what is standing in their way.
+
+Never put a transcript anywhere it can be read without signing in, never log one, and never
+put one in a test fixture — this repository is public. Invent the words in a test.
+
 ## Every schema statement must survive running twice
 
 `ensureSchema` runs on every cold start, not once at deploy. So every statement in it has to

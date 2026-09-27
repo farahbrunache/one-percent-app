@@ -33,5 +33,7 @@ services:
         sync: false
       - key: RETELL_AGENT_ID
         sync: false
+      - key: RETELL_WEBHOOK_SECRET
+        sync: false
       - key: PAY_WISE
         sync: false

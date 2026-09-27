@@ -342,3 +342,20 @@ button.danger { background: transparent; color: var(--ink-soft); border: 1px sol
   word-break: break-all;
   margin-top: 0.35rem;
 }
+
+/* A transcript is long and is read on a phone. It keeps the speaker turns it arrived with
+   and wraps rather than scrolling sideways. */
+.transcript {
+  margin-top: 0.75rem;
+  border-left: 2px solid var(--rule);
+  padding-left: 0.85rem;
+}
+.transcript pre {
+  margin: 0;
+  font-family: inherit;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+}
