@@ -108,6 +108,8 @@ r = await run(admin, 'GET', '/api/admin?action=list');
 check('list refuses without a session', r.statusCode === 401, r.payload);
 r = await run(admin, 'POST', '/api/admin?action=decide', { id: 1, decision: 'confirm' });
 check('decide refuses without a session', r.statusCode === 401, r.payload);
+r = await run(admin, 'GET', '/api/admin?action=history');
+check('history refuses without a session', r.statusCode === 401, r.payload);
 r = await run(admin, 'POST', '/api/admin?action=nonsense', {});
 check('an unknown action is refused', r.statusCode === 400, r.payload);
 r = await run(admin, 'DELETE', '/api/admin');

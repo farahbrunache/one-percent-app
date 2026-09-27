@@ -10,7 +10,7 @@
 import { ensureSchema, sql } from '../lib/db.js';
 import { decrypt } from '../lib/crypto.js';
 import { requireAdmin } from '../lib/auth.js';
-import { PAYMENT_METHODS, REJECT_REASONS } from '../lib/orders.js';
+import { PAYMENT_METHODS, REJECT_REASONS, normalizeReference } from '../lib/orders.js';
 import { HttpError, handle, readJson, send } from '../lib/http.js';
 
 async function list(req, res) {
@@ -39,6 +39,60 @@ async function list(req, res) {
       submitted: r.created_at,
     })),
     counts: Object.fromEntries(counts.map((c) => [c.status, c.n])),
+  });
+}
+
+// Everything that has been through here, newest first. The card code is not in it and
+// cannot be — it is destroyed when a decision is recorded — but the reference, the amount,
+// the decision and whether the session was ever started all survive, and somebody writing
+// in to say they paid is found by their reference.
+const PER_PAGE = 25;
+
+async function history(req, res) {
+  await requireAdmin(req);
+  await ensureSchema();
+  const params = new URL(req.url, 'https://placeholder.invalid').searchParams;
+  const reference = normalizeReference(params.get('q'));
+  const page = Math.max(1, Number(params.get('page')) || 1);
+  const offset = (page - 1) * PER_PAGE;
+
+  const [rows, totals] = reference
+    ? await Promise.all([
+        sql()`
+          select id, reference_code, payment_method, card_amount_cents, status, reject_reason,
+                 created_at, decided_at, session_starts, first_started_at
+            from orders where reference_code = ${reference}
+           order by created_at desc limit ${PER_PAGE} offset ${offset}
+        `,
+        sql()`select count(*)::int as n from orders where reference_code = ${reference}`,
+      ])
+    : await Promise.all([
+        sql()`
+          select id, reference_code, payment_method, card_amount_cents, status, reject_reason,
+                 created_at, decided_at, session_starts, first_started_at
+            from orders
+           order by created_at desc limit ${PER_PAGE} offset ${offset}
+        `,
+        sql()`select count(*)::int as n from orders`,
+      ]);
+  send(res, 200, {
+    page,
+    perPage: PER_PAGE,
+    total: totals[0]?.n || 0,
+    searched: reference || null,
+    orders: rows.map((r) => ({
+      id: r.id,
+      reference: r.reference_code,
+      method: r.payment_method,
+      label: PAYMENT_METHODS[r.payment_method]?.label || 'Payment',
+      amount: r.card_amount_cents / 100,
+      status: r.status,
+      rejectReason: r.reject_reason ? REJECT_REASONS[r.reject_reason] || r.reject_reason : null,
+      submitted: r.created_at,
+      decided: r.decided_at,
+      sessionStarts: r.session_starts,
+      firstStarted: r.first_started_at,
+    })),
   });
 }
 
@@ -90,7 +144,8 @@ export default handle(['GET', 'POST'], async (req, res) => {
   const action = new URL(req.url, 'https://placeholder.invalid').searchParams.get('action');
 
   if (req.method === 'GET' && action === 'list') return list(req, res);
+  if (req.method === 'GET' && action === 'history') return history(req, res);
   if (req.method === 'POST' && action === 'decide') return decide(req, res);
 
-  throw new HttpError(400, 'Use action=list or action=decide.');
+  throw new HttpError(400, 'Use action=list, action=history or action=decide.');
 });

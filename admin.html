@@ -30,6 +30,25 @@
       <button type="button" class="quiet" id="logout">Sign out</button>
     </div>
     <div id="rows" class="rows" aria-live="polite"></div>
+
+    <h2>Everything so far</h2>
+    <form class="fields" id="search" novalidate>
+      <div class="field">
+        <label for="q">Find a reference</label>
+        <input id="q" type="search" inputmode="latin" autocapitalize="characters"
+               autocomplete="off" placeholder="Whole reference, as they typed it">
+      </div>
+      <div class="actions">
+        <button type="submit" class="quiet">Find</button>
+        <button type="button" class="quiet" id="clear">Show all</button>
+      </div>
+    </form>
+    <p class="meta" id="hcount"></p>
+    <div id="history" class="rows" aria-live="polite"></div>
+    <div class="actions" id="pager" hidden>
+      <button type="button" class="quiet" id="prev">Newer</button>
+      <button type="button" class="quiet" id="next">Older</button>
+    </div>
   </div>
 
 </main>
@@ -167,6 +186,93 @@
     return row;
   }
 
+  function when(value) {
+    return value ? new Date(value).toLocaleString() : null;
+  }
+
+  function renderHistoryRow(order) {
+    const row = el('div', null, 'row');
+    row.append(el('div', `${order.label} · $${order.amount.toFixed(2)}`, null));
+    row.append(el('div', order.reference, 'code'));
+
+    const status = el('div', null, 'meta');
+    if (order.status === 'confirmed') {
+      status.textContent = `Confirmed ${when(order.decided)}`;
+    } else if (order.status === 'rejected') {
+      status.textContent = `Rejected ${when(order.decided)} — ${order.rejectReason || 'no reason recorded'}`;
+    } else {
+      status.textContent = 'Waiting on you';
+    }
+    row.append(status);
+
+    const session = el('div', null, 'meta');
+    if (order.sessionStarts > 0) {
+      const times = order.sessionStarts === 1 ? 'once' : `${order.sessionStarts} times`;
+      session.textContent = `Session started ${times}, first at ${when(order.firstStarted)}`;
+    } else if (order.status === 'confirmed') {
+      session.textContent = 'Session never started';
+    } else {
+      session.textContent = `Submitted ${when(order.submitted)}`;
+    }
+    row.append(session);
+    return row;
+  }
+
+  let hpage = 1;
+  let hquery = '';
+
+  async function loadHistory() {
+    const history = document.getElementById('history');
+    const pager = document.getElementById('pager');
+    const params = new URLSearchParams({ action: 'history', page: String(hpage) });
+    if (hquery) params.set('q', hquery);
+    try {
+      const data = await call(`/api/admin?${params.toString()}`);
+      history.textContent = '';
+      const first = (data.page - 1) * data.perPage + 1;
+      const last = Math.min(data.page * data.perPage, data.total);
+      const counter = document.getElementById('hcount');
+      if (!data.total) {
+        counter.textContent = data.searched
+          ? `Nothing here with the reference ${data.searched}.`
+          : 'Nothing has been through here yet.';
+        pager.hidden = true;
+        return;
+      }
+      counter.textContent = data.searched
+        ? `${data.total} with the reference ${data.searched}.`
+        : `${first} to ${last} of ${data.total}, newest first.`;
+      for (const order of data.orders) history.append(renderHistoryRow(order));
+      pager.hidden = data.total <= data.perPage;
+      document.getElementById('prev').disabled = data.page <= 1;
+      document.getElementById('next').disabled = last >= data.total;
+    } catch (error) {
+      history.textContent = '';
+      history.append(el('p', error.message, 'meta'));
+      pager.hidden = true;
+    }
+  }
+
+  document.getElementById('search').addEventListener('submit', (event) => {
+    event.preventDefault();
+    hquery = document.getElementById('q').value.trim();
+    hpage = 1;
+    loadHistory();
+  });
+  document.getElementById('clear').addEventListener('click', () => {
+    document.getElementById('q').value = '';
+    hquery = '';
+    hpage = 1;
+    loadHistory();
+  });
+  document.getElementById('prev').addEventListener('click', () => {
+    if (hpage > 1) { hpage -= 1; loadHistory(); }
+  });
+  document.getElementById('next').addEventListener('click', () => {
+    hpage += 1;
+    loadHistory();
+  });
+
   async function load() {
     try {
       const data = await call('/api/admin?action=list');
@@ -176,9 +282,10 @@
       rows.textContent = '';
       if (!data.pending.length) {
         rows.append(el('p', 'Nothing waiting.', 'meta'));
-        return;
+      } else {
+        for (const order of data.pending) rows.append(renderRow(order));
       }
-      for (const order of data.pending) rows.append(renderRow(order));
+      await loadHistory();
     } catch (error) {
       starting.hidden = true;
       signin.hidden = false;
