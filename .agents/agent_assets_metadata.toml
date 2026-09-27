@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "Cu2C-9cEX-7xDoqyni_5x"
+uri = "file://artifacts/operator-command-center/command-center-dark-verification.jpg"
+type = "image"
+title = "Operator command center — dark mode"
+description = "Mobile-friendly screenshot of the private operator workspace with queue triage, transcript evidence, pitch paths, and human-reviewed chat drafting."
+logical_id = "44f4bfd4-265f-46e2-899d-2d431fd3aef5"
+content_hash = "sha256:3712836eaecc1dfb795193d6a0a3538bee0c3b3266303a30b2a3b43093db2242"
+size = 103881
+mtime_ms = 1790525412982
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:310f8762-2454-4b7e-b638-3811dacd5f10/44f4bfd4-265f-46e2-899d-2d431fd3aef5/aa4006d6-fe3b-4cb2-8d9e-be5de6630c8e"
+storage_version_token = "1790525428770439"
+content_type = "image/jpeg"

@@ -1,0 +1,79 @@
+# Pitch — for somebody who wants steady, not exceptional
+
+The companion to `pitch-reaching-past-the-average.md`, and the rules in that file's notes apply
+here unchanged. This one is for the person who does not want their life to be a campaign, and it
+must never read as the consolation version. The arithmetic is the same arithmetic. What differs
+is the rate somebody picks, and picking a small one is not picking a small outcome.
+
+---
+
+## Quora
+
+Five dollars.
+
+Not an hour. Not a month. Five dollars, once, from one person, across a year.
+
+That is the smallest figure anybody puts into this, and it comes to a quarter of a million,
+because one percent of five million people is fifty thousand of them.
+
+I am writing this down because the case for all of this usually sounds like it is addressed to
+people who intend to be extraordinary, and most people do not intend that. Most people want
+enough, steadily, without every week being a push. That is a real goal and the arithmetic is
+indifferent to which one you picked. It is the same arithmetic either way.
+
+What the arithmetic is not indifferent to is whether anything sits underneath the figure. Who
+pays you first. What is actually stopping that, concretely — the one thing, not the general
+condition. What gets done about it this week, and whose name is against it.
+
+There is a post on the blog from last May that works this through without a calculator in sight.
+It takes three ordinary trades — somebody caring for a neighbor, somebody fixing cars, somebody
+watching other people's children — puts a weekly number of hours against each, and follows what a
+few hundred people trading with each other would come to over a year. Twenty-five hours a week.
+Thirty. Fifteen. Nothing in it asks anybody to be remarkable. It is at
+https://chargingthefuture.github.io/chargingthefuture/article/chargingthefuture/From-62-to-384%3A-Building-a-Real-Economy-Where-We-Live%2C-Work%2C-and-Prevail
+and it is worth the few minutes before you decide this is not for you.
+
+Working that out is my trade. Thirty minutes, eight questions in a fixed order, and you finish
+with one action and a name on it rather than a list. A voice assistant runs the call; I read what
+comes out of it afterwards, and then there are two of us on it instead of one.
+
+It does not end when the call does. It ends when you have a paying customer.
+
+The economy that pushed you out has headhunters — people whose job is to pitch you, place you,
+and take a percentage for it. This one has nobody standing in the middle of a trade, deliberately,
+and that is the right way to build it. It does leave a gap: nobody is working on your side unless
+somebody decides to. I decided to. There is no cut of what you make.
+
+farahbrunache.com
+
+## Commons
+
+Short form, for the chat.
+
+> Five dollars, once, from one person, in a year. Fifty thousand people is one percent of the
+> five million this happens to, and that comes to a quarter of a million. The smallest rate
+> anybody picks still gets there.
+>
+> You do not have to want to be exceptional. You do have to know who pays you first and what is
+> actually in the way. That is my trade, and it runs until you have a paying customer.
+>
+> farahbrunache.com
+
+## Notes for whoever edits this next
+
+- Never set this template against the other one, and never call this goal modest, realistic,
+  humble or achievable. Each of those words tells somebody they aimed low.
+- Five dollars is the calculator's own lowest row, not a recommendation and not a floor on what
+  anybody should charge. Do not let a line drift into advising a rate.
+- Everything in the other template's notes applies here: no ServiceCredits, no forecast framing,
+  no May figures, no perp language, nothing about a person who has taken a call.
+- The linked post states its yearly figures as dollar amounts in ServiceCredits, which the
+  Dictionary no longer permits. It stands as record and is not edited for that. This template
+  therefore links it and describes it — the trades, the hours, the shape of the case — and quotes
+  no figure from it. Keep it that way. Naming one of those numbers here would carry the framing
+  out of the record and into current copy.
+- The link is to the blog, not to Quora. The same writing exists as a raw export awaiting a copy
+  edit; that copy is not a second post and is not a link target.
+- The blog link sits inside a sentence on purpose. Quora turns a bare URL alone on its own line
+  into a preview card, and only one link here should get a card: the page. Do not tidy the link
+  onto a line of its own.
