@@ -167,6 +167,19 @@ copy, commit messages and pull request bodies alike.
 Never quote the owner's messages in a commit message, a pull request body, or a file. Write
 what changed in your own words.
 
+## Never open an issue here
+
+This repository's issues live in the private `one-percent` repository, along with the
+landing page's and that repository's own. Open one there, and link to it from here if a
+pull request needs to reference it.
+
+You cannot tell in advance which issue turns out to carry something private. A bug report
+about the call arrives with a transcript in it. A payment problem arrives with a reference
+and what somebody said. This repository is public and a published issue cannot be unsaid.
+
+The code and its history stay public, and every pull request describes its change in the
+open. That is what being open source promises here. An issue queue is not part of it.
+
 ## Branches, pull requests and checks
 
 Descriptive branch off the trunk, surgical change, pull request opened ready for review with
