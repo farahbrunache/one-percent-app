@@ -77,7 +77,10 @@ database alone cannot produce one.
 A confirmed order opens a session up to three times inside twenty-four hours of the first. A
 dropped call is started again; a link passed around does not become a week of sessions.
 
-No personal information is collected at any point. Requests are rate limited against a keyed
+Nothing that identifies somebody paying is collected at any point — no name, no email
+address, no location. Signing in at `/admin` is the one exception and it is not a buyer: an
+account id comes back from Skills Economy and is held in a signed cookie for twelve hours.
+It is never written to the database. Requests are rate limited against a keyed
 hash of the caller's address rather than the address itself.
 
 ## Files
