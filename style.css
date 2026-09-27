@@ -266,6 +266,14 @@ button:hover, a.button:hover { filter: brightness(0.93); }
 button:focus-visible, a.button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 button[disabled] { opacity: 0.55; cursor: default; filter: none; }
 
+a.button.quiet-link {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--rule);
+  font-size: 0.92rem;
+  padding: 0.5rem 0.9rem;
+}
+
 button.quiet {
   background: transparent;
   color: var(--accent);

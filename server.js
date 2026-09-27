@@ -16,6 +16,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 
 // address -> file on disk. The address is the key, so nothing a caller sends becomes a path.
 const PAGES = {
+  '/': ['index.html', 'text/html; charset=utf-8'],
   '/buy': ['buy.html', 'text/html; charset=utf-8'],
   '/claim': ['claim.html', 'text/html; charset=utf-8'],
   '/admin': ['admin.html', 'text/html; charset=utf-8'],
@@ -31,6 +32,7 @@ const ENDPOINTS = {
   '/api/admin': () => import('./api/admin.js'),
   '/api/auth': () => import('./api/auth.js'),
   '/api/retell': () => import('./api/retell.js'),
+  '/api/client': () => import('./api/client.js'),
 };
 
 // The claim link and the payments screen must never be held by a browser or anything
@@ -60,15 +62,6 @@ export async function route(req, res) {
   let pathname = url.pathname.replace(/\/+$/, '') || '/';
 
   securityHeaders(res);
-
-  // There is no front page here. Somebody who arrives at the bare address wants the page
-  // that explains what this is, which lives on the other site.
-  if (pathname === '/') {
-    res.statusCode = 302;
-    res.setHeader('location', 'https://farahbrunache.com');
-    res.setHeader('cache-control', 'no-store');
-    return res.end('');
-  }
 
   // A plain path, because the sign-in service matches the return address character for
   // character and some refuse one carrying a query.

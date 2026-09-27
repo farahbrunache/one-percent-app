@@ -70,6 +70,30 @@ owner.
 Search before deleting — readers, writers, the pages, the tests and the schema — and delete
 the setting from the project's environment variables too, or it sits there looking required.
 
+## The app address is the product, and it is a sign-in
+
+`app.farahbrunache.com` is where somebody signs in with Skills Economy and reaches their own
+sessions. It briefly redirected to the sales page and briefly explained itself; both were
+wrong, and the second was wrong in a way worth remembering — a signpost is not a product.
+
+Signing in grants nothing. Anybody with a Skills Economy account can do it and will see a
+page saying no session is linked to them. There is no directory behind it, no other people
+and no chat. What makes somebody a client is seven dollars, the call, and the owner reading
+what the call produced.
+
+So the gate is not the sign-in and must never be moved there. Keep three states apart on
+that screen, because they are three different things to be told: signed in with nothing
+linked, linked and waiting to be read, approved.
+
+**Paying and the call stay account-free.** The sales page promises that, and it is true
+because the claim link carries the whole of it. An account is for afterwards. Never put a
+sign-in in front of buying or in front of starting a session — that would make the sales
+page a lie and would lock out the people it was written for.
+
+Linking uses the claim link, not the reference. A reference is written into a payment note
+and read off a screen by whoever is nearby; the claim token is the only thing only the buyer
+holds.
+
 ## One server, not functions
 
 `server.js` holds the routing table: which address serves which page, which serves which

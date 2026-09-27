@@ -94,6 +94,8 @@ async function history(req, res) {
       firstStarted: r.first_started_at,
       hasTranscript: r.has_transcript,
       callSeconds: r.call_seconds,
+      linked: Boolean(r.client_account_id),
+      approvedClient: Boolean(r.approved_as_client_at),
     })),
   });
 }
@@ -136,6 +138,27 @@ async function transcript(req, res) {
     endedAt: row.call_ended_at,
     seconds: row.call_seconds,
   });
+}
+
+// Taking somebody on after reading their call. Separate from confirming the payment, and
+// later: the payment says the session was bought, this says the owner read what it produced
+// and wants to keep working with them.
+async function approveClient(req, res) {
+  await requireAdmin(req);
+  await ensureSchema();
+  const body = await readJson(req);
+  const id = Number(body.id);
+  if (!Number.isInteger(id) || id <= 0) throw new HttpError(400, 'Which order?');
+
+  const rows = await sql()`
+    update orders set approved_as_client_at = now()
+     where id = ${id} and status = 'confirmed' and approved_as_client_at is null
+     returning id
+  `;
+  if (!rows.length) {
+    throw new HttpError(409, 'That order is not a confirmed one, or it is already approved.');
+  }
+  send(res, 200, { ok: true });
 }
 
 async function decide(req, res) {
@@ -189,6 +212,7 @@ export default handle(['GET', 'POST'], async (req, res) => {
   if (req.method === 'GET' && action === 'history') return history(req, res);
   if (req.method === 'GET' && action === 'transcript') return transcript(req, res);
   if (req.method === 'POST' && action === 'decide') return decide(req, res);
+  if (req.method === 'POST' && action === 'approve-client') return approveClient(req, res);
 
-  throw new HttpError(400, 'Use action=list, action=history, action=transcript or action=decide.');
+  throw new HttpError(400, 'Use action=list, action=history, action=transcript, action=decide or action=approve-client.');
 });
