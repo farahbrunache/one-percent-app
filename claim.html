@@ -163,6 +163,22 @@
     lede('This order is in a state this page does not recognize.');
   }
 
+  // If they are already signed in when they open their link, bind it now. Nothing is shown
+  // about it: a silent success needs no announcement, and a failure here changes nothing —
+  // the link still works, which is what this page is for.
+  async function linkQuietly() {
+    if (!token) return;
+    try {
+      await fetch('/api/client?action=link', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ t: token }),
+      });
+    } catch {
+      // Not signed in, or already held by another account. Neither is this page's business.
+    }
+  }
+
   async function load() {
     if (!token) {
       clear();
@@ -176,6 +192,7 @@
       if (!response.ok) throw new Error(data.error || `The server returned ${response.status}.`);
       try { localStorage.setItem('onepercent.claim', location.pathname + location.search); } catch {}
       render(data);
+      linkQuietly();
     } catch (error) {
       clear();
       lede(error.message);
@@ -236,6 +253,29 @@
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
+  // Said once, after the call rather than before it: beforehand it is one more thing to read
+  // on a page somebody is about to be spoken to from, and it would be the only mention of an
+  // account on a page that promises none is needed.
+  function afterwards() {
+    if (document.getElementById('afterwards')) return;
+    const box = document.createElement('section');
+    box.id = 'afterwards';
+    box.append(el('h3', 'Seeing this again later'));
+    box.append(el('p',
+      'Keep this link — it is how you get back to this page. If you would rather not keep '
+      + 'track of a link, sign in at this site with Skills Economy and paste it once, and '
+      + 'this session will be on your account from then on.'));
+    const go = el('p', null, 'cta');
+    const a = el('a', 'Sign in and keep this session', 'button quiet-link');
+    a.href = '/';
+    go.append(a);
+    box.append(go);
+    box.append(el('p',
+      'An account is not needed for anything you have already done, and signing in does not '
+      + 'buy or unlock anything.', 'meta'));
+    document.querySelector('main').append(box);
+  }
+
   async function startSession(button, target) {
     button.disabled = true;
 
@@ -289,6 +329,7 @@
         callMessage(target, 'The session has ended. A person reads what was taken down.', 'good');
         button.disabled = false;
         button.textContent = 'Start again';
+        afterwards();
       });
       client.on('error', (err) => {
         callMessage(target, `The session stopped: ${err?.message || err}`, 'bad');

@@ -90,6 +90,15 @@ because the claim link carries the whole of it. An account is for afterwards. Ne
 sign-in in front of buying or in front of starting a session — that would make the sales
 page a lie and would lock out the people it was written for.
 
+Nothing about an account appears on the claim page until after the call. Before it, that
+page is somebody about to be spoken to for half an hour, and an account would be the only
+mention of one on a path that promises none is needed. Afterwards it is the answer to a
+question they now have — where does this go.
+
+Opening a claim link while already signed in binds it silently. That is the natural moment
+and it saves a paste. It says nothing on success and nothing on failure: the link works
+either way, which is what that page is for.
+
 Linking uses the claim link, not the reference. A reference is written into a payment note
 and read off a screen by whoever is nearby; the claim token is the only thing only the buyer
 holds.
