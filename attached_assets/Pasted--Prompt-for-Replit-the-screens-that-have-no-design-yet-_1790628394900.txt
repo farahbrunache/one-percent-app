@@ -1,0 +1,116 @@
+# Prompt for Replit — the screens that have no design yet
+
+Copy everything below this line.
+
+---
+
+You designed the operator desk for One Percent on the `design/ops-command-center` branch.
+That one is done and is being built. Do not redo it. This is about the screens you have not
+drawn, which is most of the product.
+
+## What One Percent is
+
+One person sells one thing: a paid half-hour voice call about what somebody would charge one
+person, once, and what it would take to get a first paying customer. It costs $7, real money.
+After the call the operator reads it and writes that person a sheet — things worth doing, in
+their own situation. That sheet is the product. Everybody who calls gets one, whichever way
+the decision went.
+
+Nobody needs an account to pay or to have the call. An account is only for afterwards, to come
+back and read the sheet.
+
+## Rules that are not up for redesign
+
+- **Dark only.** One theme. No light mode, no switch.
+- **One phone-width column at every screen size.** Centred on anything wider. There is no
+  desktop layout and none is wanted.
+- **Nobody has a name.** A person is a reference code, like `H8TF7-AFJYL`. There are no
+  names, no photographs and no avatars with initials, because there is nothing to put in
+  them. Do not design around a person's identity.
+- **There is no chat anywhere.** No message box, no reply form, no contact address, on any
+  screen. It existed, it was removed on purpose, and it is not coming back. Somebody who
+  wants to speak again buys another call.
+- **Real money is money.** $7, and a quote in dollars, are money and are written as money.
+- **Copy carries no pleasantries.** No thanks, no apologies, no "we're excited", no first
+  person feelings, no marketing language. Plain statements.
+- Same visual language as the command center you already made: the same palette, the same
+  serif-for-numbers-and-names against sans-for-labels, the same card radii and hairlines.
+
+## Screens to design
+
+Each one needs every state listed, not just the full one.
+
+### 1. Pay for a session
+
+The first screen somebody sees. It carries the price, two ways to pay — a Wise handle for
+somebody with a bank account, and a gift card code for somebody without one — and gives back
+a reference code plus a claim link the buyer keeps.
+
+States: before choosing a route; the Wise route; the gift card route; the reference and claim
+link handed over; the buyer has lost their link and is recovering it from the reference or the
+card code.
+
+### 2. Your session — the claim page
+
+The page somebody keeps and comes back to. It is the only thing that links them to what they
+paid for, and it works with no account.
+
+States: reading the order; paid but not matched yet; matched, with a control to start the
+call; the call running; the call ended; how many minutes are left of the thirty; a start that
+failed and what to do; an offer to sign in and keep the session against an account.
+
+This page is somebody about to be spoken to for half an hour. It should read like that.
+
+### 3. Signed out, and signing in
+
+Signing in grants nothing on its own. Somebody who signs in without a session sees a page
+saying so. Design that, and the sign-in itself.
+
+### 4. What somebody sees once they are signed in
+
+Their own sessions, with a state on each: paid and not started, started and nothing came back,
+called and waiting to be read, read. The sheet they were written, read in full. A form to paste
+the claim link if the session is not linked yet. Any quotes that have been written for them,
+with what each covers.
+
+No way to write anything. The sheet is read, not replied to.
+
+### 5. Payments — the operator confirming money arrived
+
+A separate operator screen from the desk. What is waiting to be confirmed, with a control to
+confirm or decline each one. A way to find a single reference. Everything confirmed so far.
+
+### 6. The parts of the desk you skipped
+
+The command center covers the queue, a person's header, the decision, the transcript, the path
+and its milestones, and the case history. These are on the same screen and have no design:
+
+- **What is owed on a person.** An ordered list of what still has to happen to them, at the
+  top of their record: keep the call record, decide, write the sheet. It is a worklist, not a
+  set of controls that happen to be on a screen.
+- **The sheet.** Writing it, editing it later, and seeing when it was written. This is the
+  deliverable and it is the thing the mockup has no design for.
+- **Quotes.** The operator writes one for one person: an amount in dollars and what it covers.
+  It has a state — written, agreed, declined.
+- **Introductions.** Two reference codes put in touch, why, and what came of it. It appears on
+  both people's records and reads the same from either end.
+- **Where it ends.** The work ends when that person has somebody paying them. One recorded
+  fact, reversible.
+- **How far people get.** Five figures, each a strict subset of the one above it: calls that
+  came back, worth going on with, on a path, something worked, first paying customer.
+- **More than one call against one order.** A session that dropped and was restarted is two
+  calls. Only the ones that came back are shown.
+- **Exporting the call script** the voice agent runs.
+
+### 7. The states nothing has been drawn for
+
+Loading, empty, and failed, on every screen above. A failure says what failed and what to do
+about it, not "something went wrong".
+
+## What to do with anything new
+
+If a screen seems to need a capability that is not described here, design it and mark it
+clearly as a proposal. Do not fold it in as though it exists. The same goes for the controls
+on the command center that were never in the product — the search box, the queue filters, the
+notifications bell, desk preferences, the live daily counter, the assessment scorer, the
+relationship graph and the drafted reply. They are proposals, not built.
