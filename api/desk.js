@@ -88,6 +88,9 @@ async function queue(req, res) {
   const [rows, totals] = await Promise.all([
     sql()`
       select o.id, o.reference_code, o.assessment,
+             o.recommendations_written_at,
+             exists (select 1 from calls c2
+                      where c2.order_id = o.id and c2.record_encrypted is null) as record_missing,
              o.assessed_at, o.client_account_id is not null as linked,
              p.path as plan_path,
              (select c.ended_at from calls c
@@ -146,6 +149,8 @@ async function queue(req, res) {
       callCount: r.call_count,
       assessment: r.assessment,
       assessedAt: r.assessed_at,
+      recommendedAt: r.recommendations_written_at,
+      recordMissing: Boolean(r.record_missing),
       linked: r.linked,
       awaitingReply: Boolean(r.awaiting_reply),
       planPath: r.plan_path,
@@ -231,7 +236,8 @@ async function person(req, res) {
   // Every call against this order, newest first, each with its own transcript. A session that
   // dropped and was restarted shows as two, which is a fact the owner could not see before.
   const calls = await sql()`
-    select id, kind, transcript_encrypted, summary_encrypted, started_at, ended_at, seconds
+    select id, call_id, kind, transcript_encrypted, summary_encrypted, started_at, ended_at,
+           seconds, record_encrypted is not null as record_kept
       from calls where order_id = ${id} order by started_at desc
   `;
 
@@ -295,6 +301,10 @@ async function person(req, res) {
       endedAt: c.ended_at,
       seconds: c.seconds,
     })),
+    // The same two facts the queue carries, so one description of what is owed serves both
+    // screens rather than each working it out differently.
+    calledAt: calls.length ? calls[0].started_at : null,
+    recordMissing: calls.some((c) => !c.record_kept),
     assessment: row.assessment,
     assessedAt: row.assessed_at,
     linked: Boolean(row.client_account_id),
