@@ -30,6 +30,11 @@
     <p class="meta" id="qcount"></p>
     <div id="people" class="rows" aria-live="polite"></div>
     <div class="actions" id="pager" hidden></div>
+
+    <h2>How far people get</h2>
+    <p class="meta">Everybody counted once, however many sessions they have bought.</p>
+    <div id="funnel" class="rows"></div>
+
     <div class="actions">
       <a class="button quiet-link" href="/admin">Payments</a>
       <button type="button" class="quiet" id="logout">Sign out</button>
@@ -76,6 +81,11 @@
       </div>
       <div class="actions"><button type="submit" class="quiet">Add</button></div>
     </form>
+
+    <h2>Where it ends</h2>
+    <p class="meta">The work ends when they have somebody paying them, not at a session count.</p>
+    <p id="earned" class="status-line" hidden></p>
+    <div class="actions" id="firstcustomer"></div>
 
     <h2>The record</h2>
     <form class="fields" id="addnote" novalidate>
@@ -172,6 +182,30 @@
     if (data.page > 1) pager.append(link('Newer', `/desk?state=${data.state}&page=${data.page - 1}`, 'button quiet-link'));
     pager.append(el('span', `Page ${data.page} of ${last}`, 'meta'));
     if (data.page < last) pager.append(link('Older', `/desk?state=${data.state}&page=${data.page + 1}`, 'button quiet-link'));
+  }
+
+  // Five numbers, each a subset of the one above. It starts at the call because nothing above
+  // that is visible — leads arrive from Quora with no address and no open rate — and a top row
+  // invented to make the shape look right would be a guess presented as a measurement.
+  //
+  // It sits under the queue rather than over it. The queue is the work; this is the scoreboard,
+  // and a scoreboard that pushes the work below the fold has the two the wrong way round.
+  async function renderFunnel() {
+    const box = document.getElementById('funnel');
+    try {
+      const data = await call('/api/desk?action=funnel');
+      box.textContent = '';
+      for (const stage of data.stages) {
+        const row = el('div', null, 'row');
+        row.append(el('div', stage.label, 'label'));
+        row.append(el('div', String(stage.count), 'value'));
+        if (stage.rate !== null) row.append(el('div', `${stage.rate}% of the step above`, 'meta'));
+        box.append(row);
+      }
+    } catch (error) {
+      box.textContent = '';
+      box.append(el('p', error.message, 'meta'));
+    }
   }
 
   function renderQueue(data) {
@@ -409,6 +443,31 @@
     });
   }
 
+  function renderFirstCustomer(person) {
+    const box = document.getElementById('firstcustomer');
+    const said = document.getElementById('earned');
+    box.textContent = '';
+    said.hidden = !person.firstCustomerAt;
+    if (person.firstCustomerAt) {
+      said.textContent = `Had somebody paying them by ${when(person.firstCustomerAt)}.`;
+    }
+    const reached = !person.firstCustomerAt;
+    const button = el('button', reached ? 'They have a paying customer' : 'Take that back', reached ? null : 'quiet');
+    button.type = 'button';
+    button.style.flex = '1';
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      try {
+        await post('first-customer', { id: person.id, reached });
+        window.location.reload();
+      } catch (error) {
+        button.disabled = false;
+        msg('rmsg', error.message, 'bad');
+      }
+    });
+    box.append(button);
+  }
+
   function renderEvents(person) {
     const list = document.getElementById('events');
     list.textContent = '';
@@ -436,6 +495,7 @@
     renderThread(person);
     renderPlan(person);
     renderSteps(person);
+    renderFirstCustomer(person);
     renderEvents(person);
 
     document.getElementById('addstep').addEventListener('submit', async (event) => {
@@ -480,6 +540,7 @@
       } else {
         document.getElementById('queue').hidden = false;
         renderQueue(data);
+        renderFunnel();
       }
     } catch (error) {
       document.getElementById('starting').hidden = true;
