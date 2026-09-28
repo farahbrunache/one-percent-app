@@ -58,6 +58,21 @@
     <p id="assessed" class="status-line" hidden></p>
     <div class="actions" id="assess"></div>
 
+    <h2>What they are told</h2>
+    <p class="meta">Everybody who calls gets this, whichever way the decision went. A no-go is
+      not a rejection and must not read as one: they keep everything they had, Skills Economy is
+      unchanged and free, and what this adds is your time.</p>
+    <p class="meta" id="recommendedat"></p>
+    <form class="fields" id="recommendform" novalidate>
+      <div class="field">
+        <label for="recommendbody">Recommendations</label>
+        <span class="hint">Things worth doing, in their own situation. They read this word for
+          word, so write it to them rather than about them.</span>
+        <textarea id="recommendbody" rows="8" maxlength="8000"></textarea>
+      </div>
+      <div class="actions"><button type="submit" class="quiet">Write it</button></div>
+    </form>
+
     <h2>The path</h2>
     <p class="meta">Two paths, neither above the other.</p>
     <div id="plan"></div>
@@ -493,6 +508,29 @@
     }
   }
 
+  // Written once and edited afterwards, because what somebody should do next is not settled in
+  // one sitting and the sheet is theirs to read whenever they come back.
+  function renderRecommendations(person) {
+    const at = document.getElementById('recommendedat');
+    const input = document.getElementById('recommendbody');
+    const form = document.getElementById('recommendform');
+
+    at.textContent = person.recommendations
+      ? `Written ${when(person.recommendedAt)}. They can read it now.`
+      : 'Nothing written yet, so there is nothing for them to come back to.';
+    if (person.recommendations) input.value = person.recommendations;
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      try {
+        await post('recommend', { id: person.id, body: input.value });
+        window.location.reload();
+      } catch (error) {
+        msg('rmsg', error.message, 'bad');
+      }
+    });
+  }
+
   function renderThread(person) {
     const list = document.getElementById('thread');
     const note = document.getElementById('threadnote');
@@ -788,6 +826,7 @@
       (person.linked ? '' : ' · no account linked yet');
     renderCalls(person);
     renderAssess(person);
+    renderRecommendations(person);
     renderThread(person);
     renderPlan(person);
     renderSteps(person);

@@ -210,7 +210,8 @@ async function person(req, res) {
 
   const rows = await sql()`
     select id, reference_code, status, assessment, assessed_at,
-           client_account_id, approved_as_client_at, first_customer_at
+           client_account_id, approved_as_client_at, first_customer_at,
+           recommendations_encrypted, recommendations_written_at
       from orders where id = ${id}
   `;
   if (!rows.length) throw new HttpError(404, 'No order with that number.');
@@ -297,6 +298,8 @@ async function person(req, res) {
     assessedAt: row.assessed_at,
     linked: Boolean(row.client_account_id),
     approvedAt: row.approved_as_client_at,
+    recommendations: row.recommendations_encrypted ? decrypt(row.recommendations_encrypted) : null,
+    recommendedAt: row.recommendations_written_at,
     firstCustomerAt: row.first_customer_at,
     messages: messages.map((m) => ({
       author: m.author,
@@ -573,6 +576,34 @@ async function assess(req, res) {
   send(res, 200, { ok: true, assessment: decision });
 }
 
+// What the caller reads when they come back.
+//
+// The same kind of thing whichever way the decision went. A no-go is not a rejection and must
+// not read as one: nobody loses anything they had, Skills Economy is unchanged and free, and
+// what One Percent adds is one person's time. So both sides get recommendations, and the
+// difference is whether the conversation opens, not whether there is something to read.
+async function recommend(req, res) {
+  requireAdmin(req);
+  await ensureSchema();
+  const body = await readJson(req);
+  const id = orderId(body.id);
+  const text = String(body.body || '').trim().slice(0, 8000);
+  if (!text) throw new HttpError(400, 'An empty sheet is not a recommendation.');
+
+  const done = await sql()`
+    update orders set
+      recommendations_encrypted = ${encrypt(text)},
+      recommendations_written_at = now()
+     where id = ${id} and status = 'confirmed'
+     returning id
+  `;
+  if (!done.length) {
+    throw new HttpError(409, 'That order is not a confirmed one, so there is nobody to write to.');
+  }
+  await record(id, 'recommended', 'Written.');
+  send(res, 201, { ok: true });
+}
+
 // Setting the path retires whatever was in force. Two statements rather than one, because the
 // partial unique index refuses two rows in force at the same moment.
 async function setPlan(req, res) {
@@ -836,6 +867,7 @@ const ACTIONS = {
     'milestone-add': addMilestone,
     'milestone-record': recordMilestone,
     reply,
+    recommend,
     draft: writeDraft,
     model: chooseModel,
     quote: writeQuote,

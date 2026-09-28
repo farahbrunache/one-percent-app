@@ -23,6 +23,10 @@ function shape(rows) {
     calledAt: r.first_started_at,
     sessionStarts: r.session_starts,
     hasTranscript: Boolean(r.has_transcript),
+    // The same thing whichever way the decision went. Everybody who calls gets these; what
+    // differs is whether the conversation opens alongside them.
+    recommendations: r.recommendations_encrypted ? decrypt(r.recommendations_encrypted) : null,
+    recommendedAt: r.recommendations_written_at,
   }));
 }
 
@@ -31,6 +35,7 @@ async function mine(req, res) {
   await ensureSchema();
   const rows = await sql()`
     select reference_code, approved_as_client_at, first_started_at, session_starts,
+           recommendations_encrypted, recommendations_written_at,
            exists (select 1 from calls c
                     where c.order_id = orders.id
                       and c.transcript_encrypted is not null) as has_transcript
