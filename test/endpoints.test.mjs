@@ -335,28 +335,51 @@ check('a message has one of two authors',
 
 console.log('the transcript coming back');
 const retell = (await import('../api/retell.js')).default;
-delete process.env.RETELL_WEBHOOK_SECRET;
-r = await run(retell, 'POST', '/api/retell', { call: { call_id: 'c1' } });
-check('refuses while the shared secret is unset', r.statusCode === 503 &&
-  /RETELL_WEBHOOK_SECRET/.test(r.payload?.error || ''), r.payload);
+const { sign } = await import('retell-sdk');
 
-process.env.RETELL_WEBHOOK_SECRET = 'a-webhook-secret-long-enough';
+// Retell signs every delivery with the API key. There is no shared secret to agree on, and the
+// webhook settings in their dashboard are a URL and a timeout — so a check expecting a header of
+// our own would refuse every real delivery. These sign a body the way Retell does and watch what
+// happens, which is the only way to know this is right without a live account.
+delete process.env.RETELL_SECRET_KEY;
 r = await run(retell, 'POST', '/api/retell', { call: { call_id: 'c1' } });
-check('refuses a delivery with no secret on it', r.statusCode === 401, r.payload);
+check('refuses when there is no key to check a signature against', r.statusCode === 503, r.payload);
+check('and says which key it means', /webhook badge/.test(r.payload?.error || ''), r.payload);
+
+process.env.RETELL_SECRET_KEY = 'key_invented_for_this_test';
+
+r = await run(retell, 'POST', '/api/retell', { call: { call_id: 'c1' } });
+check('refuses a delivery with no signature at all', r.statusCode === 401, r.payload);
+
 r = await run(retell, 'POST', '/api/retell', { call: { call_id: 'c1' } },
-  { 'x-retell-secret': 'not-the-secret-but-long-enough' });
-check('refuses a delivery with the wrong secret', r.statusCode === 401, r.payload);
+  { 'x-retell-signature': 'v=1,d=deadbeef' });
+check('refuses a signature that does not check out', r.statusCode === 401, r.payload);
+
+r = await run(retell, 'POST', '/api/retell', { call: { call_id: 'c1' } },
+  { 'x-retell-signature': 'not-even-the-right-shape' });
+check('refuses a signature that is not the right shape', r.statusCode === 401, r.payload);
+
+// A real one, signed the way Retell signs it. It gets past the check and on to the database,
+// which is not reachable here — so a 500 is this test passing the part it can test.
+const realBody = JSON.stringify({ call: { call_id: 'c1' } });
+const realSignature = await sign(realBody, process.env.RETELL_SECRET_KEY);
+r = await run(retell, 'POST', '/api/retell', JSON.parse(realBody),
+  { 'x-retell-signature': realSignature });
+check('lets a genuine delivery through to be filed', r.statusCode !== 401, r.payload);
+
+// Signed with a different key, which is what a forgery looks like.
+const wrongKeySignature = await sign(realBody, 'a-different-key');
+r = await run(retell, 'POST', '/api/retell', JSON.parse(realBody),
+  { 'x-retell-signature': wrongKeySignature });
+check('refuses one signed with the wrong key', r.statusCode === 401, r.payload);
+
 r = await run(retell, 'POST', '/api/retell', { nothing: true },
-  { 'x-retell-secret': 'a-webhook-secret-long-enough' });
+  { 'x-retell-signature': await sign(JSON.stringify({ nothing: true }), process.env.RETELL_SECRET_KEY) });
 check('refuses a delivery that names no call', r.statusCode === 400 &&
   /names no call/.test(r.payload?.error || ''), r.payload);
-// A delivery that names a call this site never started is refused too, but that check is the
-// update finding no row, so it needs a database and is not covered here.
+
 r = await run(retell, 'GET', '/api/retell');
 check('rejects GET', r.statusCode === 405, r.payload);
-r = await run(retell, 'POST', '/api/retell?k=a-webhook-secret-long-enough',
-  { call: { call_id: 'c1' } });
-check('the secret is not accepted from the address', r.statusCode === 401, r.payload);
 
 console.log('who the rate limit counts');
 const { callerKey } = await import('../lib/crypto.js');
