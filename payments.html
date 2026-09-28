@@ -7,28 +7,29 @@
 <meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700&family=IBM+Plex+Mono:wght@400&display=swap">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<main class="wrap">
+<main class="wrap inside">
 
   <h1>Payments</h1>
 
   <div id="signin" hidden>
     <p class="lede">Sign in with Skills Economy to see what is waiting.</p>
-    <div class="actions"><a class="button" id="lgo" href="/api/auth?action=start&amp;to=/payments">Sign in with Skills Economy</a></div>
+    <div class="actions"><a class="button go-on" id="lgo" href="/api/auth?action=start&amp;to=/payments">Sign in with Skills Economy</a></div>
     <div id="lmsg" hidden></div>
   </div>
 
   <div id="work" hidden>
-    <div id="counts" class="status-line"></div>
+    <div id="counts" class="stats"></div>
     <div class="actions">
       <button type="button" class="quiet" id="refresh">Refresh</button>
       <button type="button" class="quiet" id="logout">Sign out</button>
     </div>
     <div id="rows" class="rows" aria-live="polite"></div>
 
+    <div class="panel">
     <h2>Everything so far</h2>
     <form class="fields" id="search" novalidate>
       <div class="field">
@@ -46,6 +47,7 @@
     <div class="actions" id="pager" hidden>
       <button type="button" class="quiet" id="prev">Newer</button>
       <button type="button" class="quiet" id="next">Older</button>
+    </div>
     </div>
   </div>
 
@@ -87,14 +89,20 @@
     return data;
   }
 
+  // The same three tiles the desk counts with. What is waiting spans, because it is the
+  // only one of the three that is work.
   function renderCounts(map) {
     counts.textContent = '';
-    counts.append(el('div', 'Waiting on you', 'label'));
-    counts.append(el('div', String(map.pending || 0), 'value'));
-    const rest = el('p', null, 'meta');
-    rest.style.marginTop = '0.5rem';
-    rest.textContent = `${map.confirmed || 0} confirmed · ${map.rejected || 0} rejected`;
-    counts.append(rest);
+    for (const [label, count] of [
+      ['Waiting on you', map.pending || 0],
+      ['Confirmed', map.confirmed || 0],
+      ['Declined', map.rejected || 0],
+    ]) {
+      const tile = el('div', null, 'stat');
+      tile.append(el('div', String(count), 'figure'));
+      tile.append(el('div', label, 'what'));
+      counts.append(tile);
+    }
   }
 
   function renderRow(order) {
@@ -128,7 +136,9 @@
     copies.append(copyButton('Copy reference', order.reference));
     if (order.code) copies.append(copyButton('Copy card code', order.code));
 
-    const confirm = el('button', 'Confirm');
+    // Money arrived is the one thing that happens on this screen, so it is the one filled
+    // control on it. Declining is the same size and the same shape, one step further down.
+    const confirm = el('button', 'Confirm', 'go-on');
     confirm.type = 'button';
     confirm.style.flex = '1';
     confirm.addEventListener('click', async () => {

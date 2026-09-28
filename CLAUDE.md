@@ -58,14 +58,23 @@ Two surfaces, two answers.
 The sales page is settled. Its design stays as it is and is not redesigned, restyled or
 reorganized. A change there is copy or a fix, never a new look.
 
-The screens behind the sign-in follow the `design/ops-command-center` branch of this
-repository. That branch is a design tool's mockup of the operator desk — React, Tailwind and
+The screens behind the sign-in — the desk, payments, and what somebody sees of their own
+sessions — follow the `design/ops-command-center` branch of this repository. That branch is a design tool's mockup of the operator desk — React, Tailwind and
 a component library, none of which this app uses — and it is the design the owner wants. It
 is not a source of code and is never merged into the trunk; it is read, and the look is
 rebuilt in the plain HTML and hand-written CSS this app is made of.
 
 Pull the branch and read the latest of it before building. It is worked on separately and
 what is on it now is not what was on it last time.
+
+That branch drew one screen, the desk. Payments and the client area were inferred from it —
+the same palette, the same type, the same card, applied to what those screens already did.
+When the branch gains a design for one of them, that design wins over what was inferred.
+
+Paying and the call are on the other side of the line and are not touched by any of this.
+They need no account, they are the end of the path that starts on the sales page, and they
+keep that page's look. The sign-in is where the product stops selling and starts working,
+and the two look different because they are doing different things.
 
 Follow it, never copy it. Three things do not travel with it:
 
