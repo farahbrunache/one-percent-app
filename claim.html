@@ -36,6 +36,10 @@
 </main>
 
 <script type="module">
+  // Pinned rather than whatever that address serves today. The server creates the call with a
+  // pinned library, and the two halves have to agree about the room being joined; a silent
+  // upgrade on one side is a call that stops with a short sentence and no reason.
+  const VOICE_CLIENT = 'https://cdn.jsdelivr.net/npm/retell-client-js-sdk@3.0.1/+esm';
   const body = document.getElementById('body');
   const token = new URLSearchParams(location.search).get('t');
 
@@ -303,7 +307,7 @@
 
     let RetellWebClient;
     try {
-      ({ RetellWebClient } = await import('https://cdn.jsdelivr.net/npm/retell-client-js-sdk/+esm'));
+      ({ RetellWebClient } = await import(VOICE_CLIENT));
     } catch {
       callMessage(
         target,
@@ -332,19 +336,76 @@
         afterwards();
       });
       client.on('error', (err) => {
-        callMessage(target, `The session stopped: ${err?.message || err}`, 'bad');
+        callMessage(target, `The session stopped. ${describeFailure(err, data.callId)}`, 'bad');
         button.disabled = false;
       });
       await client.startCall({ accessToken: data.accessToken });
     } catch (error) {
       callMessage(
         target,
-        `The session did not start: ${error.message}. Reload this page and press the button `
-          + 'again — your session is still there.',
+        `The session did not start. ${describeFailure(error, data.callId)} Reload this page `
+          + 'and press the button again — your session is still there.',
         'bad',
       );
       button.disabled = false;
     }
+  }
+
+  // Everything the failure carried, not the one line of it that happens to be a message.
+  //
+  // A voice call fails in a browser for reasons that live in three different places -- a
+  // refused microphone, a device that is not there, a room the token no longer opens -- and
+  // the client reports all of them through the same event with the same short sentence. The
+  // detail is on the object rather than in the sentence, so the sentence alone is unusable.
+  //
+  // What it puts on screen: the sentence, whatever fields came with it, the call's own id so
+  // it can be looked up in the voice service's dashboard, and the version of the client that
+  // was loaded, because the page takes whatever that address currently serves.
+  function describeFailure(failure, callId) {
+    const parts = [];
+    const seen = new Set();
+
+    const add = (label, value) => {
+      if (value === undefined || value === null || value === '') return;
+      const text = typeof value === 'string' ? value : String(value);
+      if (!text || text === '[object Object]' || seen.has(text)) return;
+      seen.add(text);
+      parts.push(label ? `${label}: ${text}` : text);
+    };
+
+    if (failure instanceof Error || (failure && typeof failure === 'object')) {
+      add(null, failure.message || failure.reason || failure.error || String(failure));
+      // Named separately as well: when a message is present these carry the part of the
+      // reason the message left out, and the set above drops them when they repeat it.
+      add('reason', failure.reason);
+      add('error', typeof failure.error === 'string' ? failure.error : undefined);
+      add('name', failure.name);
+      add('code', failure.code);
+      add('status', failure.status);
+      for (const [key, value] of Object.entries(failure)) {
+        if (['message', 'reason', 'error', 'name', 'code', 'status', 'stack'].includes(key)) continue;
+        if (value && typeof value === 'object') continue;
+        add(key, value);
+      }
+      let cause = failure.cause;
+      for (let depth = 0; cause && depth < 3; depth += 1) {
+        add('caused by', cause.message || String(cause));
+        cause = cause.cause;
+      }
+    } else {
+      add(null, String(failure));
+    }
+
+    if (callId) parts.push(`call ${callId}`);
+    parts.push(`client ${VOICE_CLIENT}`);
+
+    // The raw object as well, because an object nested inside it cannot be put on a page and
+    // is sometimes the only place the real reason is written.
+    console.error('[one-percent] the session failed', failure);
+
+    const said = parts.join(' · ');
+    return `${said}. If the browser asked for the microphone and it was refused, or there is `
+      + 'no microphone on this device, that is what this says.';
   }
 
   const copy = document.getElementById('copylink');
