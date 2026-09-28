@@ -147,8 +147,9 @@ wrong, and the second was wrong in a way worth remembering — a signpost is not
 
 Signing in grants nothing. Anybody with a Skills Economy account can do it and will see a
 page saying no session is linked to them. There is no directory behind it, no other people
-and no chat. What makes somebody a client is seven dollars, the call, and the owner reading
-what the call produced.
+and nothing to write in. What makes somebody a client is seven dollars, the call, and the
+owner reading what the call produced — and the conversation opens at that last step, not at
+the sign-in.
 
 So the gate is not the sign-in and must never be moved there. Keep three states apart on
 that screen, because they are three different things to be told: signed in with nothing
@@ -172,25 +173,39 @@ Linking uses the claim link, not the reference. A reference is written into a pa
 and read off a screen by whoever is nearby; the claim token is the only thing only the buyer
 holds.
 
-## The client area is read-only, and stays that way
+## The conversation opens on a go, and on nothing else
 
-There is no way for somebody who has paid to send words to the owner. No chat, no message
-box, no reply form, no contact address. There was one, it was removed, and the table behind
-it was dropped. This is settled and is not to be rebuilt because a screen looks like it is
-missing something.
+There is one written channel between a client and the owner, and the gate on it is the
+decision. A go opens it. Nothing else does.
 
-What seven dollars buys is a half-hour call and the sheet written out of it. Being reachable
-afterwards is not part of it, and a box anybody who pays can write into is a way to reach one
-person that costs the sender nothing and the reader everything. The people this attracts
-first are the ones the check exists to keep out.
+**Before a decision there is no conversation, and after a no-go there is none either.**
+Somebody who has paid and is waiting to be read sees their sessions and nothing to write in.
+Somebody told no keeps their sheet and everything they already had, and the channel is not
+part of that.
 
-Nobody is left with nothing by this. Somebody who thought it was worth the money comes back
-and buys another call, and that is when they speak again. Somebody who did not, keeps their
-sheet and everything they already had, and is out seven dollars rather than stuck in a queue
-waiting on an answer.
+This was got wrong in both directions and both are worth knowing about.
 
-One-way feedback on what the sheet was worth is a different thing and is allowed: it goes one
-direction, it reaches no inbox, and it cannot be replied to. Build it that way or not at all.
+It first shipped open to anybody who had paid, with a line inviting them to write while they
+waited for a decision. That is the state it must never be in: a box anybody who pays seven
+dollars can write into is a way to reach one person, it costs the sender nothing and the
+reader everything, and the people who find it first are the ones the seven dollars exists to
+filter.
+
+It was then removed outright, which was too far. On a go the conversation is the product. The
+call has been read by a person, the sheet is written, and what happens next is the actual
+work: carrying the recommendations out, and quoting for paid work when there is any. That has
+to happen somewhere, and it is what somebody who was told yes is paying for.
+
+**The opening line is scripted and says so.** When a go is recorded and the sheet is written,
+one line goes into the thread asking what they make of the recommendations and whether they
+want help following them through. It is stored under its own author, and both screens label
+it as the opening line rather than putting it under a person's name — a scripted line wearing
+somebody's name is the first thing anybody replies to, and there would be nobody there. Every
+line after it is a person at both ends.
+
+**Do not widen the gate and do not close it.** If a screen looks like it is missing a way to
+get in touch, that is the gate working. If a client cannot reach anybody after a go, that is
+a bug.
 
 ## Decision, never assessment
 

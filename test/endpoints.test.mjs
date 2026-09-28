@@ -245,10 +245,12 @@ r = await run(client, 'POST', '/api/client?action=link', { t: 'x' });
 check('refuses to link without a session', r.statusCode === 401, r.payload);
 r = await run(client, 'GET', '/api/client?action=quotes');
 check('what has been quoted refuses without a session', r.statusCode === 401, r.payload);
-// Nothing here writes. There is no way for somebody who has paid to send words to one person,
-// and an action that no longer exists is refused like anything else that was never there.
+r = await run(client, 'GET', '/api/client?action=thread');
+check('the conversation refuses without a session', r.statusCode === 401, r.payload);
+// The go gate is a database question and is checked in the database tests. What this proves
+// is that nobody reaches it without signing in first.
 r = await run(client, 'POST', '/api/client?action=send', { body: 'x' });
-check('there is no way to write in', r.statusCode === 400, r.payload);
+check('writing in refuses without a session', r.statusCode === 401, r.payload);
 r = await run(client, 'POST', '/api/client?action=nonsense', {});
 check('an unknown client action is refused', r.statusCode === 400, r.payload);
 r = await run(client, 'DELETE', '/api/client');
@@ -265,7 +267,7 @@ check('a decision refuses without a session', r.statusCode === 401, r.payload);
 r = await run(desk, 'POST', '/api/desk?action=milestone-record', { id: 1, milestoneId: 1, status: 'worked' });
 check('recording an outcome refuses without a session', r.statusCode === 401, r.payload);
 r = await run(desk, 'POST', '/api/desk?action=reply', { id: 1, body: 'x' });
-check('there is nothing to reply to, so there is no way to reply', r.statusCode === 400, r.payload);
+check('replying refuses without a session', r.statusCode === 401, r.payload);
 r = await run(desk, 'POST', '/api/desk?action=recommend', { id: 1, body: 'x' });
 check('writing the sheet refuses without a session', r.statusCode === 401, r.payload);
 r = await run(desk, 'POST', '/api/desk?action=quote', { id: 1, amount: 250, scope: 'x' });
@@ -309,9 +311,9 @@ check('and enough for one full session plus a dropped one',
 check('a missing webhook is assumed to have been a whole session',
   money.ASSUME_FULL_AFTER_SECONDS >= 30 * 60, money.ASSUME_FULL_AFTER_SECONDS);
 
-check('the queues are the three that exist',
-  vocab.isQueueState('waiting') && vocab.isQueueState('active') && vocab.isQueueState('closed')
-    && !vocab.isQueueState('replies') && !vocab.isQueueState('all'));
+check('the queues are the four that exist',
+  vocab.isQueueState('waiting') && vocab.isQueueState('replies') && vocab.isQueueState('active')
+    && vocab.isQueueState('closed') && !vocab.isQueueState('all'));
 // The funnel starts where the data starts. Quora gives no address and no open rate, so a stage
 // above the call would be a guess presented as a measurement.
 check('the funnel starts at a call that came back', vocab.FUNNEL_STAGES[0].key === 'called',

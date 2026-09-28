@@ -807,3 +807,17 @@ button.danger { background: transparent; color: var(--ink-soft); border: 1px sol
   padding: 0.625rem 0.75rem;
 }
 .inside .row select { margin-top: 0.4rem; }
+
+/* A message, on either screen. Which side said it is carried by where the rule sits rather
+   than by colour alone, so it still reads when colour is not what somebody is going by.
+   The opening line is scripted and gets neither rule — it is not a side of the conversation. */
+.inside .said { border-radius: 12px; }
+.inside .said .label {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--in-muted);
+}
+.inside .said.them { border-left: 2px solid var(--in-coral); }
+.inside .said.us { border-left: 2px solid #33443f; }

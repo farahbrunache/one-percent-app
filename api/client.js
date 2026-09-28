@@ -10,12 +10,13 @@
 // Linking is done with the claim link, because that is the one thing only the person who paid
 // holds. A reference is written in a payment note and read off a screen; a claim token is not.
 //
-// Nothing here writes. This area is where somebody reads what came out of their own call, and
-// it is read-only on purpose: an inbox anybody who pays seven dollars can write into is a way
-// to reach one person, and being reachable that way is not part of what was bought.
+// The conversation is open to a client and to nobody else. Paying does not open it and being
+// read does not open it -- a go does, because a go means the work has started and there is
+// something to talk about. Anyone else asking gets told so plainly rather than being shown a
+// box that would not send.
 
 import { ensureSchema, findByClaimTokenHash, sql, underLimit } from '../lib/db.js';
-import { callerKey, decrypt, keyedHash } from '../lib/crypto.js';
+import { callerKey, decrypt, encrypt, keyedHash } from '../lib/crypto.js';
 import { requireAccount } from '../lib/auth.js';
 import { describeStatus } from '../lib/orders.js';
 import { HttpError, handle, readJson, send } from '../lib/http.js';
@@ -56,9 +57,69 @@ async function mine(req, res) {
   });
 }
 
-// What has been quoted to them, and what each one covers. Read-only from this end, because a
-// button that creates an obligation to pay somebody real money should not be the lightest
-// thing on the screen.
+// The conversation, from the other end. One thread per person however many sessions they
+// buy, so somebody who comes back months later is not starting again with a stranger.
+//
+// Approved means a go was recorded. Before that there is nothing decided to talk about, and
+// after a no-go there is no work to carry on with -- in both cases the answer is the same
+// sentence rather than an empty box.
+async function requireClient(account) {
+  const rows = await sql()`
+    select 1 from orders
+     where client_account_id = ${account} and approved_as_client_at is not null
+     limit 1
+  `;
+  if (!rows.length) {
+    throw new HttpError(
+      403,
+      'The conversation opens once your call has been read and the answer was yes. Until ' +
+        'then what is here to read is your recommendations.',
+    );
+  }
+}
+
+async function thread(req, res) {
+  const account = requireAccount(req);
+  await ensureSchema();
+  await requireClient(account);
+  const rows = await sql()`
+    select author, body_encrypted, created_at from messages
+     where account_id = ${account}
+     order by created_at asc limit 200
+  `;
+  send(res, 200, {
+    messages: rows.map((r) => ({
+      author: r.author,
+      body: decrypt(r.body_encrypted),
+      at: r.created_at,
+    })),
+  });
+}
+
+// Writing in. Held to a rate because one person cannot read fifty thousand inboxes, and an
+// account that can send without limit is a way to make sure nobody else gets read.
+async function sendMessage(req, res) {
+  const account = requireAccount(req);
+  await ensureSchema();
+  await requireClient(account);
+  if (!(await underLimit('client-send', callerKey(req), 30, 3600))) {
+    throw new HttpError(429, 'That is a lot of messages in an hour. Try again later.');
+  }
+
+  const body = await readJson(req);
+  const text = String(body.body || '').trim().slice(0, 4000);
+  if (!text) throw new HttpError(400, 'An empty message is not a message.');
+
+  await sql()`
+    insert into messages (account_id, author, body_encrypted)
+    values (${account}, 'client', ${encrypt(text)})
+  `;
+  return thread(req, res);
+}
+
+// What has been quoted to them, and what each one covers. Read-only from this end: agreeing
+// happens by saying so in the conversation, because a button that creates an obligation to pay
+// somebody real money should not be the lightest thing on the screen.
 async function quotes(req, res) {
   const account = requireAccount(req);
   await ensureSchema();
@@ -110,7 +171,12 @@ async function link(req, res) {
 export default handle(['GET', 'POST'], async (req, res) => {
   const action = new URL(req.url, 'https://placeholder.invalid').searchParams.get('action');
   if (req.method === 'GET' && action === 'mine') return mine(req, res);
+  if (req.method === 'GET' && action === 'thread') return thread(req, res);
   if (req.method === 'GET' && action === 'quotes') return quotes(req, res);
   if (req.method === 'POST' && action === 'link') return link(req, res);
-  throw new HttpError(400, 'Use action=mine, action=quotes or action=link.');
+  if (req.method === 'POST' && action === 'send') return sendMessage(req, res);
+  throw new HttpError(
+    400,
+    'Use action=mine, action=thread, action=quotes, action=link or action=send.',
+  );
 });

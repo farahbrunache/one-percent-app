@@ -45,9 +45,24 @@
     <section id="quotes" class="panel" hidden>
       <h3>What has been quoted to you</h3>
       <p class="meta">
-        Each one says what it covers. Nothing here commits you to anything.
+        Each one says what it covers. If you want to go ahead with one, or you want it
+        changed, say so in the conversation — nothing here commits you to anything.
       </p>
       <div id="quotelist" class="rows"></div>
+    </section>
+
+    <section id="talk" class="panel" hidden>
+      <h3>The conversation</h3>
+      <p class="meta" id="talknote"></p>
+      <div id="thread" class="rows" aria-live="polite"></div>
+      <form class="fields" id="sendform" novalidate>
+        <div class="field">
+          <label for="body">Write something</label>
+          <textarea id="body" rows="4" maxlength="4000"></textarea>
+        </div>
+        <div class="actions"><button type="submit" class="quiet">Send</button></div>
+      </form>
+      <div id="sendmsg" hidden></div>
     </section>
 
     <section id="linker" class="panel" hidden>
@@ -125,6 +140,9 @@
     const read = data.sessions.some((s) => s.recommendations);
     if (data.approved) {
       state.append(el('p', 'You are a client.', 'lede'));
+      state.append(el('p',
+        'Your recommendations are below, and so is the conversation. Following them through '
+        + 'is what happens next, and it happens in writing.', 'meta'));
     } else if (read) {
       state.append(el('p', 'Your call has been read.', 'lede'));
     } else {
@@ -194,8 +212,72 @@
       state.append(again);
     }
 
+    // The conversation opens on a go and on nothing else. Somebody waiting on a decision
+    // does not see it, and neither does somebody told no -- in both cases there is nothing
+    // decided to talk about, and a box that invites a message anyway is how one person
+    // becomes reachable by anybody who paid seven dollars.
+    const talk = document.getElementById('talk');
+    talk.hidden = !data.approved;
+    if (data.approved) {
+      document.getElementById('talknote').textContent =
+        'Written, both ways, whenever either of us gets to it.';
+      loadThread();
+    }
     loadQuotes();
   }
+
+  function renderThread(messages) {
+    const list = document.getElementById('thread');
+    list.textContent = '';
+    if (!messages.length) {
+      list.append(el('p', 'Nothing said yet. You can go first.', 'meta'));
+      return;
+    }
+    for (const message of messages) {
+      // Three kinds of line. The opening one is scripted and says so, because a scripted
+      // line under somebody's name is the first thing anybody replies to and there would be
+      // nobody there.
+      const mine = message.author === 'client';
+      const scripted = message.author === 'opening';
+      const row = el('div', null,
+        scripted ? 'row' : mine ? 'row said us' : 'row said them');
+      row.append(el('div',
+        mine ? 'You' : message.author === 'opening' ? 'To start with' : 'Farah', 'label'));
+      row.append(el('div', message.body, null));
+      row.append(el('div', when(message.at), 'meta'));
+      list.append(row);
+    }
+  }
+
+  async function loadThread() {
+    try {
+      const data = await call('/api/client?action=thread');
+      renderThread(data.messages);
+    } catch (error) {
+      document.getElementById('thread').textContent = '';
+      document.getElementById('thread').append(el('p', error.message, 'meta'));
+    }
+  }
+
+  document.getElementById('sendform').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const field = document.getElementById('body');
+    const box = document.getElementById('sendmsg');
+    box.hidden = true;
+    try {
+      const data = await call('/api/client?action=send', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ body: field.value }),
+      });
+      field.value = '';
+      renderThread(data.messages);
+    } catch (error) {
+      box.hidden = false;
+      box.className = 'msg bad';
+      box.textContent = error.message;
+    }
+  });
 
   async function loadQuotes() {
     const section = document.getElementById('quotes');
