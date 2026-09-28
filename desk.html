@@ -43,12 +43,8 @@
     <p class="meta" id="called"></p>
     <div id="rmsg" hidden></div>
 
-    <h2>The call</h2>
-    <details id="tdetails">
-      <summary>Read the transcript</summary>
-      <div class="transcript"><pre id="transcript"></pre></div>
-      <div class="actions"><button type="button" class="quiet" id="copy">Copy the transcript</button></div>
-    </details>
+    <h2>Calls</h2>
+    <div id="calls"></div>
 
     <h2>Go or no-go</h2>
     <p class="meta">Read it first. Nothing here decides on its own, and a decision can be changed — both stay on the record.</p>
@@ -192,6 +188,7 @@
       const row = el('div', null, 'row');
       row.append(link(person.reference || `Order ${person.id}`, `/desk?id=${person.id}`, 'code'));
       row.append(el('div', `${when(person.calledAt)} · ${minutes(person.seconds)}`, 'meta'));
+      if (person.callCount > 1) row.append(el('div', `${person.callCount} calls`, 'meta'));
       if (person.awaitingReply) row.append(el('div', 'Wrote to you and is waiting', 'flag'));
       if (person.planLabel) row.append(el('div', person.planLabel, 'meta'));
       if (!person.linked) row.append(el('div', 'No account linked yet', 'meta'));
@@ -328,6 +325,51 @@
     }
   }
 
+  // Every call against this order, newest first. Two of them means a session dropped and was
+  // restarted, which is worth seeing rather than hiding behind whichever one arrived last.
+  function renderCalls(person) {
+    const box = document.getElementById('calls');
+    box.textContent = '';
+    if (!person.calls.length) {
+      box.append(el('p', 'No call has been started against this order.', 'meta'));
+      return;
+    }
+    for (const call of person.calls) {
+      const row = el('div', null, 'row');
+      row.append(el('div', call.kind === 'intake' ? 'Intake' : 'Follow-up', 'label'));
+      row.append(el('div', `${when(call.endedAt || call.startedAt)} · ${minutes(call.seconds)}`, 'meta'));
+      if (!call.transcript) {
+        row.append(el('p', 'Started, and nothing came back from it.', 'meta'));
+        box.append(row);
+        continue;
+      }
+      const open = el('details');
+      open.append(el('summary', 'Read it'));
+      const wrap = el('div', null, 'transcript');
+      wrap.append(el('pre', call.transcript, null));
+      open.append(wrap);
+
+      // The next conversation gets started somewhere else, so getting the words out as plain
+      // text is the point rather than a convenience.
+      const actions = el('div', null, 'actions');
+      const copy = el('button', 'Copy it', 'quiet');
+      copy.type = 'button';
+      copy.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(call.transcript);
+          copy.textContent = 'Copied';
+        } catch {
+          copy.textContent = 'Select it by hand';
+        }
+        setTimeout(() => { copy.textContent = 'Copy it'; }, 2000);
+      });
+      actions.append(copy);
+      open.append(actions);
+      row.append(open);
+      box.append(row);
+    }
+  }
+
   function renderThread(person) {
     const list = document.getElementById('thread');
     const note = document.getElementById('threadnote');
@@ -385,27 +427,11 @@
 
   function renderPerson(person) {
     document.getElementById('ref').textContent = person.reference || `Order ${person.id}`;
+    const latest = person.calls[0];
     document.getElementById('called').textContent =
-      `Called ${when(person.calledAt)} · ${minutes(person.seconds)}` +
+      (latest ? `Called ${when(latest.endedAt || latest.startedAt)}` : 'No call yet') +
       (person.linked ? '' : ' · no account linked yet');
-    const transcript = document.getElementById('transcript');
-    const copy = document.getElementById('copy');
-    if (person.transcript) {
-      transcript.textContent = person.transcript;
-      // The next conversation gets started somewhere else, so getting the words out as plain
-      // text is the point rather than a convenience.
-      copy.addEventListener('click', async () => {
-        try {
-          await navigator.clipboard.writeText(person.transcript);
-          copy.textContent = 'Copied';
-        } catch {
-          copy.textContent = 'Select it by hand';
-        }
-        setTimeout(() => { copy.textContent = 'Copy the transcript'; }, 2000);
-      });
-    } else {
-      document.getElementById('tdetails').hidden = true;
-    }
+    renderCalls(person);
     renderAssess(person);
     renderThread(person);
     renderPlan(person);

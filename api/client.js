@@ -22,7 +22,7 @@ function shape(rows) {
     approved: Boolean(r.approved_as_client_at),
     calledAt: r.first_started_at,
     sessionStarts: r.session_starts,
-    hasTranscript: Boolean(r.transcript_encrypted),
+    hasTranscript: Boolean(r.has_transcript),
   }));
 }
 
@@ -31,7 +31,9 @@ async function mine(req, res) {
   await ensureSchema();
   const rows = await sql()`
     select reference_code, approved_as_client_at, first_started_at, session_starts,
-           transcript_encrypted
+           exists (select 1 from calls c
+                    where c.order_id = orders.id
+                      and c.transcript_encrypted is not null) as has_transcript
       from orders
      where client_account_id = ${account}
      order by created_at desc

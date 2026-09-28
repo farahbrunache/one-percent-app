@@ -129,9 +129,29 @@ export default handle('POST', async (req, res) => {
 
   // The call this order is now expecting. The webhook checks it before writing a transcript,
   // so a delivery cannot be aimed at an order it does not belong to.
+  //
+  // Its kind is decided here rather than guessed later. Intake is the call somebody bought to
+  // get here; a follow-up is one where the person at the other end has already been through
+  // this. What separates them is whether any call already came back for the account this order
+  // is linked to — an order nobody has linked is a first conversation by definition, and a
+  // session that dropped and was restarted is another attempt at the same intake, not a new
+  // kind of call.
   const callId = data.call_id || data.callId || null;
   if (callId) {
-    await sql()`update orders set call_id = ${callId} where id = ${order.id}`;
+    const seen = await sql()`
+      select exists (
+        select 1 from calls c
+          join orders o on o.id = c.order_id
+         where o.client_account_id is not null
+           and o.client_account_id = (select client_account_id from orders where id = ${order.id})
+           and c.transcript_encrypted is not null
+      ) as before
+    `;
+    const kind = seen[0]?.before ? 'follow-up' : 'intake';
+    await sql()`
+      insert into calls (order_id, kind, call_id) values (${order.id}, ${kind}, ${callId})
+      on conflict (call_id) do nothing
+    `;
   }
 
   send(res, 200, {
