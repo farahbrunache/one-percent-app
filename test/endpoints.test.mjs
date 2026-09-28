@@ -260,7 +260,7 @@ r = await run(desk, 'GET', '/api/desk?action=queue');
 check('the queue refuses without a session', r.statusCode === 401, r.payload);
 r = await run(desk, 'GET', '/api/desk?action=person&id=1');
 check('a person refuses without a session', r.statusCode === 401, r.payload);
-r = await run(desk, 'POST', '/api/desk?action=assess', { id: 1, assessment: 'go' });
+r = await run(desk, 'POST', '/api/desk?action=decide', { id: 1, decision: 'go' });
 check('a decision refuses without a session', r.statusCode === 401, r.payload);
 r = await run(desk, 'POST', '/api/desk?action=milestone-record', { id: 1, milestoneId: 1, status: 'worked' });
 check('recording an outcome refuses without a session', r.statusCode === 401, r.payload);
@@ -296,7 +296,7 @@ check('a milestone can be recorded as stalled or ghosted',
   vocab.isMilestoneStatus('stalled') && vocab.isMilestoneStatus('ghosted'));
 check('an invented status is refused', !vocab.isMilestoneStatus('abandoned'));
 check('the decision is go or no-go and nothing else',
-  vocab.isAssessment('go') && vocab.isAssessment('no-go') && !vocab.isAssessment('maybe'));
+  vocab.isDecision('go') && vocab.isDecision('no-go') && !vocab.isDecision('maybe'));
 // An order buys minutes, not attempts. Three attempts at the hard stop would be ninety minutes
 // of paid voice against seven dollars taken.
 const money = await import('../lib/orders.js');

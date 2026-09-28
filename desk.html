@@ -63,8 +63,8 @@
     <div class="panel">
       <h2>Go or no-go</h2>
       <p class="meta">Read it first. Nothing here decides on its own, and a decision can be changed — both stay on the record.</p>
-      <p id="assessed" class="status-line" hidden></p>
-      <div class="actions" id="assess"></div>
+      <p id="decided" class="status-line" hidden></p>
+      <div class="actions" id="decide"></div>
     </div>
 
     <div class="panel">
@@ -322,9 +322,9 @@
       if (person.callCount > 1) row.append(el('div', `${person.callCount} calls`, 'meta'));
       // The decision, said as a state rather than left to be worked out from which queue
       // the row happens to be in.
-      if (person.assessment) {
-        const tone = person.assessment === 'go' ? 'go' : 'nogo';
-        row.append(el('div', person.assessment === 'go' ? 'Go' : 'No-go', `badge ${tone}`));
+      if (person.decision) {
+        const tone = person.decision === 'go' ? 'go' : 'nogo';
+        row.append(el('div', person.decision === 'go' ? 'Go' : 'No-go', `badge ${tone}`));
       } else {
         row.append(el('div', 'Not read yet', 'badge open'));
       }
@@ -360,7 +360,7 @@
         yours: Boolean(aDayOn),
       });
     }
-    if (!person.assessment) out.push({ what: 'Go or no-go, once you have read it.', yours: true });
+    if (!person.decision) out.push({ what: 'Go or no-go, once you have read it.', yours: true });
     if (!person.recommendedAt) {
       out.push({ what: 'Write what they are told. Everybody who called gets this.', yours: true });
     }
@@ -384,27 +384,27 @@
     }
   }
 
-  function renderAssess(person) {
-    const box = document.getElementById('assess');
-    const said = document.getElementById('assessed');
+  function renderDecision(person) {
+    const box = document.getElementById('decide');
+    const said = document.getElementById('decided');
     box.textContent = '';
-    if (person.assessment) {
+    if (person.decision) {
       said.hidden = false;
-      said.textContent = `${person.assessment === 'go' ? 'Go' : 'No-go'}, ${when(person.assessedAt)}.`;
+      said.textContent = `${person.decision === 'go' ? 'Go' : 'No-go'}, ${when(person.decidedAt)}.`;
     } else {
       said.hidden = true;
     }
     // Equal weight, both ways. A no-go is a sheet and a path, not a rejection, so the
     // screen must not make one of the two the easy press.
     for (const [value, label, tone] of [['go', 'Go', 'yes'], ['no-go', 'No-go', 'no']]) {
-      const on = value === person.assessment;
+      const on = value === person.decision;
       const button = el('button', label, `quiet decide ${tone}${on ? ' on' : ''}`);
       button.type = 'button';
       button.style.flex = '1';
       button.addEventListener('click', async () => {
         button.disabled = true;
         try {
-          await post('assess', { id: person.id, assessment: value });
+          await post('decide', { id: person.id, decision: value });
           window.location.reload();
         } catch (error) {
           button.disabled = false;
@@ -881,7 +881,7 @@
       (person.linked ? '' : ' · no account linked yet');
     renderCalls(person);
     renderOwed(person);
-    renderAssess(person);
+    renderDecision(person);
     renderRecommendations(person);
     renderPlan(person);
     renderSteps(person);
