@@ -411,6 +411,54 @@ check('refuses when the voice service is not configured', r.statusCode === 503, 
 check('names what is missing',
   /RETELL_SECRET_KEY/.test(r.payload?.error || ''), r.payload);
 
+// Which of the two ways a confidential client proves itself is the provider's choice, not
+// ours, and the refusal for getting it wrong names the client rather than the method. So the
+// exchange tries the body first and the header second, and only for that one refusal.
+process.env.AUTH_CLIENT_ID = 'client_test';
+process.env.AUTH_CLIENT_SECRET = 'secret';
+const tokenUrl = 'https://clerk.example.com/oauth/token';
+
+function stubToken(answers) {
+  const seen = [];
+  globalThis.fetch = async (_url, init) => {
+    const sent = new URLSearchParams(init.body);
+    seen.push({ auth: init.headers.authorization || null, secret: sent.get('client_secret') });
+    const next = answers.shift();
+    return {
+      ok: next.ok !== false,
+      status: next.ok === false ? 401 : 200,
+      json: async () => next.body,
+    };
+  };
+  return seen;
+}
+
+let seen = stubToken([
+  { ok: false, body: { error: 'invalid_client' } },
+  { body: { access_token: 'tok' } },
+]);
+let token = await auth.exchangeCode(
+  { code: 'c', verifier: 'v', returnTo: 'https://app.example.net/auth/callback' },
+  { token_endpoint: tokenUrl });
+check('a refusal naming the client is tried the other way', token === 'tok', token);
+check('the first attempt puts the secret in the body',
+  seen[0].secret === 'secret' && seen[0].auth === null, seen[0]);
+check('the second puts the pair in the header instead',
+  seen[1].secret === null && seen[1].auth === 'Basic ' + Buffer.from('client_test:secret').toString('base64'),
+  seen[1]);
+
+seen = stubToken([{ ok: false, body: { error: 'invalid_grant' } }]);
+let refused = null;
+try {
+  await auth.exchangeCode(
+    { code: 'c', verifier: 'v', returnTo: 'https://app.example.net/auth/callback' },
+    { token_endpoint: tokenUrl });
+} catch (error) { refused = error; }
+check('any other refusal is not retried', seen.length === 1, seen.length);
+check('and it says which way it asked',
+  /confidential client/.test(refused?.message || ''), refused?.message);
+delete process.env.AUTH_CLIENT_SECRET;
+
 console.log('');
 if (failures) { console.log(failures + ' FAILED'); process.exit(1); }
 console.log('all passed');
