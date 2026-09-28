@@ -1,8 +1,14 @@
 // What a claim link shows. The phone number and the access code appear here and nowhere else.
 
-import { ensureSchema, findByClaimTokenHash, underLimit } from '../lib/db.js';
-import { callerKey, decrypt, keyedHash } from '../lib/crypto.js';
-import { PAYMENT_METHODS, REJECT_REASONS, describeStatus } from '../lib/orders.js';
+import { ensureSchema, findByClaimTokenHash, secondsSpent, underLimit } from '../lib/db.js';
+import { callerKey, keyedHash } from '../lib/crypto.js';
+import {
+  ASSUME_FULL_AFTER_SECONDS,
+  PAYMENT_METHODS,
+  REJECT_REASONS,
+  SESSION_BUDGET_SECONDS,
+  describeStatus,
+} from '../lib/orders.js';
 import { HttpError, handle, send } from '../lib/http.js';
 
 export default handle('GET', async (req, res) => {
@@ -24,7 +30,13 @@ export default handle('GET', async (req, res) => {
     );
   }
 
-  const status = describeStatus(order);
+  // What the start gate will actually do, asked here rather than guessed. A page that invites
+  // somebody into a session the next request refuses is worse than one that says no first.
+  let status = describeStatus(order);
+  if (status === 'confirmed') {
+    const used = await secondsSpent(order.id, ASSUME_FULL_AFTER_SECONDS, SESSION_BUDGET_SECONDS);
+    if (used >= SESSION_BUDGET_SECONDS) status = 'used';
+  }
 
   const spec = PAYMENT_METHODS[order.payment_method] || null;
 

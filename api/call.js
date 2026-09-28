@@ -4,9 +4,15 @@
 // spoken. A web call cannot be reached except through a link somebody paid for, which makes
 // the gate structural rather than a six-digit secret somebody could guess at.
 
-import { ensureSchema, findByClaimTokenHash, sql, underLimit } from '../lib/db.js';
+import { ensureSchema, findByClaimTokenHash, secondsSpent, sql, underLimit } from '../lib/db.js';
 import { callerKey, keyedHash } from '../lib/crypto.js';
-import { MAX_SESSION_STARTS, SESSION_WINDOW_HOURS, describeStatus } from '../lib/orders.js';
+import {
+  ASSUME_FULL_AFTER_SECONDS,
+  MAX_SESSION_STARTS,
+  SESSION_BUDGET_SECONDS,
+  SESSION_WINDOW_HOURS,
+  describeStatus,
+} from '../lib/orders.js';
 import { HttpError, handle, readJson, send } from '../lib/http.js';
 
 const RETELL_CREATE_WEB_CALL = 'https://api.retellai.com/v2/create-web-call';
@@ -45,8 +51,25 @@ export default handle('POST', async (req, res) => {
   if (status !== 'confirmed') {
     throw new HttpError(
       409,
-      `This session has been used. It opens ${MAX_SESSION_STARTS} times within ` +
-        `${SESSION_WINDOW_HOURS} hours of the first, which covers one that drops.`,
+      `This session has been used. It opens up to ${MAX_SESSION_STARTS} times within ` +
+        `${SESSION_WINDOW_HOURS} hours of the first, for a total of ` +
+        `${Math.round(SESSION_BUDGET_SECONDS / 60)} minutes, which covers one that drops.`,
+    );
+  }
+
+  // Minutes, not attempts. Every call already recorded against this order counts against what
+  // the order bought, and a call still running counts as the whole of it until it ends.
+  //
+  // A call with no recorded length is the case worth being careful about. If it started long
+  // enough ago that it could have run to the hard stop, assume it did: the webhook may simply
+  // never have arrived, and a delivery that goes missing must not become free voice time. If it
+  // started moments ago it is still in progress, and nobody is on two calls at once.
+  const used = await secondsSpent(order.id, ASSUME_FULL_AFTER_SECONDS, SESSION_BUDGET_SECONDS);
+  if (used >= SESSION_BUDGET_SECONDS) {
+    throw new HttpError(
+      409,
+      `This order has used the ${Math.round(SESSION_BUDGET_SECONDS / 60)} minutes it bought. ` +
+        'If a session dropped before you got anywhere, say so and it can be looked at.',
     );
   }
 
@@ -69,8 +92,9 @@ export default handle('POST', async (req, res) => {
   if (!taken.length) {
     throw new HttpError(
       409,
-      `This session has been used. It opens ${MAX_SESSION_STARTS} times within ` +
-        `${SESSION_WINDOW_HOURS} hours of the first, which covers one that drops.`,
+      `This session has been used. It opens up to ${MAX_SESSION_STARTS} times within ` +
+        `${SESSION_WINDOW_HOURS} hours of the first, for a total of ` +
+        `${Math.round(SESSION_BUDGET_SECONDS / 60)} minutes, which covers one that drops.`,
     );
   }
 
