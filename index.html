@@ -44,6 +44,15 @@
     <div id="state"></div>
     <div id="rows" class="rows" aria-live="polite"></div>
 
+    <section id="quotes" hidden>
+      <h3>What has been quoted to you</h3>
+      <p class="meta">
+        Each one says what it covers. If you want to go ahead with one, or you want it changed,
+        say so below — nothing here commits you to anything.
+      </p>
+      <div id="quotelist" class="rows"></div>
+    </section>
+
     <section id="talk" hidden>
       <h3>Talk to me</h3>
       <p class="meta" id="talknote"></p>
@@ -161,6 +170,29 @@
       : 'You can write before the call has been read. It will be read by a person, so there '
         + 'is no wrong time to say something.';
     loadThread();
+    loadQuotes();
+  }
+
+  async function loadQuotes() {
+    const section = document.getElementById('quotes');
+    const list = document.getElementById('quotelist');
+    try {
+      const data = await call('/api/client?action=quotes');
+      if (!data.quotes.length) { section.hidden = true; return; }
+      section.hidden = false;
+      list.textContent = '';
+      for (const quote of data.quotes) {
+        const row = el('div', null, 'row');
+        row.append(el('div', `$${Number(quote.amount).toFixed(2)}`, 'value'));
+        row.append(el('div', `${quote.status} · ${when(quote.writtenAt)}`, 'meta'));
+        row.append(el('div', quote.scope, null));
+        list.append(row);
+      }
+    } catch {
+      // Their sessions and the conversation are the page. A quote that cannot be read is worth
+      // saying nothing about rather than putting an error where a figure should be.
+      section.hidden = true;
+    }
   }
 
   function renderThread(messages) {
