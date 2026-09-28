@@ -340,7 +340,12 @@
         button.disabled = false;
         neverConnected(data.callId);
       });
-      await client.startCall({ accessToken: data.accessToken });
+      await client.startCall({
+        accessToken: data.accessToken,
+        callId: data.callId,
+        transport: data.transport || undefined,
+        iceServers: data.iceServers || undefined,
+      });
     } catch (error) {
       callMessage(
         target,
@@ -424,8 +429,14 @@
     console.error('[one-percent] the session failed', failure);
 
     const said = parts.join(' · ');
+
+    // The client reports a failure to start as a bare sentence and logs the real one to the
+    // browser's own console, so on screen there is nothing else to show and saying where it
+    // went is the only useful thing left.
+    const bare = typeof failure === 'string' || (parts.length <= 2 && !failure?.name);
     return `${said}. If the browser asked for the microphone and it was refused, or there is `
-      + 'no microphone on this device, that is what this says.';
+      + 'no microphone on this device, that is what this says.'
+      + (bare ? ' The reason itself is in the browser console, under Error starting call.' : '');
   }
 
   const copy = document.getElementById('copylink');
