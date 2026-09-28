@@ -101,20 +101,13 @@ async function queue(req, res) {
                where c.order_id = o.id and c.transcript_encrypted is not null
                order by c.ended_at desc nulls last limit 1) as seconds,
              (select count(*)::int from calls c
-               where c.order_id = o.id and c.transcript_encrypted is not null) as call_count,
-             (select m.author from messages m
-               where m.account_id = o.client_account_id
-               order by m.created_at desc limit 1) = 'client' as awaiting_reply
+               where c.order_id = o.id and c.transcript_encrypted is not null) as call_count
         from orders o
         left join plans p on p.order_id = o.id and p.in_force
        where exists (select 1 from calls c
                       where c.order_id = o.id and c.transcript_encrypted is not null)
          and case ${state}
                when 'waiting' then o.assessment is null
-               when 'replies' then o.client_account_id is not null
-                                   and (select m.author from messages m
-                                         where m.account_id = o.client_account_id
-                                         order by m.created_at desc limit 1) = 'client'
                when 'active'  then o.assessment = 'go'
                else                o.assessment = 'no-go'
              end
@@ -127,10 +120,6 @@ async function queue(req, res) {
                       where c.order_id = o.id and c.transcript_encrypted is not null)
          and case ${state}
                when 'waiting' then o.assessment is null
-               when 'replies' then o.client_account_id is not null
-                                   and (select m.author from messages m
-                                         where m.account_id = o.client_account_id
-                                         order by m.created_at desc limit 1) = 'client'
                when 'active'  then o.assessment = 'go'
                else                o.assessment = 'no-go'
              end
@@ -153,7 +142,6 @@ async function queue(req, res) {
       recommendedAt: r.recommendations_written_at,
       recordMissing: Boolean(r.record_missing),
       linked: r.linked,
-      awaitingReply: Boolean(r.awaiting_reply),
       planPath: r.plan_path,
       planLabel: r.plan_path ? PLAN_PATHS[r.plan_path]?.label || r.plan_path : null,
     })),
@@ -224,16 +212,6 @@ async function person(req, res) {
   if (!rows.length) throw new HttpError(404, 'No order with that number.');
   const row = rows[0];
 
-  // The thread belongs to the account, not to this order, so somebody who buys a second
-  // session carries one conversation rather than starting another.
-  const messages = row.client_account_id
-    ? await sql()`
-        select author, body_encrypted, created_at from messages
-         where account_id = ${row.client_account_id}
-         order by created_at asc limit 200
-      `
-    : [];
-
   // Every call against this order, newest first, each with its own transcript. A session that
   // dropped and was restarted shows as two, which is a fact the owner could not see before.
   const calls = await sql()`
@@ -255,7 +233,7 @@ async function person(req, res) {
      order by i.made_at desc limit 100
   `;
 
-  // Quotes follow the account, like the conversation. An order nobody has linked has nobody to
+  // Quotes follow the account rather than the order. An order nobody has linked has nobody to
   // quote, which the screen says rather than offering a form that cannot work.
   const quotes = row.client_account_id
     ? await sql()`
@@ -315,11 +293,6 @@ async function person(req, res) {
     recommendations: row.recommendations_encrypted ? decrypt(row.recommendations_encrypted) : null,
     recommendedAt: row.recommendations_written_at,
     firstCustomerAt: row.first_customer_at,
-    messages: messages.map((m) => ({
-      author: m.author,
-      body: decrypt(m.body_encrypted),
-      at: m.created_at,
-    })),
     plan: inForce
       ? { id: inForce.id, path: inForce.path, label: PLAN_PATHS[inForce.path]?.label || inForce.path, setAt: inForce.created_at }
       : null,
@@ -458,8 +431,11 @@ async function chooseModel(req, res) {
   send(res, 200, { ok: true, chosen: slot });
 }
 
-// Writes a reply into the operator's box. It does not send one. What comes back is read,
-// edited or thrown away, and the operator presses send themselves.
+// Writes a first pass at the sheet into the operator's box. It files nothing. What comes back
+// is read, rewritten or thrown away, and the operator presses Write it themselves.
+//
+// The call is the input, because the sheet is what the call produced. A draft written from
+// anything else would be a guess about somebody the model has not heard.
 async function writeDraft(req, res) {
   requireAdmin(req);
   await ensureSchema();
@@ -475,31 +451,28 @@ async function writeDraft(req, res) {
     );
   }
 
-  const rows = await sql()`select client_account_id from orders where id = ${id}`;
+  const rows = await sql()`select id from orders where id = ${id}`;
   if (!rows.length) throw new HttpError(404, 'No order with that number.');
-  const account = rows[0].client_account_id;
-  if (!account) {
-    throw new HttpError(409, 'Nobody has linked an account to this order, so there is no thread.');
-  }
 
-  const thread = await sql()`
-    select author, body_encrypted from messages
-      where account_id = ${account}
-      order by created_at desc
-      limit 20
+  const called = await sql()`
+    select transcript_encrypted from calls
+     where order_id = ${id} and transcript_encrypted is not null
+     order by ended_at desc nulls last
+     limit 3
   `;
-  if (!thread.length) {
-    throw new HttpError(409, 'This thread has nothing in it yet, so there is nothing to answer.');
+  if (!called.length) {
+    throw new HttpError(
+      409,
+      'No call against this order has a transcript yet, so there is nothing to write a sheet ' +
+        'from. Keep the call record first, or wait for the hourly job to take it.',
+    );
   }
 
   const messages = [
     { role: 'system', content: SYSTEM_PROMPT },
-    ...thread
+    ...called
       .reverse()
-      .map((m) => ({
-        role: m.author === 'operator' ? 'assistant' : 'user',
-        content: decrypt(m.body_encrypted),
-      })),
+      .map((c) => ({ role: 'user', content: decrypt(c.transcript_encrypted) })),
   ];
 
   const written = await askForDraft(messages, await readChoice(MODEL_CHOICE));
@@ -670,35 +643,6 @@ async function recordMilestone(req, res) {
   send(res, 200, { ok: true, status });
 }
 
-// Answering. The reply goes to the account rather than to the order, and an order nobody has
-// linked has nowhere to send one — say that plainly rather than accepting a message into a
-// thread no one will ever read.
-async function reply(req, res) {
-  requireAdmin(req);
-  await ensureSchema();
-  const body = await readJson(req);
-  const id = orderId(body.id);
-  const text = String(body.body || '').trim().slice(0, 4000);
-  if (!text) throw new HttpError(400, 'An empty message is not a message.');
-
-  const rows = await sql()`select client_account_id from orders where id = ${id}`;
-  if (!rows.length) throw new HttpError(404, 'No order with that number.');
-  const account = rows[0].client_account_id;
-  if (!account) {
-    throw new HttpError(
-      409,
-      'Nobody has linked an account to this order yet, so there is no one to send this to. ' +
-        'They link it by opening their claim link while signed in.',
-    );
-  }
-
-  await sql()`
-    insert into messages (account_id, author, body_encrypted)
-    values (${account}, 'operator', ${encrypt(text)})
-  `;
-  send(res, 201, { ok: true });
-}
-
 // Written for one person, against what the work is. No tier is chosen because there are none.
 async function writeQuote(req, res) {
   requireAdmin(req);
@@ -853,7 +797,6 @@ const ACTIONS = {
     plan: setPlan,
     'milestone-add': addMilestone,
     'milestone-record': recordMilestone,
-    reply,
     recommend,
     draft: writeDraft,
     model: chooseModel,

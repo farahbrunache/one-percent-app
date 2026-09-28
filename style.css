@@ -391,17 +391,6 @@ button.danger { background: transparent; color: var(--ink-soft); border: 1px sol
   color: var(--ink);
 }
 
-/* A message, on either screen. The two sides are told apart by where the rule sits rather
-   than by colour alone, so it still reads when colour is not what somebody is going by. */
-.said .label {
-  font-size: 0.8rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ink-muted);
-}
-.said.them { border-left: 2px solid var(--accent); padding-left: 0.85rem; }
-.said.us { border-left: 2px solid var(--rule); padding-left: 0.85rem; }
-
 /* A row in the queue that is waiting on an answer. */
 .flag {
   color: var(--accent);

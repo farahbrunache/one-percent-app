@@ -70,8 +70,8 @@ check('every response carries the security headers',
     r.headers['referrer-policy'] === 'no-referrer', r.headers);
 r = makeRes();
 await route(makeReq('GET', '/admin'), r);
-check('the old address sends you to the new one',
-  r.statusCode === 308 && r.headers.location === '/payments', r.statusCode);
+check('there is one address for the payments screen and no second one',
+  r.statusCode === 404, r.statusCode);
 r = makeRes();
 await route(makeReq('GET', '/payments'), r);
 check('the payments screen is never cached or indexed',
@@ -243,10 +243,12 @@ r = await run(client, 'GET', '/api/client?action=mine');
 check('refuses to say anything without a session', r.statusCode === 401, r.payload);
 r = await run(client, 'POST', '/api/client?action=link', { t: 'x' });
 check('refuses to link without a session', r.statusCode === 401, r.payload);
-r = await run(client, 'GET', '/api/client?action=thread');
-check('the thread refuses without a session', r.statusCode === 401, r.payload);
+r = await run(client, 'GET', '/api/client?action=quotes');
+check('what has been quoted refuses without a session', r.statusCode === 401, r.payload);
+// Nothing here writes. There is no way for somebody who has paid to send words to one person,
+// and an action that no longer exists is refused like anything else that was never there.
 r = await run(client, 'POST', '/api/client?action=send', { body: 'x' });
-check('sending refuses without a session', r.statusCode === 401, r.payload);
+check('there is no way to write in', r.statusCode === 400, r.payload);
 r = await run(client, 'POST', '/api/client?action=nonsense', {});
 check('an unknown client action is refused', r.statusCode === 400, r.payload);
 r = await run(client, 'DELETE', '/api/client');
@@ -263,7 +265,9 @@ check('a decision refuses without a session', r.statusCode === 401, r.payload);
 r = await run(desk, 'POST', '/api/desk?action=milestone-record', { id: 1, milestoneId: 1, status: 'worked' });
 check('recording an outcome refuses without a session', r.statusCode === 401, r.payload);
 r = await run(desk, 'POST', '/api/desk?action=reply', { id: 1, body: 'x' });
-check('replying refuses without a session', r.statusCode === 401, r.payload);
+check('there is nothing to reply to, so there is no way to reply', r.statusCode === 400, r.payload);
+r = await run(desk, 'POST', '/api/desk?action=recommend', { id: 1, body: 'x' });
+check('writing the sheet refuses without a session', r.statusCode === 401, r.payload);
 r = await run(desk, 'POST', '/api/desk?action=quote', { id: 1, amount: 250, scope: 'x' });
 check('writing a quote refuses without a session', r.statusCode === 401, r.payload);
 r = await run(desk, 'POST', '/api/desk?action=quote-move', { id: 1, quoteId: 1, status: 'agreed' });
@@ -305,9 +309,9 @@ check('and enough for one full session plus a dropped one',
 check('a missing webhook is assumed to have been a whole session',
   money.ASSUME_FULL_AFTER_SECONDS >= 30 * 60, money.ASSUME_FULL_AFTER_SECONDS);
 
-check('the queues are the four that exist',
-  vocab.isQueueState('waiting') && vocab.isQueueState('replies') && vocab.isQueueState('active')
-    && vocab.isQueueState('closed') && !vocab.isQueueState('all'));
+check('the queues are the three that exist',
+  vocab.isQueueState('waiting') && vocab.isQueueState('active') && vocab.isQueueState('closed')
+    && !vocab.isQueueState('replies') && !vocab.isQueueState('all'));
 // The funnel starts where the data starts. Quora gives no address and no open rate, so a stage
 // above the call would be a guess presented as a measurement.
 check('the funnel starts at a call that came back', vocab.FUNNEL_STAGES[0].key === 'called',
