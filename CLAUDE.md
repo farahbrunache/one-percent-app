@@ -258,11 +258,26 @@ places can disagree about a value.
 Render holds the copy the service reads at boot. Nothing has to reach Infisical for the site
 to start, which matters for a site that takes money.
 
-A new setting is added to `KEYS` in `.github/scripts/deploy.sh` and to `render.yaml`. The
-list is in the repository rather than read from somewhere else so that adding one is a
-change somebody reviews. The deploy refuses before touching Render if Infisical has no value
-for one of them, because writing the settings replaces all of them and an incomplete set
-would take the site down.
+A new setting is added to `.github/scripts/deploy.sh` and to `render.yaml`. The list is in
+the repository rather than read from somewhere else so that adding one is a change somebody
+reviews.
+
+**Which of the two lists it goes in is the decision, and the default is `OPTIONAL_KEYS`.**
+`KEYS` is for values without which the site cannot serve a page or take money; the deploy
+refuses before touching Render when one of those is missing, because writing the settings
+replaces all of them and an incomplete set would take the site down. Everything else is
+optional and is written as empty.
+
+Put a setting in `KEYS` and it becomes a switch that takes the entire product down while it
+is off. That happened: `SWEEP_SECRET` went in the required list the day the record sweep was
+built, and every deploy of the whole product failed from that moment until somebody noticed
+the app was serving the morning's code. A scheduled job nobody had switched on yet held back
+the screens people pay to use.
+
+So the test is not how much the feature is wanted. It is whether the site can answer a
+request without it. A feature that is switched off should say so where somebody is looking —
+its endpoint refusing with the reason, its workflow failing and naming the setting — and
+should never be able to stop a deploy.
 
 Never put a value in either file. This repository is public.
 
