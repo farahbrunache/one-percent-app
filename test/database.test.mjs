@@ -159,6 +159,29 @@ attempts = await tagged`select session_starts, first_started_at from orders wher
 check('a call that ran is still an attempt', attempts[0].session_starts === 1, attempts[0]);
 check('and the window runs from it', attempts[0].first_started_at !== null, attempts[0]);
 
+// The shape the owner hit: an order closed by presses, with no conversation against it. The
+// page reads the same two rules the gate does, so both have to come out the same way.
+const { describeStatus } = await import('../lib/orders.js');
+const stuck = await newOrder();
+await tagged`update orders set session_starts = 3, first_started_at = now() - interval '30 minutes'
+              where id = ${stuck}`;
+await tagged`insert into calls (order_id, call_id, seconds, started_at)
+             values (${stuck}, 'c-stuck-one', 0, now() - interval '29 minutes')`;
+await tagged`insert into calls (order_id, call_id, started_at)
+             values (${stuck}, 'c-stuck-two', now() - interval '3 hours')`;
+await reconcileStarts(stuck, UNREPORTED_AFTER_SECONDS);
+const reopened = await tagged`select status, session_starts, first_started_at from orders where id = ${stuck}`;
+check('an order whose every attempt failed opens again',
+  describeStatus(reopened[0]) === 'confirmed', reopened[0]);
+check('and it has no minutes against it', (await used(stuck)) === 0);
+
+// A figure left out is how the page came to answer a different question from the gate.
+let missing = null;
+try { await secondsSpent(stuck, ASSUME_FULL_AFTER_SECONDS, SESSION_BUDGET_SECONDS); }
+catch (error) { missing = error; }
+check('leaving out a figure is refused rather than ignored',
+  /unreportedAfter/.test(missing?.message || ''), missing?.message);
+
 console.log('the reservation');
 // Two requests arriving together must not both buy a session on one order.
 const contested = await newOrder();
