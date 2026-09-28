@@ -17,7 +17,7 @@
 
   <div id="signin" hidden>
     <p class="lede">Sign in with Skills Economy to see what is waiting.</p>
-    <div class="actions"><a class="button" id="lgo" href="/api/auth?action=start&amp;to=/admin">Sign in with Skills Economy</a></div>
+    <div class="actions"><a class="button" id="lgo" href="/api/auth?action=start&amp;to=/payments">Sign in with Skills Economy</a></div>
     <div id="lmsg" hidden></div>
   </div>
 
@@ -137,7 +137,7 @@
     confirm.addEventListener('click', async () => {
       confirm.disabled = true;
       try {
-        await call('/api/admin?action=decide', {
+        await call('/api/payments?action=decide', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ id: order.id, decision: 'confirm' }),
@@ -167,7 +167,7 @@
     rejectButton.addEventListener('click', async () => {
       rejectButton.disabled = true;
       try {
-        await call('/api/admin?action=decide', {
+        await call('/api/payments?action=decide', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ id: order.id, decision: 'reject', reason: reason.value }),
@@ -242,7 +242,7 @@
     const params = new URLSearchParams({ action: 'history', page: String(hpage) });
     if (hquery) params.set('q', hquery);
     try {
-      const data = await call(`/api/admin?${params.toString()}`);
+      const data = await call(`/api/payments?${params.toString()}`);
       history.textContent = '';
       const first = (data.page - 1) * data.perPage + 1;
       const last = Math.min(data.page * data.perPage, data.total);
@@ -290,7 +290,7 @@
 
   async function load() {
     try {
-      const data = await call('/api/admin?action=list');
+      const data = await call('/api/payments?action=list');
       signin.hidden = true;
       work.hidden = false;
       renderCounts(data.counts || {});
@@ -314,14 +314,14 @@
   document.getElementById('refresh').addEventListener('click', load);
   document.getElementById('logout').addEventListener('click', async () => {
     await call('/api/auth?action=signout', { method: 'POST' });
-    location.replace('/admin');
+    location.replace('/payments');
   });
 
   // A sign-in that failed comes back here with the reason in the address. Take it out of the
   // address bar once it is on the page, so a refresh does not show it again.
   const problem = new URLSearchParams(location.search).get('problem');
   if (problem) {
-    history.replaceState(null, '', '/admin');
+    history.replaceState(null, '', '/payments');
     signin.hidden = false;
     starting.hidden = true;
     msg('lmsg', problem, 'bad');

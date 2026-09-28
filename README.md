@@ -10,7 +10,7 @@ Deployed to `app.farahbrunache.com`. The page One Percent is sold from lives sep
 2. They get a claim link and a reference. A transfer goes to the destination
    shown with that reference in the note; a gift card carries its code instead. The link is
    their only record, and nothing else stored could find their order.
-3. `/admin` shows what is waiting — the reference to match in Wise, or the card code to
+3. `/payments` shows what is waiting — the reference to match in Wise, or the card code to
    redeem. Confirm or reject.
 4. Confirming destroys the stored card code and opens the session on their claim link.
 5. The claim page holds a button. The browser asks `/api/call` with the claim token, the
@@ -46,7 +46,7 @@ first request, so there is no migration step.
 | `AUTH_PUBLISHABLE_KEY` | The Skills Economy publishable key, starting `pk_live_`. Public, and the address of the sign-in service is encoded inside it. |
 | `AUTH_CLIENT_ID` | The client id of the One Percent application registered in the Skills Economy dashboard, whose return address is `https://app.farahbrunache.com/auth/callback`. |
 | `AUTH_CLIENT_SECRET` | Its client secret. Set it when the application's Public toggle is off, and leave it unset when that toggle is on — the code proves itself with the secret in the first case and with PKCE in the second. |
-| `ADMIN_ACCOUNT_IDS` | Skills Economy account ids allowed on `/admin`, separated by commas. |
+| `ADMIN_ACCOUNT_IDS` | Skills Economy account ids allowed on `/payments`, separated by commas. |
 | `RETELL_SECRET_KEY` | The row named Secret Key on the API Keys tab in the Retell dashboard. It has to be the key carrying the webhook badge, because the same key both starts calls and verifies the signature on the transcript coming back. |
 | `RETELL_AGENT_ID` | The agent that runs the session. |
 | `PAY_WISE` | Where a Wise payment goes, exactly as somebody should type it. A handle stays as text; a link becomes a link to tap. |
@@ -54,7 +54,7 @@ first request, so there is no migration step.
 Set `CARD_ENCRYPTION_KEY` once, before anybody pays. Changing it later makes every stored
 card code unreadable, and it signs the sign-in cookie, so changing it also signs everybody out.
 
-`/admin` has no password of its own. Signing in happens at Skills Economy and comes back as
+`/payments` has no password of its own. Signing in happens at Skills Economy and comes back as
 an account id; `ADMIN_ACCOUNT_IDS` says which ids are allowed in. One Percent is registered
 there as its own application, so it holds none of Skills Economy's keys, cannot read an
 account beyond the id, and cannot sign in anybody who has not signed themselves in. The two
@@ -84,7 +84,7 @@ A confirmed order opens a session up to three times inside twenty-four hours of 
 dropped call is started again; a link passed around does not become a week of sessions.
 
 Nothing that identifies somebody paying is collected at any point — no name, no email
-address, no location. Signing in at `/admin` is the one exception and it is not a buyer: an
+address, no location. Signing in at `/payments` is the one exception and it is not a buyer: an
 account id comes back from Skills Economy and is held in a signed cookie for twelve hours.
 It is never written to the database. Requests are rate limited against a keyed
 hash of the caller's address rather than the address itself.
@@ -96,14 +96,14 @@ hash of the caller's address rather than the address itself.
 | `index.html` | Sign in, and the sessions belonging to whoever signed in |
 | `buy.html` | The payment form and the lost-link recovery |
 | `claim.html` | Order status, and where the session starts |
-| `admin.html` | The one screen with manual work on it |
+| `payments.html` | The one screen with manual work on it |
 | `style.css` | Shared across the pages |
 | `api/submit.js` | Takes a payment, returns a claim link |
 | `api/status.js` | What a claim link shows |
 | `api/recover.js` | Issues a new claim link against a reference or card code |
 | `api/call.js` | Checks the order and opens the session |
 | `api/retell.js` | Takes the transcript back from the voice service |
-| `api/admin.js` | List what is waiting, confirm or reject, everything decided so far, and taking somebody on as a client |
+| `api/payments.js` | List what is waiting, confirm or reject, everything decided so far, and taking somebody on as a client |
 | `api/client.js` | What a signed-in person's own sessions are, and linking one to their account |
 | `api/auth.js` | Signing in and out against Skills Economy |
 | `server.js` | Which address serves which page, the headers, the one redirect |

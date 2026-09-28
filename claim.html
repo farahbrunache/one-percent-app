@@ -338,17 +338,37 @@
       client.on('error', (err) => {
         callMessage(target, `The session stopped. ${describeFailure(err, data.callId)}`, 'bad');
         button.disabled = false;
+        neverConnected(data.callId);
       });
       await client.startCall({ accessToken: data.accessToken });
     } catch (error) {
       callMessage(
         target,
         `The session did not start. ${describeFailure(error, data.callId)} Reload this page `
-          + 'and press the button again — your session is still there.',
+          + 'and press the button again — your minutes are still there.',
         'bad',
       );
       button.disabled = false;
+      neverConnected(data.callId);
     }
+  }
+
+  // Tell the server the session never connected, so the minutes it reserved go back.
+  //
+  // A call left open counts as the whole budget, because from the server's side a call it has
+  // heard nothing about may still be running. Without this, one failure to join spends the
+  // order and there is no way to start another -- which is what happened the first time one
+  // failed.
+  //
+  // Nothing is shown if this fails. The reader already has a failure on screen and a second
+  // one about bookkeeping helps nobody; the server closes the call on its own timer anyway.
+  function neverConnected(callId) {
+    if (!callId) return;
+    fetch('/api/call?action=abandon', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ t: token, callId }),
+    }).catch(() => {});
   }
 
   // Everything the failure carried, not the one line of it that happens to be a message.

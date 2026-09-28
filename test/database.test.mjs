@@ -51,7 +51,7 @@ try {
 }
 check('and running it a second time changes nothing', twice === null, twice);
 
-const { secondsSpent } = db;
+const { abandonCall, secondsSpent } = db;
 const sql = () => tagged;
 
 async function newOrder(overrides = {}) {
@@ -66,37 +66,73 @@ async function newOrder(overrides = {}) {
 }
 
 console.log('what an order bought');
-const { ASSUME_FULL_AFTER_SECONDS, SESSION_BUDGET_SECONDS } = await import('../lib/orders.js');
+const { ABANDON_WITHIN_SECONDS, ASSUME_FULL_AFTER_SECONDS, SESSION_BUDGET_SECONDS, UNREPORTED_AFTER_SECONDS } =
+  await import('../lib/orders.js');
+const used = (order) =>
+  secondsSpent(order, ASSUME_FULL_AFTER_SECONDS, SESSION_BUDGET_SECONDS, UNREPORTED_AFTER_SECONDS);
 
 const fresh = await newOrder();
 check('a new order has spent nothing',
-  (await secondsSpent(fresh, ASSUME_FULL_AFTER_SECONDS, SESSION_BUDGET_SECONDS)) === 0);
+  (await used(fresh)) === 0);
 
 const dropped = await newOrder();
 await tagged`insert into calls (order_id, call_id, seconds, started_at)
              values (${dropped}, ${'c' + dropped}, 120, now() - interval '2 hours')`;
-const afterDrop = await secondsSpent(dropped, ASSUME_FULL_AFTER_SECONDS, SESSION_BUDGET_SECONDS);
+const afterDrop = await used(dropped);
 check('a call that died early spends only the minutes it ran', afterDrop === 120, afterDrop);
 check('and leaves enough to start again', afterDrop < SESSION_BUDGET_SECONDS);
 
 const full = await newOrder();
 await tagged`insert into calls (order_id, call_id, seconds, started_at)
              values (${full}, ${'c' + full}, 1800, now() - interval '2 hours')`;
-const afterFull = await secondsSpent(full, ASSUME_FULL_AFTER_SECONDS, SESSION_BUDGET_SECONDS);
+const afterFull = await used(full);
 check('a full session does not leave enough for another',
   afterFull + ASSUME_FULL_AFTER_SECONDS > SESSION_BUDGET_SECONDS, afterFull);
 
-// A webhook that never arrives must not become free voice time.
+// A call the voice service never reported on, long after it could still be running.
+//
+// This used to count as a session that ran, so that a lost webhook could not become free
+// voice time. That was the wrong side to err on: a session that fails to join in the browser
+// leaves exactly the same row, and counting it as a full session spends the order and leaves
+// the person who paid with no way to start another. Being wrong the other way costs one call's
+// worth of voice, occasionally, and the call is visible on the desk with no transcript
+// against it.
 const silent = await newOrder();
 await tagged`insert into calls (order_id, call_id, started_at)
              values (${silent}, ${'c' + silent}, now() - interval '3 hours')`;
-const afterSilence = await secondsSpent(silent, ASSUME_FULL_AFTER_SECONDS, SESSION_BUDGET_SECONDS);
-check('a call nobody heard about counts as a session that ran',
-  afterSilence === ASSUME_FULL_AFTER_SECONDS, afterSilence);
+check('a call nobody ever reported on stops being counted', (await used(silent)) === 0);
+
+const recent = await newOrder();
+await tagged`insert into calls (order_id, call_id, started_at)
+             values (${recent}, ${'c' + recent}, now() - interval '40 minutes')`;
+check('but one that could still be running is counted until then',
+  (await used(recent)) === ASSUME_FULL_AFTER_SECONDS, await used(recent));
+
+console.log('a session that never connected');
+const failed = await newOrder();
+await tagged`insert into calls (order_id, call_id) values (${failed}, 'c-failed-to-join')`;
+check('it takes the whole budget while it looks like a call in progress',
+  (await used(failed)) >= SESSION_BUDGET_SECONDS);
+check('the page can say it never connected',
+  (await abandonCall(failed, 'c-failed-to-join', ABANDON_WITHIN_SECONDS)) === true);
+check('and the minutes come back', (await used(failed)) === 0);
+
+// Otherwise the conversation could be had and then reported as a failure.
+const late = await newOrder();
+await tagged`insert into calls (order_id, call_id, started_at)
+             values (${late}, 'c-too-late', now() - interval '20 minutes')`;
+check('a call from twenty minutes ago cannot be given back',
+  (await abandonCall(late, 'c-too-late', ABANDON_WITHIN_SECONDS)) === false);
+
+const talked = await newOrder();
+await tagged`insert into calls (order_id, call_id, transcript_encrypted)
+             values (${talked}, 'c-had-a-transcript', 'x')`;
+check('nor can one that produced a transcript',
+  (await abandonCall(talked, 'c-had-a-transcript', ABANDON_WITHIN_SECONDS)) === false);
 
 const running = await newOrder();
 await tagged`insert into calls (order_id, call_id) values (${running}, ${'c' + running})`;
-const duringCall = await secondsSpent(running, ASSUME_FULL_AFTER_SECONDS, SESSION_BUDGET_SECONDS);
+const duringCall = await used(running);
 check('a call still going spends the entire budget, so nobody is on two at once',
   duringCall >= SESSION_BUDGET_SECONDS, duringCall);
 
