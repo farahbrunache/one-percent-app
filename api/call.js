@@ -206,9 +206,21 @@ export default handle('POST', async (req, res) => {
     `;
   }
 
+  // Everything the browser needs to join, not just the token.
+  //
+  // A web call is a gateway connection now: the client picks its transport from what is
+  // returned here, and given a token alone it falls back to the transport this account does
+  // not use and fails with a sentence that says nothing. The call's own id is required by the
+  // gateway, and the servers it should use to find a route come back with it.
+  //
+  // None of this is secret. It is the caller's own credentials for their own call, it expires,
+  // and it reaches nobody but the person holding the claim link.
   send(res, 200, {
     accessToken,
     callId,
+    transport: data.transport || null,
+    iceServers: data.ice_servers || null,
+    expiresAt: data.expires_at || null,
     remaining: Math.max(0, MAX_SESSION_STARTS - Number(taken[0].session_starts || 0)),
   });
 });
