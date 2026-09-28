@@ -226,6 +226,53 @@ check('a fuller record replaces the first', replaced[0].record_encrypted === 'th
 // -- Postgres refusing to plan the statement is the test. When the desk starts reading a new
 // column, add it here, and a schema change that never landed fails the build rather than the
 // screen.
+// The conversation opens on a go and on nothing else.
+//
+// This is the test that was missing. The gate was written as "anybody who has paid", so
+// somebody with no decision against them saw a box inviting them to write while they waited,
+// which is the one state it must never appear in.
+console.log('when the conversation opens');
+
+// The gate the client API asks: is any order of theirs approved.
+async function conversationOpen(account) {
+  const rows = await tagged`
+    select 1 from orders
+     where client_account_id = ${account} and approved_as_client_at is not null
+     limit 1`;
+  return rows.length > 0;
+}
+
+const waiting = await newOrder();
+await tagged`update orders set client_account_id = 'acct-waiting' where id = ${waiting}`;
+check('somebody who has paid and not been read has no conversation',
+  (await conversationOpen('acct-waiting')) === false);
+
+const turned = await newOrder();
+await tagged`update orders set client_account_id = 'acct-no-go', assessment = 'no-go',
+                               assessed_at = now(), approved_as_client_at = null
+              where id = ${turned}`;
+check('and a no-go has none either', (await conversationOpen('acct-no-go')) === false);
+
+const client = await newOrder();
+await tagged`update orders set client_account_id = 'acct-go', assessment = 'go',
+                               assessed_at = now(), approved_as_client_at = now()
+              where id = ${client}`;
+check('a go opens it', (await conversationOpen('acct-go')) === true);
+
+// A decision can be changed, and changing it back to no-go clears the approval. What is
+// already written stays -- it happened -- but nothing more can be sent.
+await tagged`update orders set assessment = 'no-go', approved_as_client_at = null
+              where id = ${client}`;
+check('and changing the decision back closes it again',
+  (await conversationOpen('acct-go')) === false);
+
+// The opening line goes in once. Posting is guarded on the thread being empty, so a second
+// call against the same person does not open at them again.
+await tagged`insert into messages (account_id, author, body_encrypted)
+             values ('acct-go', 'opening', 'x')`;
+const already = await tagged`select 1 from messages where account_id = 'acct-go' limit 1`;
+check('a thread with something in it is not opened again', already.length === 1);
+
 console.log('the desk can read what it reads');
 await tagged`
   select o.id, o.reference_code, o.assessment, o.assessed_at, o.status,

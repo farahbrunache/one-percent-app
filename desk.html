@@ -96,6 +96,23 @@
     </div>
 
     <div class="panel">
+      <h2>The conversation</h2>
+      <p class="meta" id="threadnote"></p>
+      <div id="thread" class="rows"></div>
+      <form class="fields" id="reply" hidden novalidate>
+        <div class="field">
+          <label for="replybody">Write back</label>
+          <textarea id="replybody" rows="4" maxlength="4000"></textarea>
+        </div>
+        <div class="actions">
+          <button type="submit" class="quiet">Send</button>
+          <button type="button" class="quiet" id="draftreply">Draft a reply</button>
+        </div>
+        <p class="meta" id="replydraftnote"></p>
+      </form>
+    </div>
+
+    <div class="panel">
       <h2>Milestones</h2>
       <p class="meta">A stalled step is something that happened, not a verdict on anybody.</p>
       <div id="steps" class="rows"></div>
@@ -169,6 +186,7 @@
 <script type="module">
   const STATES = [
     ['waiting', 'New calls'],
+    ['replies', 'Wrote to you'],
     ['active', 'Working'],
     ['closed', 'Closed'],
   ];
@@ -327,6 +345,9 @@
         row.append(el('div', person.assessment === 'go' ? 'Go' : 'No-go', `badge ${tone}`));
       } else {
         row.append(el('div', 'Not read yet', 'badge open'));
+      }
+      if (person.awaitingReply) {
+        row.append(el('div', 'Wrote to you and is waiting', 'flag'));
       }
       for (const item of owed(person)) {
         if (item.yours) row.append(el('div', item.what, 'flag'));
@@ -624,6 +645,95 @@
     renderDrafting(person);
   }
 
+  // The conversation, which exists only on a go. Before a decision and after a no-go there
+  // is nothing decided to talk about, and the screen says which of the two it is rather than
+  // showing a form that would be refused.
+  function renderThread(person) {
+    const list = document.getElementById('thread');
+    const note = document.getElementById('threadnote');
+    const form = document.getElementById('reply');
+    list.textContent = '';
+
+    if (!person.linked) {
+      note.textContent =
+        'No account is linked to this order yet, so there is nowhere to send a message. '
+        + 'They link it by opening their claim link while signed in.';
+      form.hidden = true;
+      return;
+    }
+    if (!person.approvedAt) {
+      note.textContent = person.assessment === 'no-go'
+        ? 'A no-go, so the conversation is closed. They keep their sheet and everything they '
+          + 'already had. Changing the decision opens it.'
+        : 'Not decided yet, so there is no conversation. A go opens it, and the opening line '
+          + 'goes out once the sheet is written.';
+      form.hidden = true;
+      return;
+    }
+    note.textContent = 'Open since ' + when(person.approvedAt)
+      + '. This is where the work happens after the sheet.';
+    form.hidden = false;
+
+    if (!person.messages.length) {
+      list.append(el('p', 'Nothing said yet. The opening line goes out once the sheet is '
+        + 'written.', 'meta'));
+    }
+    for (const message of person.messages) {
+      const theirs = message.author === 'client';
+      const scripted = message.author === 'opening';
+      const row = el('div', null,
+        scripted ? 'row' : theirs ? 'row said them' : 'row said us');
+      row.append(el('div',
+        theirs ? 'Them' : message.author === 'opening' ? 'Opening line' : 'You', 'label'));
+      row.append(el('div', message.body, null));
+      row.append(el('div', when(message.at), 'meta'));
+      list.append(row);
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const input = document.getElementById('replybody');
+      try {
+        await post('reply', { id: person.id, body: input.value });
+        window.location.reload();
+      } catch (error) {
+        msg('rmsg', error.message, 'bad');
+      }
+    });
+
+    renderReplyDrafting(person);
+  }
+
+  // Drafting, pointed at the reply rather than at the sheet. Same model, same limit, same
+  // rule that nothing it writes is sent until it has been read.
+  function renderReplyDrafting(person) {
+    const drafting = person.drafting || { models: [], chosen: null };
+    const button = document.getElementById('draftreply');
+    const note = document.getElementById('replydraftnote');
+    if (!drafting.models.length) {
+      button.hidden = true;
+      note.textContent = 'No drafting model is configured, so a reply is written by hand.';
+      return;
+    }
+    button.addEventListener('click', async () => {
+      const input = document.getElementById('replybody');
+      button.disabled = true;
+      note.textContent = 'Asking. A worker starting from cold takes up to a minute.';
+      try {
+        const written = await post('draft', { id: person.id, of: 'reply' });
+        input.value = written.content;
+        input.focus();
+        note.textContent = 'Read it before you send it. '
+          + [written.model, written.seconds + 's'].filter(Boolean).join(' · ');
+      } catch (error) {
+        note.textContent = '';
+        msg('rmsg', error.message, 'bad');
+      } finally {
+        button.disabled = false;
+      }
+    });
+  }
+
   // The draft button writes into the sheet box and stops there. Nothing it produces reaches
   // the person until it has been read and the operator presses Write it.
   function renderDrafting(person) {
@@ -883,6 +993,7 @@
     renderOwed(person);
     renderAssess(person);
     renderRecommendations(person);
+    renderThread(person);
     renderPlan(person);
     renderSteps(person);
     renderQuotes(person);

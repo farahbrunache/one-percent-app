@@ -36,6 +36,7 @@ import {
 import {
   DRAFTS_PER_ORDER,
   DRAFT_WINDOW_SECONDS,
+  REPLY_PROMPT,
   SLOTS,
   SYSTEM_PROMPT,
   draft as askForDraft,
@@ -44,7 +45,7 @@ import {
 import Retell from 'retell-sdk';
 
 import { agentScriptExport } from '../lib/voice.js';
-import { normalizeReference } from '../lib/orders.js';
+import { normalizeReference, OPENING_LINE } from '../lib/orders.js';
 import { HttpError, handle, readJson, send } from '../lib/http.js';
 
 const PER_PAGE = 25;
@@ -108,13 +109,20 @@ async function queue(req, res) {
                where c.order_id = o.id and c.transcript_encrypted is not null
                order by c.ended_at desc nulls last limit 1) as seconds,
              (select count(*)::int from calls c
-               where c.order_id = o.id and c.transcript_encrypted is not null) as call_count
+               where c.order_id = o.id and c.transcript_encrypted is not null) as call_count,
+             (select m.author from messages m
+               where m.account_id = o.client_account_id
+               order by m.created_at desc limit 1) = 'client' as awaiting_reply
         from orders o
         left join plans p on p.order_id = o.id and p.in_force
        where exists (select 1 from calls c
                       where c.order_id = o.id and c.transcript_encrypted is not null)
          and case ${state}
                when 'waiting' then o.assessment is null
+               when 'replies' then o.approved_as_client_at is not null
+                                   and (select m.author from messages m
+                                         where m.account_id = o.client_account_id
+                                         order by m.created_at desc limit 1) = 'client'
                when 'active'  then o.assessment = 'go'
                else                o.assessment = 'no-go'
              end
@@ -127,6 +135,10 @@ async function queue(req, res) {
                       where c.order_id = o.id and c.transcript_encrypted is not null)
          and case ${state}
                when 'waiting' then o.assessment is null
+               when 'replies' then o.approved_as_client_at is not null
+                                   and (select m.author from messages m
+                                         where m.account_id = o.client_account_id
+                                         order by m.created_at desc limit 1) = 'client'
                when 'active'  then o.assessment = 'go'
                else                o.assessment = 'no-go'
              end
@@ -149,6 +161,7 @@ async function queue(req, res) {
       recommendedAt: r.recommendations_written_at,
       recordMissing: Boolean(r.record_missing),
       linked: r.linked,
+      awaitingReply: Boolean(r.awaiting_reply),
       planPath: r.plan_path,
       planLabel: r.plan_path ? PLAN_PATHS[r.plan_path]?.label || r.plan_path : null,
     })),
@@ -218,6 +231,16 @@ async function person(req, res) {
   `;
   if (!rows.length) throw new HttpError(404, 'No order with that number.');
   const row = rows[0];
+
+  // The thread belongs to the account, not to this order, so somebody who buys a second
+  // session carries one conversation rather than starting another.
+  const messages = row.client_account_id
+    ? await sql()`
+        select author, body_encrypted, created_at from messages
+         where account_id = ${row.client_account_id}
+         order by created_at asc limit 200
+      `
+    : [];
 
   // Every call against this order, newest first, each with its own transcript. A session that
   // dropped and was restarted shows as two, which is a fact the owner could not see before.
@@ -298,6 +321,11 @@ async function person(req, res) {
     linked: Boolean(row.client_account_id),
     approvedAt: row.approved_as_client_at,
     recommendations: row.recommendations_encrypted ? decrypt(row.recommendations_encrypted) : null,
+    messages: messages.map((m) => ({
+      author: m.author,
+      body: decrypt(m.body_encrypted),
+      at: m.created_at,
+    })),
     recommendedAt: row.recommendations_written_at,
     firstCustomerAt: row.first_customer_at,
     plan: inForce
@@ -465,8 +493,42 @@ async function writeDraft(req, res) {
     );
   }
 
-  const rows = await sql()`select id from orders where id = ${id}`;
+  const rows = await sql()`select id, client_account_id from orders where id = ${id}`;
   if (!rows.length) throw new HttpError(404, 'No order with that number.');
+
+  // Two things the operator writes, so the button says which one it is drafting. A reply
+  // is drafted from the conversation; a sheet is drafted from the call.
+  if (String(body.of || '') === 'reply') {
+    const account = rows[0].client_account_id;
+    if (!account) {
+      throw new HttpError(409, 'Nobody has linked an account to this order, so there is no ' +
+        'conversation to answer.');
+    }
+    const thread = await sql()`
+      select author, body_encrypted from messages
+        where account_id = ${account}
+        order by created_at desc
+        limit 20
+    `;
+    if (!thread.length) {
+      throw new HttpError(409, 'The conversation has nothing in it yet, so there is nothing ' +
+        'to answer.');
+    }
+    const said = [
+      { role: 'system', content: REPLY_PROMPT },
+      ...thread.reverse().map((m) => ({
+        role: m.author === 'client' ? 'user' : 'assistant',
+        content: decrypt(m.body_encrypted),
+      })),
+    ];
+    const answer = await askForDraft(said, await readChoice(MODEL_CHOICE));
+    await sql()`
+      insert into drafts (order_id, slot, model, prompt_tokens, completion_tokens, seconds)
+      values (${id}, ${answer.slot}, ${answer.model}, ${answer.promptTokens},
+              ${answer.completionTokens}, ${answer.seconds})
+    `;
+    return send(res, 200, answer);
+  }
 
   const called = await sql()`
     select transcript_encrypted from calls
@@ -522,6 +584,37 @@ async function firstCustomer(req, res) {
   send(res, 200, { ok: true, at: done[0].first_customer_at });
 }
 
+// The conversation opens itself.
+//
+// Two things have to be true: a go was recorded, and the sheet is written. The opening line
+// asks what they make of the recommendations, so posting it before there are any would be a
+// question about nothing.
+//
+// It runs from both the decision and the sheet, because either can happen second. Posting is
+// guarded on the thread being empty, which makes it safe to call twice and means somebody who
+// comes back for a later call is not opened at again.
+async function openTheConversation(id) {
+  const rows = await sql()`
+    select client_account_id from orders
+     where id = ${id}
+       and approved_as_client_at is not null
+       and recommendations_encrypted is not null
+       and client_account_id is not null
+  `;
+  if (!rows.length) return false;
+  const account = rows[0].client_account_id;
+
+  const already = await sql()`select 1 from messages where account_id = ${account} limit 1`;
+  if (already.length) return false;
+
+  await sql()`
+    insert into messages (account_id, author, body_encrypted)
+    values (${account}, 'opening', ${encrypt(OPENING_LINE)})
+  `;
+  await record(id, 'conversation.opened', OPENING_LINE);
+  return true;
+}
+
 // Go or no-go, by somebody who read the words. Changing a decision is allowed and leaves both
 // on the trail; what is not allowed is a machine making it.
 async function assess(req, res) {
@@ -547,7 +640,8 @@ async function assess(req, res) {
     throw new HttpError(409, 'That order is not a confirmed one, so there is no call to assess.');
   }
   await record(id, 'assessed', `${decision}. ${String(body.note || '').trim()}`.trim());
-  send(res, 200, { ok: true, assessment: decision });
+  const opened = decision === 'go' ? await openTheConversation(id) : false;
+  send(res, 200, { ok: true, assessment: decision, opened });
 }
 
 // What the caller reads when they come back.
@@ -575,7 +669,8 @@ async function recommend(req, res) {
     throw new HttpError(409, 'That order is not a confirmed one, so there is nobody to write to.');
   }
   await record(id, 'recommended', 'Written.');
-  send(res, 201, { ok: true });
+  const opened = await openTheConversation(id);
+  send(res, 201, { ok: true, opened });
 }
 
 // Setting the path retires whatever was in force. Two statements rather than one, because the
@@ -655,6 +750,35 @@ async function recordMilestone(req, res) {
   }
   await record(id, 'milestone.recorded', `${status}. ${outcome}`.trim());
   send(res, 200, { ok: true, status });
+}
+
+// Answering. The reply goes to the account rather than to the order, and an order nobody has
+// linked has nowhere to send one — say that plainly rather than accepting a message into a
+// thread no one will ever read.
+async function reply(req, res) {
+  requireAdmin(req);
+  await ensureSchema();
+  const body = await readJson(req);
+  const id = orderId(body.id);
+  const text = String(body.body || '').trim().slice(0, 4000);
+  if (!text) throw new HttpError(400, 'An empty message is not a message.');
+
+  const rows = await sql()`select client_account_id from orders where id = ${id}`;
+  if (!rows.length) throw new HttpError(404, 'No order with that number.');
+  const account = rows[0].client_account_id;
+  if (!account) {
+    throw new HttpError(
+      409,
+      'Nobody has linked an account to this order yet, so there is no one to send this to. ' +
+        'They link it by opening their claim link while signed in.',
+    );
+  }
+
+  await sql()`
+    insert into messages (account_id, author, body_encrypted)
+    values (${account}, 'operator', ${encrypt(text)})
+  `;
+  send(res, 201, { ok: true });
 }
 
 // Written for one person, against what the work is. No tier is chosen because there are none.
@@ -811,6 +935,7 @@ const ACTIONS = {
     plan: setPlan,
     'milestone-add': addMilestone,
     'milestone-record': recordMilestone,
+    reply,
     recommend,
     draft: writeDraft,
     model: chooseModel,
