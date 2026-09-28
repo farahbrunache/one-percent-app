@@ -47,13 +47,14 @@ jobs:
             echo "ready=no" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Install the Infisical command line
-        if: steps.settings.outputs.ready == 'yes'
-        run: |
-          curl -1sLf 'https://dl.cloudsmith.io/public/infisical/infisical-cli/setup.deb.sh' \
-            | sudo -E bash
-          sudo apt-get install -y infisical
-
+      # No command line to install. The runner already has curl and jq, the script already
+      # parses JSON with them, and an install step that reaches out to a third party's
+      # repository is a way for a deploy to stop working on a day nobody touched it — which is
+      # what happened: the setup script stopped resolving, the pipe into bash swallowed the
+      # failure because bash reads an empty script and exits clean, and apt then reported a
+      # package that was never added.
+      #
+      # Piping somebody else's script into root on every deploy was worth removing on its own.
       - name: Sign in to Infisical
         id: infisical
         if: steps.settings.outputs.ready == 'yes'
@@ -62,11 +63,22 @@ jobs:
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           INFISICAL_API_URL: ${{ secrets.INFISICAL_URL }}
         run: |
-          token=$(infisical login --method=universal-auth \
-            --client-id="$INFISICAL_CLIENT_ID" \
-            --client-secret="$INFISICAL_CLIENT_SECRET" \
-            --silent --plain)
-          [ -n "$token" ] || { echo "::error::Infisical would not issue a token."; exit 1; }
+          set -euo pipefail
+          response=$(curl -sS --fail-with-body --max-time 30 \
+            -X POST "${INFISICAL_API_URL%/}/api/v1/auth/universal-auth/login" \
+            -H 'content-type: application/json' \
+            -d "$(jq -n --arg id "$INFISICAL_CLIENT_ID" --arg secret "$INFISICAL_CLIENT_SECRET" \
+                  '{clientId: $id, clientSecret: $secret}')") || {
+            echo "::error title=Infisical would not sign in::It answered: $response"
+            exit 1
+          }
+          token=$(printf '%s' "$response" | jq -r '.accessToken // empty')
+          if [ -z "$token" ]; then
+            # The body is the only way to tell a wrong credential from a wrong address, and it
+            # carries no secret of its own.
+            echo "::error title=Infisical returned no token::It answered: $response"
+            exit 1
+          fi
           echo "::add-mask::$token"
           echo "token=$token" >> "$GITHUB_OUTPUT"
 

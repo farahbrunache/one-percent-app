@@ -31,6 +31,7 @@
 #   RENDER_SERVICE_NAME   the service's name in Render; its id is looked up from that
 #   INFISICAL_TOKEN       optional — from a machine identity login; without it, see above
 #   INFISICAL_PROJECT_ID  optional — the One Percent project; without it, see above
+#   INFISICAL_API_URL     optional — the instance address, required alongside the two above
 set -euo pipefail
 
 # Every setting the service needs. The list lives here rather than being read from somewhere
@@ -60,11 +61,25 @@ fi
 
 if [ "$sync_settings" = yes ]; then
   echo "Reading the settings out of Infisical…"
-  infisical export \
-    --projectId "$INFISICAL_PROJECT_ID" \
-    --env production \
-    --format json \
-    --token "$INFISICAL_TOKEN" > /tmp/secrets.json
+  # The API rather than a command line, so a deploy does not depend on a package repository
+  # being reachable and installable on the day it runs. The shape below is what the old export
+  # produced — an array of {secretKey, secretValue} — so everything after this is unchanged.
+  #
+  # `production` is the environment slug, not its display name. Infisical names it Production
+  # and often slugs it `prod`, and a slug that does not match returns an empty set rather than
+  # an error, which reads as every secret being missing.
+  raw=$(curl -sS --fail-with-body --max-time 30 \
+    -H "authorization: Bearer $INFISICAL_TOKEN" \
+    "${INFISICAL_API_URL%/}/api/v3/secrets/raw?workspaceId=${INFISICAL_PROJECT_ID}&environment=production") || \
+    die "Infisical would not hand over the settings. It answered: $raw"
+
+  printf '%s' "$raw" | jq -e 'has("secrets")' > /dev/null 2>&1 || \
+    die "Infisical answered with something unreadable. It sent: $(printf '%s' "$raw" | head -c 400)"
+
+  printf '%s' "$raw" | jq '.secrets' > /tmp/secrets.json
+
+  count=$(jq 'length' /tmp/secrets.json)
+  [ "$count" -gt 0 ] || die "The production environment in that project holds no secrets. Check the environment's slug is production rather than prod."
 
   # Refuse before touching Render if anything is missing. A write replaces every variable on
   # the service, so sending an incomplete set would take the site down.
