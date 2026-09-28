@@ -64,8 +64,14 @@ jobs:
           INFISICAL_API_URL: ${{ secrets.INFISICAL_URL }}
         run: |
           set -euo pipefail
+          # Whatever was pasted, use only the scheme and host. This value is copied out of a
+          # browser address bar, so it arrives with the project path still on the end more often
+          # than not — and that produces a 404 naming a route nobody wrote, which reads like the
+          # API being wrong rather than the setting.
+          origin=$(printf '%s' "$INFISICAL_API_URL" | sed -E 's#^(https?://[^/]+).*#\1#')
+          [ -n "$origin" ] || { echo "::error title=INFISICAL_URL is not an address::It has to start with https:// and a host name."; exit 1; }
           response=$(curl -sS --fail-with-body --max-time 30 \
-            -X POST "${INFISICAL_API_URL%/}/api/v1/auth/universal-auth/login" \
+            -X POST "$origin/api/v1/auth/universal-auth/login" \
             -H 'content-type: application/json' \
             -d "$(jq -n --arg id "$INFISICAL_CLIENT_ID" --arg secret "$INFISICAL_CLIENT_SECRET" \
                   '{clientId: $id, clientSecret: $secret}')") || {
