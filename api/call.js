@@ -4,6 +4,8 @@
 // spoken. A web call cannot be reached except through a link somebody paid for, which makes
 // the gate structural rather than a six-digit secret somebody could guess at.
 
+import Retell from 'retell-sdk';
+
 import { ensureSchema, findByClaimTokenHash, secondsSpent, sql, underLimit } from '../lib/db.js';
 import { callerKey, keyedHash } from '../lib/crypto.js';
 import {
@@ -15,7 +17,6 @@ import {
 } from '../lib/orders.js';
 import { HttpError, handle, readJson, send } from '../lib/http.js';
 
-const RETELL_CREATE_WEB_CALL = 'https://api.retellai.com/v2/create-web-call';
 
 export default handle('POST', async (req, res) => {
   const body = await readJson(req);
@@ -104,43 +105,36 @@ export default handle('POST', async (req, res) => {
     await sql()`update orders set session_starts = session_starts - 1 where id = ${order.id}`;
   };
 
-  let response;
+  // The library is asked for the address rather than one being written here. The address
+  // moved from v2 to v3 and a request to the old one is answered with a bare Not Found,
+  // which reads like a wrong agent or a wrong key and is neither. Upgrading the package is
+  // now the whole of keeping up with that.
+  let data;
   try {
-    response = await fetch(RETELL_CREATE_WEB_CALL, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${apiKey}`,
-        'content-type': 'application/json',
-      },
-      // The reference travels with the call so a transcript can be matched back to the
-      // payment it was bought with, without anybody reading it out loud.
-      body: JSON.stringify({
-        agent_id: agentId,
-        metadata: { reference: order.reference_code, order_id: String(order.id) },
-      }),
+    // The reference travels with the call so a transcript can be matched back to the
+    // payment it was bought with, without anybody reading it out loud.
+    data = await new Retell({ apiKey }).call.createWebCall({
+      agent_id: agentId,
+      metadata: { reference: order.reference_code, order_id: String(order.id) },
     });
   } catch (error) {
     await release();
+    if (error instanceof Retell.APIError) {
+      // Retell's own words rather than a blank failure. A 404 here is the agent: the address
+      // itself comes from the library and cannot be the wrong one.
+      const said = JSON.stringify(error.error ?? error.message).slice(0, 400);
+      throw new HttpError(
+        502,
+        `The voice service refused to start a session (${error.status}): ${said}` +
+          (error.status === 404
+            ? ' — a Not Found here means RETELL_AGENT_ID names no agent on this account.'
+            : ''),
+      );
+    }
     throw new HttpError(502, `Could not reach the voice service: ${error.message}`);
   }
 
-  const text = await response.text();
-  if (!response.ok) {
-    await release();
-    // Retell's own words rather than a blank failure — this is the one part of the flow
-    // that cannot be tested without a live account.
-    throw new HttpError(
-      502,
-      `The voice service refused to start a session (${response.status}): ${text.slice(0, 400)}`,
-    );
-  }
-
-  let data;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    throw new HttpError(502, `The voice service answered with something unreadable: ${text.slice(0, 200)}`);
-  }
+  const text = JSON.stringify(data);
 
   const accessToken = data.access_token || data.accessToken;
   if (!accessToken) {
