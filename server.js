@@ -74,15 +74,6 @@ export async function route(req, res) {
     pathname = '/api/auth';
   }
 
-  // The screen is payments and nothing else, so that is what it is called. Anyone holding the
-  // old address is sent on rather than shown nothing; it costs one line and nobody has to be
-  // told about a rename.
-  if (pathname === '/admin') {
-    res.statusCode = 308;
-    res.setHeader('location', '/payments');
-    return res.end('');
-  }
-
   // Asking for the file when the address is what is served would give two addresses for one
   // page, so the file name sends you to the address.
   const asFile = Object.keys(PAGES).find((key) => pathname === `${key}.html`);
