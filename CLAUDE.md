@@ -58,18 +58,39 @@ Two surfaces, two answers.
 The sales page is settled. Its design stays as it is and is not redesigned, restyled or
 reorganized. A change there is copy or a fix, never a new look.
 
-The screens behind the sign-in follow the Skills Economy app rather than the sales page. That
-is the design the owner wants for a signed-in screen, and it is the one they have already
-approved once, on their own product.
+The screens behind the sign-in — the desk, payments, and what somebody sees of their own
+sessions — follow the `design/ops-command-center` branch of this repository. That branch is a design tool's mockup of the operator desk — React, Tailwind and
+a component library, none of which this app uses — and it is the design the owner wants. It
+is not a source of code and is never merged into the trunk; it is read, and the look is
+rebuilt in the plain HTML and hand-written CSS this app is made of.
 
-Follow it, never copy it. It is a reference to read and reason from, not a file to paste in,
-and three things do not travel with it:
+Pull the branch and read the latest of it before building. It is worked on separately and
+what is on it now is not what was on it last time.
 
-- Copy that does not make sense here. It was written for a free community product with
-  plugins, members and a directory. This has one caller, one call and one sheet. Rewrite it
-  for what this screen actually does, or leave the screen's own words alone.
-- A feature that is not in this product. A control that appears because it was in the
-  reference is a feature nobody asked for, and it ships looking like a decision somebody made.
+That branch drew one screen, the desk. Payments and the client area were inferred from it —
+the same palette, the same type, the same card, applied to what those screens already did.
+When the branch gains a design for one of them, that design wins over what was inferred.
+
+**The app has two looks and the sign-in is the line between them** (owner decision,
+2026-09-28). Paying and the call are on the other side of it. They need no account, they
+are the end of the path that starts on the sales page, and they keep that page's look. The
+sign-in is where the product stops selling and starts working, and the two look different
+because they are doing different things.
+
+This is settled, so do not go looking for the inconsistency and correct it. One app with
+two looks reads as an oversight to anybody who arrives at the stylesheet and not at the
+reason, and the reason is that somebody deciding whether to spend seven dollars and
+somebody working through a queue are not the same person doing the same thing. Making the
+sales path look like a working surface would be the error, and so would the reverse.
+
+Follow it, never copy it. Three things do not travel with it:
+
+- Copy that does not make sense. A mockup is filled with invented names, invented figures and
+  a product name that is not ours, because it has to show something. Write what this screen
+  actually says, or leave the screen's own words alone.
+- A feature this product does not have. The mockup shows controls nobody has built or asked
+  for. One that gets built because it was in the picture ships looking like a decision
+  somebody made.
 - Anything that would overwrite copy or layout already shipped here. Be additive and
   surgical: change what the task needs and leave the rest as it ships.
 
