@@ -11,29 +11,44 @@
 // It is encrypted at rest, like the card codes. A transcript is somebody's trade, their rate,
 // their first customer and what is standing in their way.
 
+import { verify } from 'retell-sdk';
+
 import { ensureSchema, sql } from '../lib/db.js';
-import { encrypt, timingSafeEqual } from '../lib/crypto.js';
+import { encrypt } from '../lib/crypto.js';
 import { HttpError, handle, readRaw, send } from '../lib/http.js';
 
-// Retell is told this when the webhook is set up, and it comes back on every delivery. A
-// shared secret rather than a signature: the signature format is the voice service's to
-// change, and this has to be right the first time without a live account to test against.
-function checkSecret(req) {
-  const expected = process.env.RETELL_WEBHOOK_SECRET;
-  if (!expected || expected.length < 16) {
+// Retell signs every delivery. There is no shared secret to agree on and no custom header to
+// send one in — the webhook settings are a URL and a timeout, and that is all of it.
+//
+// The signature is `v=<unix ms>,d=<hex>`, an HMAC-SHA256 over the raw body with the timestamp
+// appended, keyed with the Retell API key. The check is theirs rather than reimplemented here:
+// getting the concatenation backwards would refuse every real delivery while looking correct,
+// and this has to be right without a live account to try it against.
+//
+// The timestamp is part of what is signed, and the library refuses one outside its window, so a
+// delivery captured off the wire cannot be replayed later.
+async function checkSignature(req, body) {
+  const apiKey = process.env.RETELL_SECRET_KEY;
+  if (!apiKey) {
     throw new HttpError(
       503,
-      'RETELL_WEBHOOK_SECRET is missing or shorter than 16 characters. Set it in the ' +
-        'service settings and give Retell the same value.',
+      'RETELL_SECRET_KEY is not set, so a delivery cannot be checked against anything. It is ' +
+        'the same API key the site starts calls with, and in Retell it is the one carrying the ' +
+        'webhook badge — another key will not verify a signature.',
     );
   }
-  // A header only. The same value in the address ends up in access logs, in anything between
-  // here and there, and in a browser's history if it is ever opened by hand — and one leaked
-  // line is all a forged delivery needs.
-  const sent = req.headers['x-retell-secret'] || '';
-  if (!timingSafeEqual(String(sent), expected)) {
-    throw new HttpError(401, 'That is not this webhook.');
+
+  const signature = req.headers['x-retell-signature'];
+  if (!signature) throw new HttpError(401, 'That delivery carries no signature.');
+
+  let ok = false;
+  try {
+    ok = await verify(body, apiKey, String(signature));
+  } catch {
+    // A signature that is not the shape the library expects. Not this webhook either way.
+    ok = false;
   }
+  if (!ok) throw new HttpError(401, 'That signature does not check out.');
 }
 
 // The shape differs between the events Retell sends and between versions of them, so every
@@ -61,9 +76,12 @@ function readCall(payload) {
 }
 
 export default handle('POST', async (req, res) => {
-  checkSecret(req);
-
+  // The body is read before anything else, because the signature is over the bytes as they
+  // arrived. Parsing and re-serializing first would produce different bytes and fail every
+  // genuine delivery.
   const raw = await readRaw(req);
+  await checkSignature(req, raw);
+
   let payload;
   try {
     payload = JSON.parse(raw);

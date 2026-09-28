@@ -47,9 +47,8 @@ first request, so there is no migration step.
 | `AUTH_CLIENT_ID` | The client id of the One Percent application registered in the Skills Economy dashboard, whose return address is `https://app.farahbrunache.com/auth/callback`. |
 | `AUTH_CLIENT_SECRET` | Its client secret. Set it when the application's Public toggle is off, and leave it unset when that toggle is on — the code proves itself with the secret in the first case and with PKCE in the second. |
 | `ADMIN_ACCOUNT_IDS` | Skills Economy account ids allowed on `/admin`, separated by commas. |
-| `RETELL_SECRET_KEY` | The row named Secret Key on the API Keys tab in the Retell dashboard. |
+| `RETELL_SECRET_KEY` | The row named Secret Key on the API Keys tab in the Retell dashboard. It has to be the key carrying the webhook badge, because the same key both starts calls and verifies the signature on the transcript coming back. |
 | `RETELL_AGENT_ID` | The agent that runs the session. |
-| `RETELL_WEBHOOK_SECRET` | 16 characters or more. Given to Retell when the webhook is set up, and sent back on every delivery so a stranger cannot file a transcript. |
 | `PAY_WISE` | Where a Wise payment goes, exactly as somebody should type it. A handle stays as text; a link becomes a link to tap. |
 
 Set `CARD_ENCRYPTION_KEY` once, before anybody pays. Changing it later makes every stored
