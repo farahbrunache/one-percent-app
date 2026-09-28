@@ -14,6 +14,7 @@ import { decrypt, encrypt } from '../lib/crypto.js';
 import { requireAdmin } from '../lib/auth.js';
 import {
   EVENT_KINDS,
+  FUNNEL_STAGES,
   MILESTONE_STATUSES,
   PLAN_PATHS,
   isAssessment,
@@ -137,6 +138,53 @@ async function queue(req, res) {
   });
 }
 
+// The funnel, counted rather than entered. Five numbers, each a strict subset of the one above,
+// so the drop between two of them is a real rate and not two unrelated figures side by side.
+//
+// A person with more than one order is counted once. Somebody who came back for a second
+// session is not two people, and a funnel that said so would overstate the top and understate
+// every rate below it.
+async function funnel(req, res) {
+  requireAdmin(req);
+  await ensureSchema();
+
+  const rows = await sql()`
+    with people as (
+      select o.id,
+             coalesce(o.client_account_id, 'order:' || o.id) as who,
+             o.assessment,
+             o.first_customer_at,
+             exists (select 1 from calls c
+                      where c.order_id = o.id and c.transcript_encrypted is not null) as called,
+             exists (select 1 from plans p where p.order_id = o.id and p.in_force) as planned,
+             exists (select 1 from plans p join milestones m on m.plan_id = p.id
+                      where p.order_id = o.id and m.status = 'worked') as worked
+        from orders o
+       where o.status = 'confirmed'
+    )
+    select
+      count(distinct who) filter (where called) as called,
+      count(distinct who) filter (where called and assessment = 'go') as go,
+      count(distinct who) filter (where called and assessment = 'go' and planned) as planned,
+      count(distinct who) filter (where called and assessment = 'go' and planned and worked) as worked,
+      count(distinct who) filter (where first_customer_at is not null) as earning
+      from people
+  `;
+  const counts = rows[0] || {};
+
+  let above = null;
+  send(res, 200, {
+    stages: FUNNEL_STAGES.map((stage) => {
+      const count = Number(counts[stage.key] || 0);
+      // The rate from the stage above, which is the only comparison that means anything. The
+      // first stage has nothing above it, and a stage below an empty one has no rate either.
+      const rate = above === null ? null : above === 0 ? null : Math.round((count / above) * 100);
+      above = count;
+      return { key: stage.key, label: stage.label, count, rate };
+    }),
+  });
+}
+
 // One person, entire. Four queries rather than one join, because a join across events and
 // milestones multiplies rows and the shapes are different enough that pulling them apart
 // again costs more than asking twice.
@@ -147,7 +195,7 @@ async function person(req, res) {
 
   const rows = await sql()`
     select id, reference_code, status, assessment, assessed_at,
-           client_account_id, approved_as_client_at
+           client_account_id, approved_as_client_at, first_customer_at
       from orders where id = ${id}
   `;
   if (!rows.length) throw new HttpError(404, 'No order with that number.');
@@ -210,6 +258,7 @@ async function person(req, res) {
     assessedAt: row.assessed_at,
     linked: Boolean(row.client_account_id),
     approvedAt: row.approved_as_client_at,
+    firstCustomerAt: row.first_customer_at,
     messages: messages.map((m) => ({
       author: m.author,
       body: decrypt(m.body_encrypted),
@@ -236,6 +285,28 @@ async function person(req, res) {
       at: e.created_at,
     })),
   });
+}
+
+// The end of the method. METHOD.md ends the relationship here rather than at a session count,
+// so this is the one outcome worth recording on its own and the bottom of the funnel.
+//
+// Reversible, because it can be recorded on the wrong person or turn out not to have held, and
+// both ways round leave a line on the trail.
+async function firstCustomer(req, res) {
+  requireAdmin(req);
+  await ensureSchema();
+  const body = await readJson(req);
+  const id = orderId(body.id);
+  const reached = body.reached !== false;
+
+  const done = await sql()`
+    update orders set first_customer_at = case when ${reached} then coalesce(first_customer_at, now()) else null end
+     where id = ${id} and status = 'confirmed'
+     returning first_customer_at
+  `;
+  if (!done.length) throw new HttpError(404, 'No confirmed order with that number.');
+  await record(id, 'first-customer', reached ? String(body.note || '').trim() : 'Taken back off.');
+  send(res, 200, { ok: true, at: done[0].first_customer_at });
 }
 
 // Go or no-go, by somebody who read the words. Changing a decision is allowed and leaves both
@@ -389,13 +460,14 @@ async function addNote(req, res) {
 }
 
 const ACTIONS = {
-  GET: { queue, person },
+  GET: { queue, person, funnel },
   POST: {
     assess,
     plan: setPlan,
     'milestone-add': addMilestone,
     'milestone-record': recordMilestone,
     reply,
+    'first-customer': firstCustomer,
     note: addNote,
   },
 };

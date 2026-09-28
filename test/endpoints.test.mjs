@@ -260,6 +260,10 @@ r = await run(desk, 'POST', '/api/desk?action=milestone-record', { id: 1, milest
 check('recording an outcome refuses without a session', r.statusCode === 401, r.payload);
 r = await run(desk, 'POST', '/api/desk?action=reply', { id: 1, body: 'x' });
 check('replying refuses without a session', r.statusCode === 401, r.payload);
+r = await run(desk, 'GET', '/api/desk?action=funnel');
+check('the funnel refuses without a session', r.statusCode === 401, r.payload);
+r = await run(desk, 'POST', '/api/desk?action=first-customer', { id: 1 });
+check('recording the outcome refuses without a session', r.statusCode === 401, r.payload);
 r = await run(desk, 'GET', '/api/desk?action=nonsense');
 check('an unknown desk action is refused', r.statusCode === 400, r.payload);
 check('and the refusal names the ones that exist', /queue/.test(r.payload?.error || ''), r.payload);
@@ -290,6 +294,14 @@ check('a missing webhook is assumed to have been a whole session',
 check('the queues are the four that exist',
   vocab.isQueueState('waiting') && vocab.isQueueState('replies') && vocab.isQueueState('active')
     && vocab.isQueueState('closed') && !vocab.isQueueState('all'));
+// The funnel starts where the data starts. Quora gives no address and no open rate, so a stage
+// above the call would be a guess presented as a measurement.
+check('the funnel starts at a call that came back', vocab.FUNNEL_STAGES[0].key === 'called',
+  vocab.FUNNEL_STAGES[0]);
+check('and ends at somebody paying them',
+  vocab.FUNNEL_STAGES[vocab.FUNNEL_STAGES.length - 1].key === 'earning');
+check('every stage has a label to render', vocab.FUNNEL_STAGES.every((s) => Boolean(s.label)));
+
 check('a call is intake or a follow-up and nothing else',
   vocab.isCallKind('intake') && vocab.isCallKind('follow-up') && !vocab.isCallKind('second'));
 check('a message has one of two authors',
