@@ -44,6 +44,9 @@ services:
         sync: false
       - key: PAY_WISE
         sync: false
+      # Proves a scheduled job is the scheduled job. There is no person to sign in for one.
+      - key: SWEEP_SECRET
+        sync: false
       # The drafting models. Two slots, each a name to show, an address and a key. A slot with
       # no address is not configured and is not offered on the desk, so retiring a model is
       # clearing its values here rather than a code change. Which slot is in use is not a

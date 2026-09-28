@@ -101,8 +101,10 @@ for (const name of renderKeys) {
 // live, and one of them sat in this repository unreachable from anywhere until somebody read the
 // file for another reason.
 
+// A page, a test, or a scheduled workflow. The last one counts: a job on a clock is a caller
+// like any other, and leaving it out would report a live endpoint as dead weight.
 const callers = files
-  .filter((f) => f.endsWith('.html') || f.includes('/test/'))
+  .filter((f) => f.endsWith('.html') || f.includes('/test/') || f.includes('/workflows/'))
   .map(read)
   .join('\n');
 

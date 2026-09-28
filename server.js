@@ -34,6 +34,7 @@ const ENDPOINTS = {
   '/api/desk': () => import('./api/desk.js'),
   '/api/auth': () => import('./api/auth.js'),
   '/api/retell': () => import('./api/retell.js'),
+  '/api/sweep': () => import('./api/sweep.js'),
   '/api/client': () => import('./api/client.js'),
 };
 

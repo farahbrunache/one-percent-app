@@ -45,6 +45,7 @@ KEYS=(
   RETELL_SECRET_KEY
   RETELL_AGENT_ID
   PAY_WISE
+  SWEEP_SECRET
 )
 
 # Settings the service runs without. A missing one is not a broken deploy, it is a feature

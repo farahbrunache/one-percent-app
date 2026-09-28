@@ -1,0 +1,60 @@
+name: Keep the call records
+
+# The voice service forgets a call after seven days. What is kept here is the transcript and
+# the summary; everything else about a call -- what the agent was configured to do that day,
+# what it cost, how long each turn took, why it ended -- exists nowhere else after that.
+#
+# It is taken on every webhook delivery already. This is for the deliveries that do not arrive:
+# a webhook lost on a bad afternoon, a call that ended while the service was having a moment.
+# Without it, keeping the record depends on somebody pressing something within the week.
+#
+# Hourly, because a day's gap is a sixth of the window.
+#
+# This is not a one-shot workflow and is not deleted. It runs for as long as calls are made.
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: keep-the-records
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    name: Ask for anything not kept yet
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Sweep
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          SWEEP_SECRET: ${{ secrets.SWEEP_SECRET }}
+        run: |
+          set -euo pipefail
+          [ -n "$APP_URL" ] || { echo "::error title=APP_URL is not set::Nothing to call."; exit 1; }
+          [ -n "$SWEEP_SECRET" ] || { echo "::error title=SWEEP_SECRET is not set::The job cannot prove itself."; exit 1; }
+
+          origin=$(printf '%s' "$APP_URL" | sed -E 's#^(https?://[^/]+).*#\1#')
+          answer=$(curl -sS --fail-with-body --max-time 120 \
+            -X POST "$origin/api/sweep?action=records" \
+            -H "authorization: Bearer $SWEEP_SECRET") || {
+            echo "::error title=The sweep was refused::It answered: $answer"
+            exit 1
+          }
+
+          echo "$answer" | jq .
+
+          # A call that could not be kept is one that will be gone, so it is said out loud
+          # rather than left in a body nobody reads.
+          missed=$(printf '%s' "$answer" | jq '.missed | length')
+          if [ "$missed" -gt 0 ]; then
+            echo "::warning title=${missed} call record(s) could not be kept::$(printf '%s' "$answer" | jq -c '.missed')"
+          fi
+
+          {
+            echo "## Call records"
+            echo
+            printf '%s' "$answer" | jq -r '"Looked at \(.looked), kept \(.kept), missed \(.missed | length)."'
+          } >> "$GITHUB_STEP_SUMMARY"

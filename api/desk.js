@@ -36,6 +36,7 @@ import {
 } from '../lib/draft.js';
 import Retell from 'retell-sdk';
 
+import { agentScriptExport } from '../lib/voice.js';
 import { normalizeReference } from '../lib/orders.js';
 import { HttpError, handle, readJson, send } from '../lib/http.js';
 
@@ -353,14 +354,8 @@ async function person(req, res) {
 // key: those are settings and are not writable from a browser at any privilege.
 const MODEL_CHOICE = 'draft.model.slot';
 
-// The script the agent runs, as the voice service holds it.
-//
-// It lives in their dashboard and nowhere else, which means no history, no review, and no copy
-// if the account goes. It is also the product: eight questions in a particular order, with
-// particular wordings, is what somebody pays for. That belongs in a repository.
-//
-// The agent record alone is not the script -- it points at a response engine, and the engine
-// is where the questions live -- so both are fetched and handed over as one document.
+// The script the agent runs, as the voice service holds it. Read by this button and by the job
+// on a clock, which is why the gathering of it lives in lib/voice.js rather than in either.
 async function agentScript(req, res) {
   requireAdmin(req);
 
@@ -370,29 +365,8 @@ async function agentScript(req, res) {
     throw new HttpError(503, 'RETELL_SECRET_KEY or RETELL_AGENT_ID is not set, so nothing can be asked.');
   }
 
-  const retell = new Retell({ apiKey });
   try {
-    const agent = await retell.agent.retrieve(agentId);
-    const engine = agent.response_engine || {};
-
-    // Which one it is decides where the questions are kept.
-    let script = null;
-    if (engine.conversation_flow_id) {
-      script = await retell.conversationFlow.retrieve(engine.conversation_flow_id);
-    } else if (engine.llm_id) {
-      script = await retell.llm.retrieve(engine.llm_id);
-    }
-
-    send(res, 200, {
-      takenAt: new Date().toISOString(),
-      agent,
-      engine: engine.type || null,
-      script,
-      note: script
-        ? null
-        : `The agent names a response engine of type ${engine.type || 'unknown'}, which this ` +
-          'does not know how to read. The agent itself is above; the questions are not.',
-    });
+    send(res, 200, await agentScriptExport(new Retell({ apiKey }), agentId));
   } catch (error) {
     if (error instanceof Retell.APIError) {
       throw new HttpError(
