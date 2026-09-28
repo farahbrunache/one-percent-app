@@ -16,10 +16,12 @@ import {
   EVENT_KINDS,
   FUNNEL_STAGES,
   INTRODUCTION_OUTCOMES,
+  QUOTE_STATUSES,
   MILESTONE_STATUSES,
   PLAN_PATHS,
   isAssessment,
   isIntroductionOutcome,
+  isQuoteStatus,
   isMilestoneStatus,
   isPlanPath,
   isQueueState,
@@ -234,6 +236,16 @@ async function person(req, res) {
      order by i.made_at desc limit 100
   `;
 
+  // Quotes follow the account, like the conversation. An order nobody has linked has nobody to
+  // quote, which the screen says rather than offering a form that cannot work.
+  const quotes = row.client_account_id
+    ? await sql()`
+        select id, amount_cents, scope_encrypted, status, created_at, updated_at
+          from quotes where account_id = ${row.client_account_id}
+         order by created_at desc limit 50
+      `
+    : [];
+
   const [plans, events] = await Promise.all([
     sql()`select id, path, in_force, created_at from plans where order_id = ${id} order by created_at desc`,
     sql()`select kind, detail_encrypted, created_at from case_events where order_id = ${id} order by created_at desc limit 100`,
@@ -293,6 +305,15 @@ async function person(req, res) {
       status: m.status,
       outcome: m.outcome_encrypted ? decrypt(m.outcome_encrypted) : null,
       updatedAt: m.updated_at,
+    })),
+    quotes: quotes.map((q) => ({
+      id: q.id,
+      // Dollars, because this is money. Sent as a number so the screen does the formatting.
+      amount: q.amount_cents / 100,
+      scope: decrypt(q.scope_encrypted),
+      status: q.status,
+      writtenAt: q.created_at,
+      movedAt: q.updated_at,
     })),
     introductions: intros.map((i) => {
       const them = Number(i.a_order_id) === Number(id)
@@ -474,6 +495,72 @@ async function reply(req, res) {
   send(res, 201, { ok: true });
 }
 
+// Written for one person, against what the work is. No tier is chosen because there are none.
+async function writeQuote(req, res) {
+  requireAdmin(req);
+  await ensureSchema();
+  const body = await readJson(req);
+  const id = orderId(body.id);
+
+  const amount = Number(body.amount);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new HttpError(400, 'A quote needs an amount in dollars.');
+  }
+  // Rounded here rather than trusted, so a fraction of a cent cannot arrive from a form.
+  const cents = Math.round(amount * 100);
+  if (cents > 100_000_00) {
+    throw new HttpError(400, 'That is more than a hundred thousand dollars. Check the figure.');
+  }
+
+  const scope = String(body.scope || '').trim().slice(0, 2000);
+  if (!scope) {
+    throw new HttpError(400, 'Say what the quote covers. A number on its own is unreadable in June.');
+  }
+
+  const rows = await sql()`select client_account_id from orders where id = ${id}`;
+  if (!rows.length) throw new HttpError(404, 'No order with that number.');
+  const account = rows[0].client_account_id;
+  if (!account) {
+    throw new HttpError(
+      409,
+      'Nobody has linked an account to this order yet, so there is no one to quote. They link ' +
+        'it by opening their claim link while signed in.',
+    );
+  }
+
+  await sql()`
+    insert into quotes (account_id, amount_cents, scope_encrypted)
+    values (${account}, ${cents}, ${encrypt(scope)})
+  `;
+  await record(id, 'quote.written', `$${amount.toFixed(2)}. ${scope}`);
+  send(res, 201, { ok: true });
+}
+
+async function moveQuote(req, res) {
+  requireAdmin(req);
+  await ensureSchema();
+  const body = await readJson(req);
+  const id = orderId(body.id);
+  const quoteId = orderId(body.quoteId);
+  const status = String(body.status || '');
+  if (!isQuoteStatus(status)) {
+    throw new HttpError(400, `Pick one: ${QUOTE_STATUSES.join(', ')}.`);
+  }
+
+  const rows = await sql()`select client_account_id from orders where id = ${id}`;
+  const account = rows[0]?.client_account_id;
+  if (!account) throw new HttpError(404, 'No account is linked to that order.');
+
+  const done = await sql()`
+    update quotes set status = ${status}, updated_at = now()
+     where id = ${quoteId} and account_id = ${account}
+     returning amount_cents
+  `;
+  if (!done.length) throw new HttpError(404, 'No quote with that number for this person.');
+  await record(id, 'quote.moved', `${status}. $${(done[0].amount_cents / 100).toFixed(2)}`);
+  send(res, 200, { ok: true, status });
+}
+
 // Made, not proposed. The row is a record of something done: two people were put in touch.
 // There is no state for a match that was considered and rejected, because that is not a thing
 // that happened to anybody.
@@ -563,6 +650,8 @@ const ACTIONS = {
     'milestone-add': addMilestone,
     'milestone-record': recordMilestone,
     reply,
+    quote: writeQuote,
+    'quote-move': moveQuote,
     introduce,
     'introduction-record': recordIntroduction,
     'first-customer': firstCustomer,

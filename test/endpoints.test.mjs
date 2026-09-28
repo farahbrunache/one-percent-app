@@ -260,6 +260,12 @@ r = await run(desk, 'POST', '/api/desk?action=milestone-record', { id: 1, milest
 check('recording an outcome refuses without a session', r.statusCode === 401, r.payload);
 r = await run(desk, 'POST', '/api/desk?action=reply', { id: 1, body: 'x' });
 check('replying refuses without a session', r.statusCode === 401, r.payload);
+r = await run(desk, 'POST', '/api/desk?action=quote', { id: 1, amount: 250, scope: 'x' });
+check('writing a quote refuses without a session', r.statusCode === 401, r.payload);
+r = await run(desk, 'POST', '/api/desk?action=quote-move', { id: 1, quoteId: 1, status: 'agreed' });
+check('moving a quote refuses without a session', r.statusCode === 401, r.payload);
+r = await run(client, 'GET', '/api/client?action=quotes');
+check('reading your own quotes refuses without a session', r.statusCode === 401, r.payload);
 r = await run(desk, 'POST', '/api/desk?action=introduce', { id: 1, reference: 'ABCDE-FGHJK' });
 check('making an introduction refuses without a session', r.statusCode === 401, r.payload);
 r = await run(desk, 'POST', '/api/desk?action=introduction-record', { id: 1, introductionId: 1, outcome: 'worked' });
@@ -305,6 +311,12 @@ check('the funnel starts at a call that came back', vocab.FUNNEL_STAGES[0].key =
 check('and ends at somebody paying them',
   vocab.FUNNEL_STAGES[vocab.FUNNEL_STAGES.length - 1].key === 'earning');
 check('every stage has a label to render', vocab.FUNNEL_STAGES.every((s) => Boolean(s.label)));
+
+// No tiers. A quote is written for one person and turns nothing on, so these are the states it
+// can be in and none of them is a level.
+check('a quote has four states', vocab.QUOTE_STATUSES.length === 4, vocab.QUOTE_STATUSES);
+check('and none of them is a tier',
+  !vocab.isQuoteStatus('basic') && !vocab.isQuoteStatus('premium') && !vocab.isQuoteStatus('tier'));
 
 // A match that should not happen is never recorded, so there is no declined or unsafe outcome
 // and there must never be one.
