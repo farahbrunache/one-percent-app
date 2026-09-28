@@ -275,6 +275,18 @@ check('a milestone can be recorded as stalled or ghosted',
 check('an invented status is refused', !vocab.isMilestoneStatus('abandoned'));
 check('the decision is go or no-go and nothing else',
   vocab.isAssessment('go') && vocab.isAssessment('no-go') && !vocab.isAssessment('maybe'));
+// An order buys minutes, not attempts. Three attempts at the hard stop would be ninety minutes
+// of paid voice against seven dollars taken.
+const money = await import('../lib/orders.js');
+check('an order buys less voice time than three full sessions',
+  money.SESSION_BUDGET_SECONDS < 3 * money.ASSUME_FULL_AFTER_SECONDS,
+  { budget: money.SESSION_BUDGET_SECONDS, three: 3 * money.ASSUME_FULL_AFTER_SECONDS });
+check('and enough for one full session plus a dropped one',
+  money.SESSION_BUDGET_SECONDS > money.ASSUME_FULL_AFTER_SECONDS,
+  money.SESSION_BUDGET_SECONDS);
+check('a missing webhook is assumed to have been a whole session',
+  money.ASSUME_FULL_AFTER_SECONDS >= 30 * 60, money.ASSUME_FULL_AFTER_SECONDS);
+
 check('the queues are the four that exist',
   vocab.isQueueState('waiting') && vocab.isQueueState('replies') && vocab.isQueueState('active')
     && vocab.isQueueState('closed') && !vocab.isQueueState('all'));
