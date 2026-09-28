@@ -82,6 +82,22 @@
       <div class="actions"><button type="submit" class="quiet">Add</button></div>
     </form>
 
+    <h2>Introductions</h2>
+    <p class="meta">Who they have been put in touch with, and what came of it.</p>
+    <div id="intros" class="rows"></div>
+    <form class="fields" id="introduce" novalidate>
+      <div class="field">
+        <label for="otherref">Introduce them to a reference</label>
+        <input id="otherref" type="text" inputmode="latin" autocapitalize="characters"
+               autocomplete="off" placeholder="Their reference">
+      </div>
+      <div class="field">
+        <label for="introreason">Why these two</label>
+        <textarea id="introreason" rows="2" maxlength="2000"></textarea>
+      </div>
+      <div class="actions"><button type="submit" class="quiet">Record the introduction</button></div>
+    </form>
+
     <h2>Where it ends</h2>
     <p class="meta">The work ends when they have somebody paying them, not at a session count.</p>
     <p id="earned" class="status-line" hidden></p>
@@ -443,6 +459,86 @@
     });
   }
 
+  const INTRO_OUTCOMES = ['waiting', 'worked', 'went nowhere'];
+
+  // Every row is something that happened. There is no state for a match that was considered and
+  // not made, because that did not happen to anybody and is nobody's record.
+  function renderIntroductions(person) {
+    const list = document.getElementById('intros');
+    list.textContent = '';
+    if (!person.introductions.length) {
+      list.append(el('p', 'Nobody yet.', 'meta'));
+    }
+    for (const intro of person.introductions) {
+      const row = el('div', null, 'row');
+      row.append(link(intro.them.reference || `Order ${intro.them.id}`, `/desk?id=${intro.them.id}`, 'code'));
+      row.append(el('div', `${intro.outcome} · introduced ${when(intro.madeAt)}`, 'meta'));
+      if (intro.reason) row.append(el('div', intro.reason, 'meta'));
+      if (intro.note) row.append(el('div', intro.note, 'meta'));
+
+      const form = el('form', null, 'fields');
+      const pickField = el('div', null, 'field');
+      const pickLabel = el('label', 'What came of it');
+      const pick = el('select');
+      pick.id = `intro-${intro.id}`;
+      pickLabel.htmlFor = pick.id;
+      for (const outcome of INTRO_OUTCOMES) {
+        const option = el('option', outcome);
+        option.value = outcome;
+        if (outcome === intro.outcome) option.selected = true;
+        pick.append(option);
+      }
+      pickField.append(pickLabel, pick);
+
+      const noteField = el('div', null, 'field');
+      const noteLabel = el('label', 'In your words');
+      const note = el('textarea');
+      note.rows = 2;
+      note.id = `intronote-${intro.id}`;
+      note.value = intro.note || '';
+      noteLabel.htmlFor = note.id;
+      noteField.append(noteLabel, note);
+
+      const actions = el('div', null, 'actions');
+      const save = el('button', 'Record it', 'quiet');
+      save.type = 'submit';
+      actions.append(save);
+      form.append(pickField, noteField, actions);
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        save.disabled = true;
+        try {
+          await post('introduction-record', {
+            id: person.id,
+            introductionId: intro.id,
+            outcome: pick.value,
+            note: note.value,
+          });
+          window.location.reload();
+        } catch (error) {
+          save.disabled = false;
+          msg('rmsg', error.message, 'bad');
+        }
+      });
+      row.append(form);
+      list.append(row);
+    }
+
+    document.getElementById('introduce').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      try {
+        await post('introduce', {
+          id: person.id,
+          reference: document.getElementById('otherref').value,
+          reason: document.getElementById('introreason').value,
+        });
+        window.location.reload();
+      } catch (error) {
+        msg('rmsg', error.message, 'bad');
+      }
+    });
+  }
+
   function renderFirstCustomer(person) {
     const box = document.getElementById('firstcustomer');
     const said = document.getElementById('earned');
@@ -495,6 +591,7 @@
     renderThread(person);
     renderPlan(person);
     renderSteps(person);
+    renderIntroductions(person);
     renderFirstCustomer(person);
     renderEvents(person);
 
