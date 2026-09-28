@@ -72,12 +72,19 @@ async function queue(req, res) {
     sql()`
       select o.id, o.reference_code, o.call_ended_at, o.call_seconds, o.assessment,
              o.assessed_at, o.client_account_id is not null as linked,
-             p.path as plan_path
+             p.path as plan_path,
+             (select m.author from messages m
+               where m.account_id = o.client_account_id
+               order by m.created_at desc limit 1) = 'client' as awaiting_reply
         from orders o
         left join plans p on p.order_id = o.id and p.in_force
        where o.transcript_encrypted is not null
          and case ${state}
                when 'waiting' then o.assessment is null
+               when 'replies' then o.client_account_id is not null
+                                   and (select m.author from messages m
+                                         where m.account_id = o.client_account_id
+                                         order by m.created_at desc limit 1) = 'client'
                when 'active'  then o.assessment = 'go'
                else                o.assessment = 'no-go'
              end
@@ -89,6 +96,10 @@ async function queue(req, res) {
        where o.transcript_encrypted is not null
          and case ${state}
                when 'waiting' then o.assessment is null
+               when 'replies' then o.client_account_id is not null
+                                   and (select m.author from messages m
+                                         where m.account_id = o.client_account_id
+                                         order by m.created_at desc limit 1) = 'client'
                when 'active'  then o.assessment = 'go'
                else                o.assessment = 'no-go'
              end
@@ -108,6 +119,7 @@ async function queue(req, res) {
       assessment: r.assessment,
       assessedAt: r.assessed_at,
       linked: r.linked,
+      awaitingReply: Boolean(r.awaiting_reply),
       planPath: r.plan_path,
       planLabel: r.plan_path ? PLAN_PATHS[r.plan_path]?.label || r.plan_path : null,
     })),
@@ -125,11 +137,21 @@ async function person(req, res) {
   const rows = await sql()`
     select id, reference_code, status, transcript_encrypted, call_summary_encrypted,
            call_ended_at, call_seconds, assessment, assessed_at,
-           client_account_id is not null as linked, approved_as_client_at
+           client_account_id, approved_as_client_at
       from orders where id = ${id}
   `;
   if (!rows.length) throw new HttpError(404, 'No order with that number.');
   const row = rows[0];
+
+  // The thread belongs to the account, not to this order, so somebody who buys a second
+  // session carries one conversation rather than starting another.
+  const messages = row.client_account_id
+    ? await sql()`
+        select author, body_encrypted, created_at from messages
+         where account_id = ${row.client_account_id}
+         order by created_at asc limit 200
+      `
+    : [];
 
   const [plans, events] = await Promise.all([
     sql()`select id, path, in_force, created_at from plans where order_id = ${id} order by created_at desc`,
@@ -164,8 +186,13 @@ async function person(req, res) {
     seconds: row.call_seconds,
     assessment: row.assessment,
     assessedAt: row.assessed_at,
-    linked: row.linked,
+    linked: Boolean(row.client_account_id),
     approvedAt: row.approved_as_client_at,
+    messages: messages.map((m) => ({
+      author: m.author,
+      body: decrypt(m.body_encrypted),
+      at: m.created_at,
+    })),
     plan: inForce
       ? { id: inForce.id, path: inForce.path, label: PLAN_PATHS[inForce.path]?.label || inForce.path, setAt: inForce.created_at }
       : null,
@@ -296,6 +323,35 @@ async function recordMilestone(req, res) {
   send(res, 200, { ok: true, status });
 }
 
+// Answering. The reply goes to the account rather than to the order, and an order nobody has
+// linked has nowhere to send one — say that plainly rather than accepting a message into a
+// thread no one will ever read.
+async function reply(req, res) {
+  requireAdmin(req);
+  await ensureSchema();
+  const body = await readJson(req);
+  const id = orderId(body.id);
+  const text = String(body.body || '').trim().slice(0, 4000);
+  if (!text) throw new HttpError(400, 'An empty message is not a message.');
+
+  const rows = await sql()`select client_account_id from orders where id = ${id}`;
+  if (!rows.length) throw new HttpError(404, 'No order with that number.');
+  const account = rows[0].client_account_id;
+  if (!account) {
+    throw new HttpError(
+      409,
+      'Nobody has linked an account to this order yet, so there is no one to send this to. ' +
+        'They link it by opening their claim link while signed in.',
+    );
+  }
+
+  await sql()`
+    insert into messages (account_id, author, body_encrypted)
+    values (${account}, 'operator', ${encrypt(text)})
+  `;
+  send(res, 201, { ok: true });
+}
+
 async function addNote(req, res) {
   requireAdmin(req);
   await ensureSchema();
@@ -317,6 +373,7 @@ const ACTIONS = {
     plan: setPlan,
     'milestone-add': addMilestone,
     'milestone-record': recordMilestone,
+    reply,
     note: addNote,
   },
 };
