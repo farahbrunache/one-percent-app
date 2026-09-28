@@ -485,22 +485,27 @@
 
   // Every call against this order, newest first. Two of them means a session dropped and was
   // restarted, which is worth seeing rather than hiding behind whichever one arrived last.
+  // Only the calls that came back. A start that produced no words is a row with nothing in
+  // it to read, decide on or copy, and a screen that lists three of them is asking somebody
+  // to scroll past the same non-event on the way to the one call that happened.
+  //
+  // They are still rows in the database. The starts count against the three-in-a-day limit
+  // and the hourly job keeps trying for a record while the voice service still holds one;
+  // neither of those is work for a person, so neither is on this screen.
   function renderCalls(person) {
     const box = document.getElementById('calls');
+    const calls = person.calls.filter((call) => call.transcript);
     box.textContent = '';
-    if (!person.calls.length) {
-      box.append(el('p', 'No call has been started against this order.', 'meta'));
+    if (!calls.length) {
+      box.append(el('p', person.calls.length
+        ? 'A session was started and no words came back from it.'
+        : 'No call has been started against this order.', 'meta'));
       return;
     }
-    for (const call of person.calls) {
+    for (const call of calls) {
       const row = el('div', null, 'row');
       row.append(el('div', call.kind === 'intake' ? 'Intake' : 'Follow-up', 'label'));
       row.append(el('div', `${when(call.endedAt || call.startedAt)} · ${minutes(call.seconds)}`, 'meta'));
-      if (!call.transcript) {
-        row.append(el('p', 'Started, and nothing came back from it.', 'meta'));
-        box.append(row);
-        continue;
-      }
       const open = el('details');
       open.append(el('summary', 'Read it'));
       const wrap = el('div', null, 'transcript');
