@@ -51,7 +51,7 @@ try {
 }
 check('and running it a second time changes nothing', twice === null, twice);
 
-const { abandonCall, reconcileStarts, secondsSpent } = db;
+const { abandonCall, keepRecord, reconcileStarts, secondsSpent } = db;
 const sql = () => tagged;
 
 async function newOrder(overrides = {}) {
@@ -195,6 +195,52 @@ const sheet = await tagged`
 check('a no-go still has something to read',
   sheet[0].recommendations_encrypted === 'x', sheet[0]);
 check('and is not approved', sheet[0].approved_as_client_at === null, sheet[0]);
+
+console.log('keeping what the voice service forgets');
+// Their retention is seven days. Anything not taken by then exists nowhere.
+const recorded = await newOrder();
+await tagged`insert into calls (order_id, call_id) values (${recorded}, 'c-with-a-record')`;
+check('a record is kept against the call it belongs to',
+  (await keepRecord('c-with-a-record', 'encrypted-blob')) === true);
+const kept = await tagged`
+  select record_encrypted, record_taken_at from calls where call_id = 'c-with-a-record'`;
+check('and when it was taken is kept with it',
+  kept[0].record_encrypted === 'encrypted-blob' && kept[0].record_taken_at !== null, kept[0]);
+check('a call this site never started keeps nothing',
+  (await keepRecord('c-never-heard-of', 'encrypted-blob')) === false);
+
+// The later delivery carries more than the earlier one, so it replaces rather than accumulates.
+await keepRecord('c-with-a-record', 'the-fuller-one');
+const replaced = await tagged`
+  select record_encrypted from calls where call_id = 'c-with-a-record'`;
+check('a fuller record replaces the first', replaced[0].record_encrypted === 'the-fuller-one');
+
+// Every column the desk reads, selected against the real schema.
+//
+// This exists because of a specific failure: the change that added `record_encrypted` sat
+// unmerged while three that read it went in, so the trunk carried a desk that selected a
+// column `ensureSchema` never created. Nothing caught it. The request tests touch no
+// database, and no test here happened to name that column.
+//
+// So these selects mirror what `api/desk.js` asks for. They assert nothing about the values
+// -- Postgres refusing to plan the statement is the test. When the desk starts reading a new
+// column, add it here, and a schema change that never landed fails the build rather than the
+// screen.
+console.log('the desk can read what it reads');
+await tagged`
+  select o.id, o.reference_code, o.assessment, o.assessed_at, o.status,
+         o.recommendations_encrypted, o.recommendations_written_at,
+         o.client_account_id, o.approved_as_client_at, o.first_customer_at,
+         o.session_starts, o.first_started_at,
+         exists (select 1 from calls c
+                  where c.order_id = o.id and c.record_encrypted is null
+                    and c.transcript_encrypted is not null) as record_missing
+    from orders o limit 1`;
+await tagged`
+  select id, call_id, kind, transcript_encrypted, summary_encrypted, started_at, ended_at,
+         seconds, record_encrypted, record_taken_at
+    from calls limit 1`;
+check('the desk reads only columns the schema has', true);
 
 console.log('the reservation');
 // Two requests arriving together must not both buy a session on one order.
