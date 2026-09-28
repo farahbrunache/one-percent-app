@@ -82,6 +82,37 @@
       <div class="actions"><button type="submit" class="quiet">Add</button></div>
     </form>
 
+    <h2>Quotes</h2>
+    <p class="meta" id="quotenote"></p>
+    <div id="quotes" class="rows"></div>
+    <form class="fields" id="writequote" hidden novalidate>
+      <div class="field">
+        <label for="amount">Dollars</label>
+        <input id="amount" type="number" inputmode="decimal" min="1" step="0.01" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="scope">What it covers</label>
+        <textarea id="scope" rows="3" maxlength="2000"></textarea>
+      </div>
+      <div class="actions"><button type="submit" class="quiet">Write the quote</button></div>
+    </form>
+
+    <h2>Introductions</h2>
+    <p class="meta">Who they have been put in touch with, and what came of it.</p>
+    <div id="intros" class="rows"></div>
+    <form class="fields" id="introduce" novalidate>
+      <div class="field">
+        <label for="otherref">Introduce them to a reference</label>
+        <input id="otherref" type="text" inputmode="latin" autocapitalize="characters"
+               autocomplete="off" placeholder="Their reference">
+      </div>
+      <div class="field">
+        <label for="introreason">Why these two</label>
+        <textarea id="introreason" rows="2" maxlength="2000"></textarea>
+      </div>
+      <div class="actions"><button type="submit" class="quiet">Record the introduction</button></div>
+    </form>
+
     <h2>Where it ends</h2>
     <p class="meta">The work ends when they have somebody paying them, not at a session count.</p>
     <p id="earned" class="status-line" hidden></p>
@@ -443,6 +474,152 @@
     });
   }
 
+  const QUOTE_STATUSES = ['offered', 'agreed', 'paid', 'withdrawn'];
+  const INTRO_OUTCOMES = ['waiting', 'worked', 'went nowhere'];
+
+  function money(value) {
+    return `$${Number(value).toFixed(2)}`;
+  }
+
+  // Written for the person in front of you, against what the work is. No tier is picked here
+  // because there are none, and a quote turns nothing on — it records what two people agreed.
+  function renderQuotes(person) {
+    const list = document.getElementById('quotes');
+    const note = document.getElementById('quotenote');
+    const form = document.getElementById('writequote');
+    list.textContent = '';
+
+    if (!person.linked) {
+      note.textContent =
+        'No account is linked to this order yet, so there is nobody to quote. They link it by ' +
+        'opening their claim link while signed in.';
+      form.hidden = true;
+      return;
+    }
+    note.textContent = 'Written for them, in dollars, against what the work actually is.';
+    form.hidden = false;
+
+    if (!person.quotes.length) list.append(el('p', 'Nothing quoted yet.', 'meta'));
+    for (const quote of person.quotes) {
+      const row = el('div', null, 'row');
+      row.append(el('div', money(quote.amount), 'value'));
+      row.append(el('div', `${quote.status} · written ${when(quote.writtenAt)}`, 'meta'));
+      row.append(el('div', quote.scope, null));
+
+      const actions = el('div', null, 'actions');
+      for (const status of QUOTE_STATUSES) {
+        if (status === quote.status) continue;
+        const button = el('button', status, 'quiet');
+        button.type = 'button';
+        button.addEventListener('click', async () => {
+          button.disabled = true;
+          try {
+            await post('quote-move', { id: person.id, quoteId: quote.id, status });
+            window.location.reload();
+          } catch (error) {
+            button.disabled = false;
+            msg('rmsg', error.message, 'bad');
+          }
+        });
+        actions.append(button);
+      }
+      row.append(actions);
+      list.append(row);
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      try {
+        await post('quote', {
+          id: person.id,
+          amount: document.getElementById('amount').value,
+          scope: document.getElementById('scope').value,
+        });
+        window.location.reload();
+      } catch (error) {
+        msg('rmsg', error.message, 'bad');
+      }
+    });
+  }
+
+  // Every row is something that happened. There is no state for a match that was considered and
+  // not made, because that did not happen to anybody and is nobody's record.
+  function renderIntroductions(person) {
+    const list = document.getElementById('intros');
+    list.textContent = '';
+    if (!person.introductions.length) {
+      list.append(el('p', 'Nobody yet.', 'meta'));
+    }
+    for (const intro of person.introductions) {
+      const row = el('div', null, 'row');
+      row.append(link(intro.them.reference || `Order ${intro.them.id}`, `/desk?id=${intro.them.id}`, 'code'));
+      row.append(el('div', `${intro.outcome} · introduced ${when(intro.madeAt)}`, 'meta'));
+      if (intro.reason) row.append(el('div', intro.reason, 'meta'));
+      if (intro.note) row.append(el('div', intro.note, 'meta'));
+
+      const form = el('form', null, 'fields');
+      const pickField = el('div', null, 'field');
+      const pickLabel = el('label', 'What came of it');
+      const pick = el('select');
+      pick.id = `intro-${intro.id}`;
+      pickLabel.htmlFor = pick.id;
+      for (const outcome of INTRO_OUTCOMES) {
+        const option = el('option', outcome);
+        option.value = outcome;
+        if (outcome === intro.outcome) option.selected = true;
+        pick.append(option);
+      }
+      pickField.append(pickLabel, pick);
+
+      const noteField = el('div', null, 'field');
+      const noteLabel = el('label', 'In your words');
+      const note = el('textarea');
+      note.rows = 2;
+      note.id = `intronote-${intro.id}`;
+      note.value = intro.note || '';
+      noteLabel.htmlFor = note.id;
+      noteField.append(noteLabel, note);
+
+      const actions = el('div', null, 'actions');
+      const save = el('button', 'Record it', 'quiet');
+      save.type = 'submit';
+      actions.append(save);
+      form.append(pickField, noteField, actions);
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        save.disabled = true;
+        try {
+          await post('introduction-record', {
+            id: person.id,
+            introductionId: intro.id,
+            outcome: pick.value,
+            note: note.value,
+          });
+          window.location.reload();
+        } catch (error) {
+          save.disabled = false;
+          msg('rmsg', error.message, 'bad');
+        }
+      });
+      row.append(form);
+      list.append(row);
+    }
+
+    document.getElementById('introduce').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      try {
+        await post('introduce', {
+          id: person.id,
+          reference: document.getElementById('otherref').value,
+          reason: document.getElementById('introreason').value,
+        });
+        window.location.reload();
+      } catch (error) {
+        msg('rmsg', error.message, 'bad');
+      }
+    });
+  }
+
   function renderFirstCustomer(person) {
     const box = document.getElementById('firstcustomer');
     const said = document.getElementById('earned');
@@ -495,6 +672,8 @@
     renderThread(person);
     renderPlan(person);
     renderSteps(person);
+    renderQuotes(person);
+    renderIntroductions(person);
     renderFirstCustomer(person);
     renderEvents(person);
 
