@@ -103,6 +103,25 @@ Linking uses the claim link, not the reference. A reference is written into a pa
 and read off a screen by whoever is nearby; the claim token is the only thing only the buyer
 holds.
 
+## The client area is read-only, and stays that way
+
+There is no way for somebody who has paid to send words to the owner. No chat, no message
+box, no reply form, no contact address. This is settled and is not to be rebuilt because a
+screen looks like it is missing something.
+
+What seven dollars buys is a half-hour call and the sheet written out of it. Being reachable
+afterwards is not part of it, and a box anybody who pays can write into is a way to reach one
+person that costs the sender nothing and the reader everything. The people this attracts
+first are the ones the check exists to keep out.
+
+Nobody is left with nothing by this. Somebody who thought it was worth the money comes back
+and buys another call, and that is when they speak again. Somebody who did not, keeps their
+sheet and everything they already had, and is out seven dollars rather than stuck in a queue
+waiting on an answer.
+
+One-way feedback on what the sheet was worth is a different thing and is allowed: it goes one
+direction, it reaches no inbox, and it cannot be replied to. Build it that way or not at all.
+
 ## One server, not functions
 
 `server.js` holds the routing table: which address serves which page, which serves which
@@ -113,9 +132,8 @@ over it.
 A path is never turned into a file name. The address is the key and the file is the value,
 so there is no directory to walk out of.
 
-It is a long-running service rather than a function billed per request, which is what the
-chat has to be: streaming an answer and watching a live conversation both need a connection
-that stays open.
+It is a long-running service rather than a function billed per request, because a voice call
+and a draft that takes most of a minute both need a connection that stays open.
 
 ## The transcript is the product, not a by-product
 

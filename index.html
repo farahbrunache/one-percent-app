@@ -47,24 +47,9 @@
     <section id="quotes" hidden>
       <h3>What has been quoted to you</h3>
       <p class="meta">
-        Each one says what it covers. If you want to go ahead with one, or you want it changed,
-        say so below — nothing here commits you to anything.
+        Each one says what it covers. Nothing here commits you to anything.
       </p>
       <div id="quotelist" class="rows"></div>
-    </section>
-
-    <section id="talk" hidden>
-      <h3>Talk to me</h3>
-      <p class="meta" id="talknote"></p>
-      <div id="thread" class="rows" aria-live="polite"></div>
-      <form class="fields" id="sendform" novalidate>
-        <div class="field">
-          <label for="body">Write something</label>
-          <textarea id="body" rows="4" maxlength="4000"></textarea>
-        </div>
-        <div class="actions"><button type="submit" class="quiet">Send</button></div>
-      </form>
-      <div id="sendmsg" hidden></div>
     </section>
 
     <section id="linker" hidden>
@@ -139,9 +124,6 @@
 
     if (data.approved) {
       state.append(el('p', 'You are a client.', 'lede'));
-      state.append(el('p',
-        'Everything after the call happens in writing, below. A call is what you bought to '
-        + 'get here rather than how you are reached afterwards.', 'meta'));
     } else {
       state.append(el('p', 'Your session is linked to this account.', 'lede'));
       state.append(el('p',
@@ -171,10 +153,10 @@
       rows.append(row);
     }
 
-    // Somebody who has been read, and for whom the conversation is not open, is not being
-    // turned away. They keep everything they had, Skills Economy is unchanged and costs
-    // nothing, and what One Percent adds is one person's time. Another call is available and
-    // is said once, plainly, and never as the thing to do.
+    // Somebody who has been read and told no is not being turned away. They keep everything
+    // they had, Skills Economy is unchanged and costs nothing, and what One Percent adds is
+    // one person's time. Another call is available and is said once, plainly, and never as
+    // the thing to do.
     const read = data.sessions.some((s) => s.recommendations);
     if (read && !data.approved) {
       state.append(el('p',
@@ -188,20 +170,7 @@
       state.append(again);
     }
 
-    // The conversation opens once the call has been read and the answer was yes. Before that
-    // it is open too, because somebody with a question between paying and being read should
-    // not be met with silence. What closes it is having been read and the answer being no --
-    // and that is said as what it is, not hidden behind a control that does nothing.
-    const talk = document.getElementById('talk');
-    talk.hidden = read && !data.approved;
-    if (!talk.hidden) {
-      document.getElementById('talknote').textContent = data.approved
-        ? 'Written replies, whenever either of us gets to them.'
-        : 'You can write before the call has been read. It will be read by a person, so there '
-          + 'is no wrong time to say something.';
-      loadThread();
-      loadQuotes();
-    }
+    loadQuotes();
   }
 
   async function loadQuotes() {
@@ -220,57 +189,11 @@
         list.append(row);
       }
     } catch {
-      // Their sessions and the conversation are the page. A quote that cannot be read is worth
-      // saying nothing about rather than putting an error where a figure should be.
+      // Their sessions are the page. A quote that cannot be read is worth saying nothing
+      // about rather than putting an error where a figure should be.
       section.hidden = true;
     }
   }
-
-  function renderThread(messages) {
-    const list = document.getElementById('thread');
-    list.textContent = '';
-    if (!messages.length) {
-      list.append(el('p', 'Nothing said yet. You can go first.', 'meta'));
-      return;
-    }
-    for (const message of messages) {
-      const row = el('div', null, message.author === 'client' ? 'row said us' : 'row said them');
-      row.append(el('div', message.author === 'client' ? 'You' : 'Farah', 'label'));
-      row.append(el('div', message.body, null));
-      row.append(el('div', when(message.at), 'meta'));
-      list.append(row);
-    }
-  }
-
-  async function loadThread() {
-    try {
-      const data = await call('/api/client?action=thread');
-      renderThread(data.messages);
-    } catch (error) {
-      document.getElementById('thread').textContent = '';
-      document.getElementById('thread').append(el('p', error.message, 'meta'));
-    }
-  }
-
-  document.getElementById('sendform').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const field = document.getElementById('body');
-    const box = document.getElementById('sendmsg');
-    box.hidden = true;
-    try {
-      const data = await call('/api/client?action=send', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ body: field.value }),
-      });
-      field.value = '';
-      renderThread(data.messages);
-    } catch (error) {
-      box.hidden = false;
-      box.className = 'msg bad';
-      box.textContent = error.message;
-    }
-  });
 
   document.getElementById('linkform').addEventListener('submit', async (event) => {
     event.preventDefault();

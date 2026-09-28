@@ -73,28 +73,17 @@
           word, so write it to them rather than about them.</span>
         <textarea id="recommendbody" rows="8" maxlength="8000"></textarea>
       </div>
-      <div class="actions"><button type="submit" class="quiet">Write it</button></div>
+      <div class="actions">
+        <button type="submit" class="quiet">Write it</button>
+        <button type="button" class="quiet" id="draftit">Draft it from the call</button>
+      </div>
+      <p class="meta" id="draftnote"></p>
+      <p class="meta" id="models"></p>
     </form>
 
     <h2>The path</h2>
     <p class="meta">Two paths, neither above the other.</p>
     <div id="plan"></div>
-
-    <h2>The conversation</h2>
-    <p class="meta" id="threadnote"></p>
-    <div id="thread" class="rows"></div>
-    <form class="fields" id="reply" hidden novalidate>
-      <div class="field">
-        <label for="replybody">Write back</label>
-        <textarea id="replybody" rows="4" maxlength="4000"></textarea>
-      </div>
-      <div class="actions">
-        <button type="submit" class="quiet">Send</button>
-        <button type="button" class="quiet" id="draftit">Draft a reply</button>
-      </div>
-      <p class="meta" id="draftnote"></p>
-      <p class="meta" id="models"></p>
-    </form>
 
     <h2>Milestones</h2>
     <p class="meta">A stalled step is something that happened, not a verdict on anybody.</p>
@@ -159,7 +148,6 @@
 <script type="module">
   const STATES = [
     ['waiting', 'New calls'],
-    ['replies', 'Replies'],
     ['active', 'Working'],
     ['closed', 'Closed'],
   ];
@@ -300,7 +288,6 @@
       row.append(link(person.reference || `Order ${person.id}`, `/desk?id=${person.id}`, 'code'));
       row.append(el('div', `${when(person.calledAt)} · ${minutes(person.seconds)}`, 'meta'));
       if (person.callCount > 1) row.append(el('div', `${person.callCount} calls`, 'meta'));
-      if (person.awaitingReply) row.append(el('div', 'Wrote to you and is waiting', 'flag'));
       for (const item of owed(person)) {
         if (item.yours) row.append(el('div', item.what, 'flag'));
       }
@@ -579,51 +566,12 @@
         msg('rmsg', error.message, 'bad');
       }
     });
-  }
-
-  function renderThread(person) {
-    const list = document.getElementById('thread');
-    const note = document.getElementById('threadnote');
-    const form = document.getElementById('reply');
-    list.textContent = '';
-
-    if (!person.linked) {
-      note.textContent =
-        'No account is linked to this order yet, so there is nowhere to send a message. ' +
-        'They link it by opening their claim link while signed in.';
-      form.hidden = true;
-      return;
-    }
-    note.textContent = 'This is the channel. A call is what they bought to get here, not how they are reached afterwards.';
-    form.hidden = false;
-
-    if (!person.messages.length) {
-      list.append(el('p', 'Nothing said yet.', 'meta'));
-    }
-    for (const message of person.messages) {
-      const row = el('div', null, message.author === 'client' ? 'row said them' : 'row said us');
-      row.append(el('div', message.author === 'client' ? 'Them' : 'You', 'label'));
-      row.append(el('div', message.body, null));
-      row.append(el('div', when(message.at), 'meta'));
-      list.append(row);
-    }
-
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const input = document.getElementById('replybody');
-      try {
-        await post('reply', { id: person.id, body: input.value });
-        window.location.reload();
-      } catch (error) {
-        msg('rmsg', error.message, 'bad');
-      }
-    });
 
     renderDrafting(person);
   }
 
-  // The draft button writes into the reply box and stops there. Nothing it produces is sent
-  // until it has been read and the operator presses Send.
+  // The draft button writes into the sheet box and stops there. Nothing it produces reaches
+  // the person until it has been read and the operator presses Write it.
   function renderDrafting(person) {
     const drafting = person.drafting || { models: [], chosen: null };
     const button = document.getElementById('draftit');
@@ -633,7 +581,7 @@
 
     if (!drafting.models.length) {
       button.hidden = true;
-      note.textContent = 'No drafting model is configured, so replies are written by hand.';
+      note.textContent = 'No drafting model is configured, so the sheet is written by hand.';
       return;
     }
 
@@ -657,7 +605,7 @@
     }
 
     button.addEventListener('click', async () => {
-      const input = document.getElementById('replybody');
+      const input = document.getElementById('recommendbody');
       button.disabled = true;
       note.textContent = 'Asking. A worker starting from cold takes up to a minute.';
       try {
@@ -670,7 +618,7 @@
           written.promptTokens ? written.promptTokens + ' in' : null,
           written.completionTokens ? written.completionTokens + ' out' : null,
         ].filter(Boolean).join(' · ');
-        note.textContent = 'Read it before sending. ' + cost +
+        note.textContent = 'Read it before you file it. ' + cost +
           (written.fellBack ? ' — the chosen model is no longer configured, so this is the one that is.' : '');
       } catch (error) {
         note.textContent = '';
@@ -878,7 +826,6 @@
     renderOwed(person);
     renderAssess(person);
     renderRecommendations(person);
-    renderThread(person);
     renderPlan(person);
     renderSteps(person);
     renderQuotes(person);
