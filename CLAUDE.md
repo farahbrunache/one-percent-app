@@ -106,8 +106,9 @@ holds.
 ## The client area is read-only, and stays that way
 
 There is no way for somebody who has paid to send words to the owner. No chat, no message
-box, no reply form, no contact address. This is settled and is not to be rebuilt because a
-screen looks like it is missing something.
+box, no reply form, no contact address. There was one, it was removed, and the table behind
+it was dropped. This is settled and is not to be rebuilt because a screen looks like it is
+missing something.
 
 What seven dollars buys is a half-hour call and the sheet written out of it. Being reachable
 afterwards is not part of it, and a box anybody who pays can write into is a way to reach one
