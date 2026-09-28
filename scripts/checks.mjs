@@ -127,6 +127,82 @@ for (const file of files.filter((f) => f.includes('/api/') && f.endsWith('.js'))
   }
 }
 
+// ---- calling something that is not there ----------------------------------------------------
+//
+// Twice in one day the trunk ended up calling a function no file defined, because a change
+// that used it merged while the change that declared it sat in a pull request. `keepRecord`
+// was one and `openTheConversation` was the other. Both would have thrown the moment somebody
+// pressed the button, and nothing caught either: the request tests only reach the signed-out
+// refusal, so no handler body ever runs, and `node --check` reads syntax rather than meaning.
+//
+// This reads every module under `api/` and `lib/` and collects two sets: the bare names that
+// are called, and the names the file declares or imports. Anything called and not declared is
+// a reference to nothing.
+//
+// Bare calls only -- `foo(` and never `thing.foo(` -- because a method belongs to whatever
+// object it is on and this file knows nothing about that. That narrowness is deliberate: the
+// failure it is for is exactly a bare call to a name that used to be imported.
+const GLOBALS = new Set([
+  'require', 'fetch', 'structuredClone', 'setTimeout', 'clearTimeout', 'setInterval',
+  'clearInterval', 'queueMicrotask', 'atob', 'btoa', 'encodeURIComponent',
+  'decodeURIComponent', 'parseInt', 'parseFloat', 'isNaN', 'isFinite', 'String', 'Number',
+  'Boolean', 'Array', 'Object', 'Error', 'TypeError', 'RangeError', 'Promise', 'Map', 'Set',
+  'Date', 'RegExp', 'JSON', 'Math', 'URL', 'URLSearchParams', 'TextEncoder', 'TextDecoder',
+  'Buffer', 'process', 'console', 'if', 'for', 'while', 'switch', 'catch', 'return',
+  'typeof', 'await', 'function', 'super', 'this', 'async', 'constructor', 'else', 'do',
+  'new', 'delete', 'void', 'in', 'of', 'yield', 'throw', 'case',
+]);
+
+for (const file of files.filter((f) => /\/(api|lib)\//.test(f) && f.endsWith('.js'))) {
+  const text = read(file);
+
+  const declared = new Set(GLOBALS);
+  // import { a, b as c } from '...'  and  import x from '...'
+  for (const m of text.matchAll(/import\s+(?:(\w+)\s*,\s*)?\{([^}]*)\}\s+from/g)) {
+    if (m[1]) declared.add(m[1]);
+    for (const part of m[2].split(',')) {
+      const name = part.trim().split(/\s+as\s+/).pop().trim();
+      if (name) declared.add(name);
+    }
+  }
+  for (const m of text.matchAll(/import\s+(\w+)\s+from/g)) declared.add(m[1]);
+  for (const m of text.matchAll(/(?:^|\s)(?:async\s+)?function\s+(\w+)/g)) declared.add(m[1]);
+  for (const m of text.matchAll(/(?:const|let|var)\s+(\w+)\s*=/g)) declared.add(m[1]);
+  // Destructured bindings and parameters, taken loosely -- a name bound anywhere counts.
+  for (const m of text.matchAll(/(?:const|let|var)\s*\{([^}]*)\}\s*=/g)) {
+    for (const part of m[1].split(',')) {
+      const name = part.trim().split(':').pop().trim();
+      if (name) declared.add(name);
+    }
+  }
+  for (const m of text.matchAll(/\(([^)]*)\)\s*=>/g)) {
+    for (const part of m[1].split(',')) {
+      const name = part.trim().replace(/[={].*$/, '').trim();
+      if (/^\w+$/.test(name)) declared.add(name);
+    }
+  }
+  for (const m of text.matchAll(/function\s+\w+\s*\(([^)]*)\)/g)) {
+    for (const part of m[1].split(',')) {
+      const name = part.trim().replace(/[={].*$/, '').trim();
+      if (/^\w+$/.test(name)) declared.add(name);
+    }
+  }
+
+  const withoutStrings = text
+    .replace(/`(?:[^`\\]|\\.)*`/g, '``')
+    .replace(/'(?:[^'\\]|\\.)*'/g, "''")
+    .replace(/"(?:[^"\\]|\\.)*"/g, '""')
+    .replace(/\/\/[^\n]*/g, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '');
+
+  for (const m of withoutStrings.matchAll(/(^|[^.\w$])([a-z_$][\w$]*)\s*\(/g)) {
+    const name = m[2];
+    if (!declared.has(name)) {
+      fail('missing', `${file.slice(ROOT.length + 1)} calls ${name}() and nothing here declares it.`);
+    }
+  }
+}
+
 // ---- what happened --------------------------------------------------------------------------
 
 if (problems.length) {

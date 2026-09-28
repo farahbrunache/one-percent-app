@@ -134,11 +134,17 @@
     }
     head.textContent = 'Your sessions';
 
+    // Somebody whose call has been read is not still waiting for it to be. Both lines used
+    // to appear at once, so the screen said the call was going to be read directly above
+    // the thing that came out of reading it.
+    const read = data.sessions.some((s) => s.recommendations);
     if (data.approved) {
       state.append(el('p', 'You are a client.', 'lede'));
       state.append(el('p',
         'Your recommendations are below, and so is the conversation. Following them through '
         + 'is what happens next, and it happens in writing.', 'meta'));
+    } else if (read) {
+      state.append(el('p', 'Your call has been read.', 'lede'));
     } else {
       state.append(el('p', 'Your session is linked to this account.', 'lede'));
       state.append(el('p',
@@ -153,6 +159,12 @@
       // The same pill the desk uses, so the two screens describe one session the same way.
       if (s.approved) {
         row.append(el('div', 'Approved', 'badge go'));
+      } else if (s.recommendations) {
+        // Read, and written to. It said "waiting to be read" here, which stayed on the
+        // screen forever for somebody the answer was not yes for -- so the one state that
+        // must never read as a rejection read instead as being left in a queue.
+        row.append(el('div', 'Read', 'badge open'));
+        row.append(el('div', `Called ${when(s.calledAt)}.`, 'meta'));
       } else if (s.hasTranscript) {
         row.append(el('div', 'Waiting to be read', 'badge open'));
         row.append(el('div', `Called ${when(s.calledAt)}.`, 'meta'));
@@ -173,15 +185,25 @@
       rows.append(row);
     }
 
-    // Somebody who has been read and told no is not being turned away. They keep everything
-    // they had, Skills Economy is unchanged and costs nothing, and what One Percent adds is
-    // one person's time. Another call is available and is said once, plainly, and never as
-    // the thing to do.
-    const read = data.sessions.some((s) => s.recommendations);
+    // What somebody reads when the answer was not yes.
+    //
+    // No verdict is announced, because none was announced to them. They were not turned
+    // down; they were written to, which is what everybody who calls gets.
+    //
+    // The earlier wording listed what had not been taken away -- Skills Economy unchanged,
+    // nothing gone anywhere. That is the shape of reassurance after bad news, and naming
+    // the losses that did not happen is what puts the idea of a loss on the screen. So it
+    // says what they have and where to use it, and stops.
+    //
+    // Another call is one line, tied to having worked through some of it rather than to
+    // being told no. It is never the thing to do next.
     if (read && !data.approved) {
       state.append(el('p',
-        'Skills Economy is unchanged and still free to you, and nothing you had has gone '
-        + 'anywhere. Another call is there if you want one later.', 'meta'));
+        'What came out of your call is above, and it is yours. Acting on it happens in '
+        + 'Skills Economy, which costs you nothing.', 'meta'));
+      state.append(el('p',
+        'If you work through some of it and want another conversation, there is one here.',
+        'meta'));
       const again = el('p', null, 'cta');
       const link = document.createElement('a');
       link.href = '/buy';

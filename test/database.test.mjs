@@ -186,11 +186,11 @@ console.log('what they are told afterwards');
 // Everybody who calls gets a sheet. The decision changes whether the conversation opens, not
 // whether there is something to read.
 const told = await newOrder();
-await tagged`update orders set assessment = 'no-go', assessed_at = now(),
+await tagged`update orders set decision = 'no-go', decided_at = now(),
                                recommendations_encrypted = 'x', recommendations_written_at = now()
               where id = ${told}`;
 const sheet = await tagged`
-  select assessment, approved_as_client_at, recommendations_encrypted
+  select decision, approved_as_client_at, recommendations_encrypted
     from orders where id = ${told}`;
 check('a no-go still has something to read',
   sheet[0].recommendations_encrypted === 'x', sheet[0]);
@@ -226,6 +226,57 @@ check('a fuller record replaces the first', replaced[0].record_encrypted === 'th
 // -- Postgres refusing to plan the statement is the test. When the desk starts reading a new
 // column, add it here, and a schema change that never landed fails the build rather than the
 // screen.
+// The rename, run against the real table.
+//
+// `assessment` was retired because the word sounds like a score and a score sounds like
+// people are being ranked. The column is `decision` now, and the statement that gets there
+// runs on every cold start, so it has to be safe on a database that already has the new
+// name and on one that still has the old.
+//
+// This puts the old name back, runs the statement, and checks the data came through. Then
+// it runs it again to prove a second pass does nothing.
+console.log('the column that was called assessment');
+
+const RENAME = `
+  do $$
+  begin
+    if exists (
+      select 1 from information_schema.columns
+      where table_name = 'orders' and column_name = 'assessment'
+    ) and not exists (
+      select 1 from information_schema.columns
+      where table_name = 'orders' and column_name = 'decision'
+    ) then
+      alter table orders rename column assessment to decision;
+      alter table orders rename column assessed_at to decided_at;
+    end if;
+  end $$;
+`;
+
+const renamed = await newOrder();
+await tagged`update orders set decision = 'go', decided_at = now() where id = ${renamed}`;
+
+await pg.query('alter table orders rename column decision to assessment');
+await pg.query('alter table orders rename column decided_at to assessed_at');
+await pg.query(RENAME);
+
+const columns = await tagged`
+  select column_name from information_schema.columns
+   where table_name = 'orders'
+     and column_name in ('assessment', 'assessed_at', 'decision', 'decided_at')
+   order by column_name`;
+check('the old names are gone and the new ones are there',
+  columns.map((c) => c.column_name).join(',') === 'decided_at,decision',
+  columns.map((c) => c.column_name));
+
+const carried = await tagged`select decision, decided_at from orders where id = ${renamed}`;
+check('and what was in it came across',
+  carried[0].decision === 'go' && carried[0].decided_at !== null, carried[0]);
+
+await pg.query(RENAME);
+const again = await tagged`select decision from orders where id = ${renamed}`;
+check('running it a second time changes nothing', again[0].decision === 'go');
+
 // The conversation opens on a go and on nothing else.
 //
 // This is the test that was missing. The gate was written as "anybody who has paid", so
@@ -248,20 +299,20 @@ check('somebody who has paid and not been read has no conversation',
   (await conversationOpen('acct-waiting')) === false);
 
 const turned = await newOrder();
-await tagged`update orders set client_account_id = 'acct-no-go', assessment = 'no-go',
-                               assessed_at = now(), approved_as_client_at = null
+await tagged`update orders set client_account_id = 'acct-no-go', decision = 'no-go',
+                               decided_at = now(), approved_as_client_at = null
               where id = ${turned}`;
 check('and a no-go has none either', (await conversationOpen('acct-no-go')) === false);
 
 const client = await newOrder();
-await tagged`update orders set client_account_id = 'acct-go', assessment = 'go',
-                               assessed_at = now(), approved_as_client_at = now()
+await tagged`update orders set client_account_id = 'acct-go', decision = 'go',
+                               decided_at = now(), approved_as_client_at = now()
               where id = ${client}`;
 check('a go opens it', (await conversationOpen('acct-go')) === true);
 
 // A decision can be changed, and changing it back to no-go clears the approval. What is
 // already written stays -- it happened -- but nothing more can be sent.
-await tagged`update orders set assessment = 'no-go', approved_as_client_at = null
+await tagged`update orders set decision = 'no-go', approved_as_client_at = null
               where id = ${client}`;
 check('and changing the decision back closes it again',
   (await conversationOpen('acct-go')) === false);
@@ -275,7 +326,7 @@ check('a thread with something in it is not opened again', already.length === 1)
 
 console.log('the desk can read what it reads');
 await tagged`
-  select o.id, o.reference_code, o.assessment, o.assessed_at, o.status,
+  select o.id, o.reference_code, o.decision, o.decided_at, o.status,
          o.recommendations_encrypted, o.recommendations_written_at,
          o.client_account_id, o.approved_as_client_at, o.first_customer_at,
          o.session_starts, o.first_started_at,
@@ -323,18 +374,18 @@ const account = 'user_invented_for_this_test';
 const a = await newOrder();
 const b = await newOrder();
 for (const id of [a, b]) {
-  await tagged`update orders set client_account_id = ${account}, assessment = 'go' where id = ${id}`;
+  await tagged`update orders set client_account_id = ${account}, decision = 'go' where id = ${id}`;
   await tagged`insert into calls (order_id, call_id, transcript_encrypted, seconds)
                values (${id}, ${'t' + id}, 'x', 600)`;
 }
 const counted = await tagged`
   with people as (
-    select o.id, coalesce(o.client_account_id, 'order:' || o.id) as who, o.assessment,
+    select o.id, coalesce(o.client_account_id, 'order:' || o.id) as who, o.decision,
            exists (select 1 from calls c where c.order_id = o.id
                     and c.transcript_encrypted is not null) as called
       from orders o where o.status = 'confirmed'
   )
-  select count(distinct who) filter (where called and assessment = 'go') as go from people`;
+  select count(distinct who) filter (where called and decision = 'go') as go from people`;
 check('two orders from one person count once', Number(counted[0].go) === 1, counted[0]);
 
 console.log('introductions');

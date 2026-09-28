@@ -26,7 +26,7 @@ import {
   QUOTE_STATUSES,
   MILESTONE_STATUSES,
   PLAN_PATHS,
-  isAssessment,
+  isDecision,
   isIntroductionOutcome,
   isQuoteStatus,
   isMilestoneStatus,
@@ -81,7 +81,7 @@ function readDetail(row) {
   }
 }
 
-// Three queues, derived from the assessment rather than stored beside it, so there is never a
+// Three queues, derived from the decision rather than stored beside it, so there is never a
 // second fact about somebody's state that can disagree with the first.
 //
 // Waiting is the one with work in it: a call has been filed and nobody has read it yet.
@@ -95,12 +95,12 @@ async function queue(req, res) {
 
   const [rows, totals] = await Promise.all([
     sql()`
-      select o.id, o.reference_code, o.assessment,
+      select o.id, o.reference_code, o.decision,
              o.recommendations_written_at,
              exists (select 1 from calls c2
                       where c2.order_id = o.id and c2.record_encrypted is null
                         and c2.transcript_encrypted is not null) as record_missing,
-             o.assessed_at, o.client_account_id is not null as linked,
+             o.decided_at, o.client_account_id is not null as linked,
              p.path as plan_path,
              (select c.ended_at from calls c
                where c.order_id = o.id and c.transcript_encrypted is not null
@@ -118,13 +118,13 @@ async function queue(req, res) {
        where exists (select 1 from calls c
                       where c.order_id = o.id and c.transcript_encrypted is not null)
          and case ${state}
-               when 'waiting' then o.assessment is null
+               when 'waiting' then o.decision is null
                when 'replies' then o.approved_as_client_at is not null
                                    and (select m.author from messages m
                                          where m.account_id = o.client_account_id
                                          order by m.created_at desc limit 1) = 'client'
-               when 'active'  then o.assessment = 'go'
-               else                o.assessment = 'no-go'
+               when 'active'  then o.decision = 'go'
+               else                o.decision = 'no-go'
              end
        order by o.id desc
        limit ${PER_PAGE} offset ${offset}
@@ -134,13 +134,13 @@ async function queue(req, res) {
        where exists (select 1 from calls c
                       where c.order_id = o.id and c.transcript_encrypted is not null)
          and case ${state}
-               when 'waiting' then o.assessment is null
+               when 'waiting' then o.decision is null
                when 'replies' then o.approved_as_client_at is not null
                                    and (select m.author from messages m
                                          where m.account_id = o.client_account_id
                                          order by m.created_at desc limit 1) = 'client'
-               when 'active'  then o.assessment = 'go'
-               else                o.assessment = 'no-go'
+               when 'active'  then o.decision = 'go'
+               else                o.decision = 'no-go'
              end
     `,
   ]);
@@ -156,8 +156,8 @@ async function queue(req, res) {
       calledAt: r.called_at,
       seconds: r.seconds,
       callCount: r.call_count,
-      assessment: r.assessment,
-      assessedAt: r.assessed_at,
+      decision: r.decision,
+      decidedAt: r.decided_at,
       recommendedAt: r.recommendations_written_at,
       recordMissing: Boolean(r.record_missing),
       linked: r.linked,
@@ -182,7 +182,7 @@ async function funnel(req, res) {
     with people as (
       select o.id,
              coalesce(o.client_account_id, 'order:' || o.id) as who,
-             o.assessment,
+             o.decision,
              o.first_customer_at,
              exists (select 1 from calls c
                       where c.order_id = o.id and c.transcript_encrypted is not null) as called,
@@ -194,9 +194,9 @@ async function funnel(req, res) {
     )
     select
       count(distinct who) filter (where called) as called,
-      count(distinct who) filter (where called and assessment = 'go') as go,
-      count(distinct who) filter (where called and assessment = 'go' and planned) as planned,
-      count(distinct who) filter (where called and assessment = 'go' and planned and worked) as worked,
+      count(distinct who) filter (where called and decision = 'go') as go,
+      count(distinct who) filter (where called and decision = 'go' and planned) as planned,
+      count(distinct who) filter (where called and decision = 'go' and planned and worked) as worked,
       count(distinct who) filter (where first_customer_at is not null) as earning
       from people
   `;
@@ -224,7 +224,7 @@ async function person(req, res) {
   const id = orderId(query(req).get('id'));
 
   const rows = await sql()`
-    select id, reference_code, status, assessment, assessed_at,
+    select id, reference_code, status, decision, decided_at,
            client_account_id, approved_as_client_at, first_customer_at,
            recommendations_encrypted, recommendations_written_at
       from orders where id = ${id}
@@ -316,8 +316,8 @@ async function person(req, res) {
     // record to keep and never will, so it is not something anybody is waiting on.
     calledAt: calls.find((c) => c.transcript_encrypted)?.started_at || null,
     recordMissing: calls.some((c) => c.transcript_encrypted && !c.record_kept),
-    assessment: row.assessment,
-    assessedAt: row.assessed_at,
+    decision: row.decision,
+    decidedAt: row.decided_at,
     linked: Boolean(row.client_account_id),
     approvedAt: row.approved_as_client_at,
     recommendations: row.recommendations_encrypted ? decrypt(row.recommendations_encrypted) : null,
@@ -617,18 +617,18 @@ async function openTheConversation(id) {
 
 // Go or no-go, by somebody who read the words. Changing a decision is allowed and leaves both
 // on the trail; what is not allowed is a machine making it.
-async function assess(req, res) {
+async function decide(req, res) {
   requireAdmin(req);
   await ensureSchema();
   const body = await readJson(req);
   const id = orderId(body.id);
-  const decision = String(body.assessment || '');
-  if (!isAssessment(decision)) throw new HttpError(400, 'The decision is either go or no-go.');
+  const decision = String(body.decision || '');
+  if (!isDecision(decision)) throw new HttpError(400, 'The decision is either go or no-go.');
 
   const done = await sql()`
     update orders set
-      assessment = ${decision},
-      assessed_at = now(),
+      decision = ${decision},
+      decided_at = now(),
       approved_as_client_at = case
         when ${decision} = 'go' then coalesce(approved_as_client_at, now())
         else null
@@ -637,11 +637,11 @@ async function assess(req, res) {
      returning id
   `;
   if (!done.length) {
-    throw new HttpError(409, 'That order is not a confirmed one, so there is no call to assess.');
+    throw new HttpError(409, 'That order is not a confirmed one, so there is no call to decide on.');
   }
-  await record(id, 'assessed', `${decision}. ${String(body.note || '').trim()}`.trim());
+  await record(id, 'decided', `${decision}. ${String(body.note || '').trim()}`.trim());
   const opened = decision === 'go' ? await openTheConversation(id) : false;
-  send(res, 200, { ok: true, assessment: decision, opened });
+  send(res, 200, { ok: true, decision, opened });
 }
 
 // What the caller reads when they come back.
@@ -931,7 +931,7 @@ async function addNote(req, res) {
 const ACTIONS = {
   GET: { queue, person, funnel },
   POST: {
-    assess,
+    decide,
     plan: setPlan,
     'milestone-add': addMilestone,
     'milestone-record': recordMilestone,
