@@ -50,6 +50,9 @@
     <p class="meta" id="called"></p>
     <div id="rmsg" hidden></div>
 
+    <h2>Waiting on you</h2>
+    <div id="owed" class="rows"></div>
+
     <h2>Calls</h2>
     <div id="calls"></div>
 
@@ -57,6 +60,21 @@
     <p class="meta">Read it first. Nothing here decides on its own, and a decision can be changed — both stay on the record.</p>
     <p id="assessed" class="status-line" hidden></p>
     <div class="actions" id="assess"></div>
+
+    <h2>What they are told</h2>
+    <p class="meta">Everybody who calls gets this, whichever way the decision went. A no-go is
+      not a rejection and must not read as one: they keep everything they had, Skills Economy is
+      unchanged and free, and what this adds is your time.</p>
+    <p class="meta" id="recommendedat"></p>
+    <form class="fields" id="recommendform" novalidate>
+      <div class="field">
+        <label for="recommendbody">Recommendations</label>
+        <span class="hint">Things worth doing, in their own situation. They read this word for
+          word, so write it to them rather than about them.</span>
+        <textarea id="recommendbody" rows="8" maxlength="8000"></textarea>
+      </div>
+      <div class="actions"><button type="submit" class="quiet">Write it</button></div>
+    </form>
 
     <h2>The path</h2>
     <p class="meta">Two paths, neither above the other.</p>
@@ -283,6 +301,9 @@
       row.append(el('div', `${when(person.calledAt)} · ${minutes(person.seconds)}`, 'meta'));
       if (person.callCount > 1) row.append(el('div', `${person.callCount} calls`, 'meta'));
       if (person.awaitingReply) row.append(el('div', 'Wrote to you and is waiting', 'flag'));
+      for (const item of owed(person)) {
+        if (item.yours) row.append(el('div', item.what, 'flag'));
+      }
       if (person.planLabel) row.append(el('div', person.planLabel, 'meta'));
       if (!person.linked) row.append(el('div', 'No account linked yet', 'meta'));
       list.append(row);
@@ -290,7 +311,51 @@
     renderPager(data);
   }
 
+  // What is owed on somebody, in the order it has to happen.
+  //
+  // These are steps in a piece of work, not controls that happen to be on a screen. A control
+  // that is simply there gets pressed when somebody remembers; a step that is named and
+  // counted gets done. Everybody who called is owed a decision and a sheet, and neither is
+  // optional.
+  //
+  // Keeping the call's record is on the list and is usually not work: an hourly job takes it.
+  // So it says so quietly while that job has not caught up, and loudly once a day has passed,
+  // because the voice service forgets a call after seven.
+  function owed(person) {
+    const out = [];
+    if (person.recordMissing) {
+      const aDayOn = person.calledAt
+        && Date.now() - new Date(person.calledAt).getTime() > 24 * 3600 * 1000;
+      out.push({
+        what: aDayOn
+          ? 'The call record has not been kept, a day on. Open the call and press it by hand.'
+          : 'The call record is not kept yet. The hourly job takes it; nothing to do.',
+        yours: Boolean(aDayOn),
+      });
+    }
+    if (!person.assessment) out.push({ what: 'Go or no-go, once you have read it.', yours: true });
+    if (!person.recommendedAt) {
+      out.push({ what: 'Write what they are told. Everybody who called gets this.', yours: true });
+    }
+    return out;
+  }
+
   // ---- one person ------------------------------------------------------------------
+
+  function renderOwed(person) {
+    const box = document.getElementById('owed');
+    box.textContent = '';
+    const items = owed(person);
+    if (!items.length) {
+      box.append(el('p', 'Nothing. They have been read, decided, and told.', 'meta'));
+      return;
+    }
+    for (const item of items) {
+      const row = el('div', null, 'row');
+      row.append(el('div', item.what, item.yours ? null : 'meta'));
+      box.append(row);
+    }
+  }
 
   function renderAssess(person) {
     const box = document.getElementById('assess');
@@ -491,6 +556,29 @@
       row.append(open);
       box.append(row);
     }
+  }
+
+  // Written once and edited afterwards, because what somebody should do next is not settled in
+  // one sitting and the sheet is theirs to read whenever they come back.
+  function renderRecommendations(person) {
+    const at = document.getElementById('recommendedat');
+    const input = document.getElementById('recommendbody');
+    const form = document.getElementById('recommendform');
+
+    at.textContent = person.recommendations
+      ? `Written ${when(person.recommendedAt)}. They can read it now.`
+      : 'Nothing written yet, so there is nothing for them to come back to.';
+    if (person.recommendations) input.value = person.recommendations;
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      try {
+        await post('recommend', { id: person.id, body: input.value });
+        window.location.reload();
+      } catch (error) {
+        msg('rmsg', error.message, 'bad');
+      }
+    });
   }
 
   function renderThread(person) {
@@ -787,7 +875,9 @@
       (latest ? `Called ${when(latest.endedAt || latest.startedAt)}` : 'No call yet') +
       (person.linked ? '' : ' · no account linked yet');
     renderCalls(person);
+    renderOwed(person);
     renderAssess(person);
+    renderRecommendations(person);
     renderThread(person);
     renderPlan(person);
     renderSteps(person);

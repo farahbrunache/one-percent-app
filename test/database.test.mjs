@@ -182,6 +182,20 @@ catch (error) { missing = error; }
 check('leaving out a figure is refused rather than ignored',
   /unreportedAfter/.test(missing?.message || ''), missing?.message);
 
+console.log('what they are told afterwards');
+// Everybody who calls gets a sheet. The decision changes whether the conversation opens, not
+// whether there is something to read.
+const told = await newOrder();
+await tagged`update orders set assessment = 'no-go', assessed_at = now(),
+                               recommendations_encrypted = 'x', recommendations_written_at = now()
+              where id = ${told}`;
+const sheet = await tagged`
+  select assessment, approved_as_client_at, recommendations_encrypted
+    from orders where id = ${told}`;
+check('a no-go still has something to read',
+  sheet[0].recommendations_encrypted === 'x', sheet[0]);
+check('and is not approved', sheet[0].approved_as_client_at === null, sheet[0]);
+
 console.log('the reservation');
 // Two requests arriving together must not both buy a session on one order.
 const contested = await newOrder();

@@ -161,16 +161,47 @@
       } else {
         row.append(el('div', 'Paid for. The session has not been started yet.', 'meta'));
       }
+
+      // What was written after the call, whichever way the decision went. It is the same kind
+      // of thing both ways: things worth doing, in the reader's own situation.
+      if (s.recommendations) {
+        row.append(el('div', `What came out of it · ${when(s.recommendedAt)}`, 'label'));
+        row.append(el('div', s.recommendations, 'sheet'));
+      }
       rows.append(row);
     }
 
-    document.getElementById('talk').hidden = false;
-    document.getElementById('talknote').textContent = data.approved
-      ? 'Written replies, whenever either of us gets to them.'
-      : 'You can write before the call has been read. It will be read by a person, so there '
-        + 'is no wrong time to say something.';
-    loadThread();
-    loadQuotes();
+    // Somebody who has been read, and for whom the conversation is not open, is not being
+    // turned away. They keep everything they had, Skills Economy is unchanged and costs
+    // nothing, and what One Percent adds is one person's time. Another call is available and
+    // is said once, plainly, and never as the thing to do.
+    const read = data.sessions.some((s) => s.recommendations);
+    if (read && !data.approved) {
+      state.append(el('p',
+        'Skills Economy is unchanged and still free to you, and nothing you had has gone '
+        + 'anywhere. Another call is there if you want one later.', 'meta'));
+      const again = el('p', null, 'cta');
+      const link = document.createElement('a');
+      link.href = '/buy';
+      link.textContent = 'Pay for another session';
+      again.append(link);
+      state.append(again);
+    }
+
+    // The conversation opens once the call has been read and the answer was yes. Before that
+    // it is open too, because somebody with a question between paying and being read should
+    // not be met with silence. What closes it is having been read and the answer being no --
+    // and that is said as what it is, not hidden behind a control that does nothing.
+    const talk = document.getElementById('talk');
+    talk.hidden = read && !data.approved;
+    if (!talk.hidden) {
+      document.getElementById('talknote').textContent = data.approved
+        ? 'Written replies, whenever either of us gets to them.'
+        : 'You can write before the call has been read. It will be read by a person, so there '
+          + 'is no wrong time to say something.';
+      loadThread();
+      loadQuotes();
+    }
   }
 
   async function loadQuotes() {
