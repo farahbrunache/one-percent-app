@@ -181,6 +181,10 @@
     return data;
   }
 
+  function get(action) {
+    return call(`/api/desk?action=${action}`);
+  }
+
   function post(action, body) {
     return call(`/api/desk?action=${action}`, {
       method: 'POST',
@@ -434,6 +438,36 @@
         setTimeout(() => { copy.textContent = 'Copy it'; }, 2000);
       });
       actions.append(copy);
+
+      // The voice service's own record of the call, whole. It is what a test case for a
+      // conversation has to be written from: what actually happened, rather than what this
+      // side remembered of it.
+      if (call.callId) {
+        const everything = el('button', 'Everything the voice service has', 'quiet');
+        everything.type = 'button';
+        everything.addEventListener('click', async () => {
+          everything.disabled = true;
+          everything.textContent = 'Asking…';
+          try {
+            const record = await get(`call-record&call=${encodeURIComponent(call.callId)}`);
+            const text = JSON.stringify(record, null, 2);
+            const shown = el('pre', text, null);
+            wrap.append(shown);
+            try {
+              await navigator.clipboard.writeText(text);
+              everything.textContent = 'Copied, and shown below';
+            } catch {
+              everything.textContent = 'Shown below — select it by hand';
+            }
+          } catch (error) {
+            everything.textContent = 'Everything the voice service has';
+            everything.disabled = false;
+            msg('rmsg', error.message, 'bad');
+          }
+        });
+        actions.append(everything);
+      }
+
       open.append(actions);
       row.append(open);
       box.append(row);

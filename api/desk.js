@@ -34,6 +34,8 @@ import {
   draft as askForDraft,
   models,
 } from '../lib/draft.js';
+import Retell from 'retell-sdk';
+
 import { normalizeReference } from '../lib/orders.js';
 import { HttpError, handle, readJson, send } from '../lib/http.js';
 
@@ -283,6 +285,7 @@ async function person(req, res) {
     status: row.status,
     calls: calls.map((c) => ({
       id: c.id,
+      callId: c.call_id,
       kind: c.kind,
       transcript: c.transcript_encrypted ? decrypt(c.transcript_encrypted) : null,
       summary: readSummary(c.summary_encrypted),
@@ -349,6 +352,49 @@ async function person(req, res) {
 // The name of the one choice this screen owns. A slot letter, never an address and never a
 // key: those are settings and are not writable from a browser at any privilege.
 const MODEL_CHOICE = 'draft.model.slot';
+
+// Everything the voice service holds about one call, as it holds it.
+//
+// What is kept here is the transcript and the summary, because those are what the work runs
+// on. The service keeps a great deal more -- how the agent was configured for that call, what
+// it cost, latencies, where each turn began and ended, why it ended -- and none of it is worth
+// a column until something needs it.
+//
+// What needs it is building a test case out of a real call, which is the only honest way to
+// write one for a conversation. So it is fetched live and handed over whole, rather than
+// stored and slowly diverging from what the service actually said.
+//
+// Nothing is written down by this. It is a read, and the copy that matters stays theirs.
+async function callRecord(req, res) {
+  requireAdmin(req);
+  const callId = String(query(req).get('call') || '').trim();
+  if (!callId) throw new HttpError(400, 'Which call? Pass the id the voice service gave it.');
+
+  const apiKey = process.env.RETELL_SECRET_KEY;
+  if (!apiKey) throw new HttpError(503, 'RETELL_SECRET_KEY is not set, so nothing can be asked.');
+
+  await ensureSchema();
+
+  // Only a call this site opened. The id comes from the screen, but the screen is not what
+  // decides whether it may be read.
+  const ours = await sql()`select 1 from calls where call_id = ${callId} limit 1`;
+  if (!ours.length) {
+    throw new HttpError(404, `No call here was started with the id ${callId}.`);
+  }
+
+  try {
+    send(res, 200, await new Retell({ apiKey }).call.retrieve(callId));
+  } catch (error) {
+    if (error instanceof Retell.APIError) {
+      throw new HttpError(
+        502,
+        `The voice service would not hand over call ${callId} (${error.status}): ` +
+          JSON.stringify(error.error ?? error.message).slice(0, 400),
+      );
+    }
+    throw new HttpError(502, `Could not reach the voice service: ${error.message}`);
+  }
+}
 
 async function chooseModel(req, res) {
   requireAdmin(req);
