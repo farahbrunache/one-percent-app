@@ -41,7 +41,6 @@ KEYS=(
   CARD_ENCRYPTION_KEY
   AUTH_PUBLISHABLE_KEY
   AUTH_CLIENT_ID
-  AUTH_CLIENT_SECRET
   ADMIN_ACCOUNT_IDS
   RETELL_SECRET_KEY
   RETELL_AGENT_ID
@@ -56,6 +55,10 @@ KEYS=(
 # impossible to leave empty, which is the state it is supposed to be in until there is a
 # second model worth comparing.
 OPTIONAL_KEYS=(
+  # Empty on purpose when the sign-in application is a Public one. A public OAuth client has
+  # no secret to hold, and proves itself with PKCE instead; requiring a value here forced
+  # something to be invented, and an invented secret is refused as an unknown client.
+  AUTH_CLIENT_SECRET
   DRAFT_MODEL_A_NAME
   DRAFT_MODEL_A_URL
   DRAFT_MODEL_A_KEY
