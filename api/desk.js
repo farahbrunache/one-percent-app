@@ -9,7 +9,14 @@
 // be returned to — never one scroll holding the list and the detail together, which has no
 // way back to where somebody was.
 
-import { ensureSchema, readChoice, sql, underLimit, writeChoice } from '../lib/db.js';
+import {
+  ensureSchema,
+  keepRecord,
+  readChoice,
+  sql,
+  underLimit,
+  writeChoice,
+} from '../lib/db.js';
 import { decrypt, encrypt } from '../lib/crypto.js';
 import { requireAdmin } from '../lib/auth.js';
 import {
@@ -425,7 +432,14 @@ async function callRecord(req, res) {
   }
 
   try {
-    send(res, 200, await new Retell({ apiKey }).call.retrieve(callId));
+    const record = await new Retell({ apiKey }).call.retrieve(callId);
+
+    // Kept on the way past. Their retention is seven days, so a call made before anything here
+    // asked for its record can still be caught by somebody opening it -- and after that it is
+    // gone from both sides. Reading it is the only chance some calls will get.
+    await keepRecord(callId, encrypt(JSON.stringify(record)));
+
+    send(res, 200, record);
   } catch (error) {
     if (error instanceof Retell.APIError) {
       throw new HttpError(
