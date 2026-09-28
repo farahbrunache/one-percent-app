@@ -51,7 +51,7 @@ try {
 }
 check('and running it a second time changes nothing', twice === null, twice);
 
-const { abandonCall, secondsSpent } = db;
+const { abandonCall, reconcileStarts, secondsSpent } = db;
 const sql = () => tagged;
 
 async function newOrder(overrides = {}) {
@@ -135,6 +135,29 @@ await tagged`insert into calls (order_id, call_id) values (${running}, ${'c' + r
 const duringCall = await used(running);
 check('a call still going spends the entire budget, so nobody is on two at once',
   duringCall >= SESSION_BUDGET_SECONDS, duringCall);
+
+console.log('counting the attempts back from what happened');
+// An order closed after three presses that connected nobody to anything was the shape of the
+// bug: the counter only went up, and a session that fails in the browser gives nothing back.
+const pressed = await newOrder();
+await tagged`update orders set session_starts = 3, first_started_at = now() - interval '10 minutes'
+              where id = ${pressed}`;
+await tagged`insert into calls (order_id, call_id, seconds, started_at)
+             values (${pressed}, 'c-gave-nothing', 0, now() - interval '9 minutes')`;
+await reconcileStarts(pressed, UNREPORTED_AFTER_SECONDS);
+let attempts = await tagged`select session_starts, first_started_at from orders where id = ${pressed}`;
+check('presses that produced nothing stop counting', attempts[0].session_starts === 0, attempts[0]);
+check('and the window has not started either', attempts[0].first_started_at === null, attempts[0]);
+
+const spoke = await newOrder();
+await tagged`insert into calls (order_id, call_id, seconds, started_at)
+             values (${spoke}, 'c-real-one', 900, now() - interval '5 minutes')`;
+await tagged`insert into calls (order_id, call_id, seconds, started_at)
+             values (${spoke}, 'c-gave-nothing-either', 0, now() - interval '4 minutes')`;
+await reconcileStarts(spoke, UNREPORTED_AFTER_SECONDS);
+attempts = await tagged`select session_starts, first_started_at from orders where id = ${spoke}`;
+check('a call that ran is still an attempt', attempts[0].session_starts === 1, attempts[0]);
+check('and the window runs from it', attempts[0].first_started_at !== null, attempts[0]);
 
 console.log('the reservation');
 // Two requests arriving together must not both buy a session on one order.

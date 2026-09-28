@@ -9,6 +9,7 @@ import Retell from 'retell-sdk';
 import {
   abandonCall,
   ensureSchema,
+  reconcileStarts,
   findByClaimTokenHash,
   secondsSpent,
   sql,
@@ -48,7 +49,7 @@ export default handle('POST', async (req, res) => {
     throw new HttpError(429, 'Too many attempts to start a session from here. Try later.');
   }
 
-  const order = await findByClaimTokenHash(keyedHash(token));
+  let order = await findByClaimTokenHash(keyedHash(token));
   if (!order) throw new HttpError(404, 'No order matches this link.');
 
   // The page telling us the session never connected. Its own minutes are what this protects:
@@ -63,6 +64,12 @@ export default handle('POST', async (req, res) => {
     await sql()`update orders set session_starts = greatest(session_starts - 1, 0) where id = ${order.id}`;
     return send(res, 200, { closed });
   }
+
+  // Before anything is decided about this order, count its attempts back from the calls that
+  // exist. A press that connected nobody to anything is not one of the few a dropped session
+  // is allowed, and without this an order can be closed having never had a conversation.
+  await reconcileStarts(order.id, UNREPORTED_AFTER_SECONDS);
+  order = await findByClaimTokenHash(keyedHash(token));
 
   const status = describeStatus(order);
   if (status === 'pending') {
