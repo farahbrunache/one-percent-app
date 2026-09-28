@@ -95,11 +95,27 @@ export async function route(req, res) {
   res.end(JSON.stringify({ error: `There is nothing at ${pathname}.` }));
 }
 
+// One line per request, in the log the hosting dashboard shows.
+//
+// Without it a request that arrives and is answered leaves no trace, so there is no way to
+// tell a caller that never reached here from one that reached here and was refused. That
+// question came up the first time an outside service reported a 404 against an address this
+// server answers, and it could not be answered from anything already recorded.
+//
+// The path only, never the query string: a claim link carries an order's reference and a desk
+// address carries a person's id, and neither belongs in a log a hosting dashboard keeps. No
+// headers and no body either, for the same reason — the body of a voice delivery is somebody's
+// half hour.
+function log(req, res, pathname) {
+  res.on('finish', () => console.log(`[one-percent] ${req.method} ${pathname} ${res.statusCode}`));
+}
+
 // Imported by the tests, which call route directly. Only a real start listens.
 if (process.env.NODE_ENV !== 'test') {
   const port = Number(process.env.PORT) || 3000;
   http
     .createServer((req, res) => {
+      log(req, res, new URL(req.url, 'https://placeholder.invalid').pathname);
       route(req, res).catch((error) => {
         console.error('[one-percent]', error);
         if (res.writableEnded) return;
