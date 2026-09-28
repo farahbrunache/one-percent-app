@@ -192,6 +192,25 @@ waiting on an answer.
 One-way feedback on what the sheet was worth is a different thing and is allowed: it goes one
 direction, it reaches no inbox, and it cannot be replied to. Build it that way or not at all.
 
+## Decision, never assessment
+
+The word for go-or-no-go is a decision. Not an assessment, not a score, not a rating, not a
+verdict, and not a review.
+
+An assessment sounds like a score, and a score sounds like people are being ranked. Nobody
+here is ranked. Everybody who calls gets written to; what differs is whether the
+conversation opens afterwards.
+
+This is a rule about the code as well as the screens, and it is the code half that matters,
+because a caller never sees a column name. The way that word would reach somebody is a
+person writing a new screen, seeing `assessment` on the row in front of them, and typing it
+into a heading. The column is `decision`, the endpoint is `decide`, and there is nothing
+nearby to copy the old word from.
+
+One place keeps it: a `case_events` row written before the rename still has the kind
+`assessed`, and the label table maps it to "Decided" so an old line on the trail still reads.
+Nothing writes it any more.
+
 ## One server, not functions
 
 `server.js` holds the routing table: which address serves which page, which serves which
