@@ -15,8 +15,6 @@
   <p class="eyebrow">One Percent</p>
   <h1 id="head">Sign in</h1>
 
-  <div id="starting"><p class="meta">Checking whether you are signed in.</p></div>
-
   <div id="out" hidden>
     <p class="lede">
       Sign in with Skills Economy to reach your own sessions. Everything before that — paying,
@@ -77,7 +75,6 @@
 </main>
 
 <script type="module">
-  const starting = document.getElementById('starting');
   const out = document.getElementById('out');
   const inside = document.getElementById('in');
   const rows = document.getElementById('rows');
@@ -218,13 +215,11 @@
 
   try {
     const data = await call('/api/client?action=mine');
-    starting.hidden = true;
     inside.hidden = false;
     render(data);
   } catch {
     // Any failure here means not signed in as far as this page is concerned. There is
     // nothing behind it to protect, so there is nothing to explain either.
-    starting.hidden = true;
     out.hidden = false;
   }
 </script>

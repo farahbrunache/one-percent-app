@@ -85,6 +85,25 @@ afterwards.
 The phone-width and dark-only rules above hold over any of this. Where the reference and one
 of them disagree, the rule wins.
 
+## No loading screens
+
+Nothing on any screen says it is checking, reading, or loading. A screen is blank for the
+moment it takes, then it is the page.
+
+A line saying "checking who you are" is not information. It is there for a fraction of a
+second, it tells somebody nothing they can act on, and it is one more thing to build,
+translate and keep true when the thing underneath it changes.
+
+What does get said is a failure. A request that does not come back says what failed and
+what to do about it, in the place the content would have been. That is the rule in
+`137-verbose-error-handling` terms: silence while it works, words when it breaks.
+
+This is not a licence to leave somebody staring at nothing after they press something. A
+control that starts work disables itself while the work runs, and says what it is doing on
+the control itself where the wait is real and long — a call starting, a draft coming back
+from a cold worker. That is a button reporting on itself, not a screen standing in for the
+page.
+
 ## Dark only
 
 One theme. No light theme, no `prefers-color-scheme` branch, no switch. A second theme is a
