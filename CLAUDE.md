@@ -58,18 +58,23 @@ Two surfaces, two answers.
 The sales page is settled. Its design stays as it is and is not redesigned, restyled or
 reorganized. A change there is copy or a fix, never a new look.
 
-The screens behind the sign-in follow the Skills Economy app rather than the sales page. That
-is the design the owner wants for a signed-in screen, and it is the one they have already
-approved once, on their own product.
+The screens behind the sign-in follow the `design/ops-command-center` branch of this
+repository. That branch is a design tool's mockup of the operator desk — React, Tailwind and
+a component library, none of which this app uses — and it is the design the owner wants. It
+is not a source of code and is never merged into the trunk; it is read, and the look is
+rebuilt in the plain HTML and hand-written CSS this app is made of.
 
-Follow it, never copy it. It is a reference to read and reason from, not a file to paste in,
-and three things do not travel with it:
+Pull the branch and read the latest of it before building. It is worked on separately and
+what is on it now is not what was on it last time.
 
-- Copy that does not make sense here. It was written for a free community product with
-  plugins, members and a directory. This has one caller, one call and one sheet. Rewrite it
-  for what this screen actually does, or leave the screen's own words alone.
-- A feature that is not in this product. A control that appears because it was in the
-  reference is a feature nobody asked for, and it ships looking like a decision somebody made.
+Follow it, never copy it. Three things do not travel with it:
+
+- Copy that does not make sense. A mockup is filled with invented names, invented figures and
+  a product name that is not ours, because it has to show something. Write what this screen
+  actually says, or leave the screen's own words alone.
+- A feature this product does not have. The mockup shows controls nobody has built or asked
+  for. One that gets built because it was in the picture ships looking like a decision
+  somebody made.
 - Anything that would overwrite copy or layout already shipped here. Be additive and
   surgical: change what the task needs and leave the rest as it ships.
 
