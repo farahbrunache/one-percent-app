@@ -14,7 +14,7 @@ import {
   TrustLine,
 } from './_shared/Ui';
 
-type ClaimState = 'order' | 'unmatched' | 'matched' | 'running' | 'ended' | 'failed';
+type ClaimState = 'order' | 'unmatched' | 'matched' | 'running' | 'ended' | 'failed' | 'empty' | 'failed-record';
 
 const states: { value: ClaimState; label: string }[] = [
   { value: 'order', label: 'order' },
@@ -23,6 +23,8 @@ const states: { value: ClaimState; label: string }[] = [
   { value: 'running', label: 'running' },
   { value: 'ended', label: 'ended' },
   { value: 'failed', label: 'failed start' },
+  { value: 'empty', label: 'no session' },
+  { value: 'failed-record', label: 'record failed' },
 ];
 
 export function SessionClaim() {
@@ -107,6 +109,24 @@ export function SessionClaim() {
           </Card>
           <PrimaryButton tone="coral" onClick={() => setState('matched')} className="w-full"><Mic size={14} />Try microphone access again</PrimaryButton>
           <button onClick={() => setState('order')} className="w-full py-2 text-[9px] font-bold text-[#80978e] hover:text-[#ddb077]">Read the order</button>
+        </div>
+      )}
+
+      {state === 'empty' && (
+        <div className="fade-in space-y-3">
+          <SectionLabel icon={XCircle}>no session found</SectionLabel>
+          <AlertBox>No paid session matches this reference code. Check the code on the purchase handoff, then open the claim link again. If the code is correct, use the recovery route on the purchase screen.</AlertBox>
+          <Card><CodeLine code="H8TF7-AFJYL" /></Card>
+          <PrimaryButton tone="gold" onClick={() => setState('order')} className="w-full"><Clock3 size={14} />Read the order details</PrimaryButton>
+        </div>
+      )}
+
+      {state === 'failed-record' && (
+        <div className="fade-in space-y-3">
+          <SectionLabel icon={XCircle}>call record unavailable</SectionLabel>
+          <AlertBox>The call ended, but its record did not come back. The paid session remains attached to this reference. Try the call again from this page.</AlertBox>
+          <Card tone="gold"><div className="flex items-center justify-between"><span className="text-[10px] text-[#8fa59c]">reference</span><StatusPill tone="gold">paid</StatusPill></div><div className="mt-3"><CodeLine code="H8TF7-AFJYL" /></div></Card>
+          <PrimaryButton tone="coral" onClick={() => setState('matched')} className="w-full"><PhoneCall size={14} />Try the call again</PrimaryButton>
         </div>
       )}
 

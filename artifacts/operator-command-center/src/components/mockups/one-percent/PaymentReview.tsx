@@ -13,7 +13,7 @@ import {
   TrustLine,
 } from './_shared/Ui';
 
-type PaymentState = 'waiting' | 'confirm' | 'decline' | 'search' | 'confirmed';
+type PaymentState = 'waiting' | 'confirm' | 'decline' | 'search' | 'confirmed' | 'empty' | 'failed';
 
 const states: { value: PaymentState; label: string }[] = [
   { value: 'waiting', label: 'waiting' },
@@ -21,6 +21,8 @@ const states: { value: PaymentState; label: string }[] = [
   { value: 'decline', label: 'decline one' },
   { value: 'search', label: 'find reference' },
   { value: 'confirmed', label: 'confirmed' },
+  { value: 'empty', label: 'nothing waiting' },
+  { value: 'failed', label: 'save failed' },
 ];
 
 export function PaymentReview() {
@@ -81,6 +83,26 @@ export function PaymentReview() {
           <Field label="Reference code" value={query} onChange={setQuery} placeholder="H8TF7-AFJYL" />
           <PrimaryButton tone="coral" onClick={() => setResult(query || 'H8TF7-AFJYL')} disabled={!query.trim()} className="w-full"><Search size={14} />Find payment</PrimaryButton>
           {result && <Card tone="sage"><div className="flex items-center justify-between"><div><div className="mono text-[10px] font-bold tracking-[0.08em] text-[#e0c18c]">{result}</div><div className="mt-2 text-[10px] text-[#9bb7a7]">Wise · confirmed 16 Oct · 08:43</div></div><StatusPill tone="sage">confirmed</StatusPill></div><div className="mt-3 flex items-center justify-between border-t border-[#385848] pt-3"><span className="text-[10px] text-[#8fae9d]">session value</span><span className="serif text-[24px] text-[#b9dec9]">$7</span></div></Card>}
+        </div>
+      )}
+
+      {state === 'empty' && (
+        <div className="fade-in space-y-3">
+          <SectionLabel icon={ClipboardCheck}>nothing waiting to confirm</SectionLabel>
+          <Card tone="sage">
+            <div className="flex items-center gap-2 text-[11px] font-bold text-[#b6d9c4]"><CheckCircle2 size={15} />The waiting list is clear</div>
+            <p className="mt-2 text-[10px] leading-[1.45] text-[#a8c6b6]">Confirmed money remains in history. A new item appears here only after a payment arrives.</p>
+          </Card>
+          <PrimaryButton tone="quiet" onClick={() => setState('search')} className="w-full"><Search size={14} />Find a reference</PrimaryButton>
+        </div>
+      )}
+
+      {state === 'failed' && (
+        <div className="fade-in space-y-3">
+          <SectionLabel icon={XCircle}>confirmation could not be saved</SectionLabel>
+          <AlertBox>The payment state did not save. No session was created and the waiting item is still available to review.</AlertBox>
+          <Card><div className="flex items-center justify-between"><div><div className="mono text-[10px] font-bold tracking-[0.08em] text-[#e0c18c]">H8TF7-AFJYL</div><div className="mt-2 text-[10px] text-[#9bb7a7]">Wise · arrived 08:42</div></div><div className="serif text-[28px] text-[#e3c18a]">$7</div></div></Card>
+          <PrimaryButton tone="coral" onClick={() => setState('confirm')} className="w-full"><Check size={14} />Try confirmation again</PrimaryButton>
         </div>
       )}
 

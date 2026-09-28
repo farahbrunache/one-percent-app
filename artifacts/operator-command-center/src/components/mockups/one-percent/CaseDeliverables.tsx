@@ -13,7 +13,7 @@ import {
   TrustLine,
 } from './_shared/Ui';
 
-type CaseState = 'worklist' | 'sheet' | 'quote' | 'introductions' | 'end' | 'funnel' | 'calls' | 'script';
+type CaseState = 'worklist' | 'sheet' | 'quote' | 'introductions' | 'end' | 'funnel' | 'calls' | 'script' | 'empty' | 'failed';
 
 const states: { value: CaseState; label: string }[] = [
   { value: 'worklist', label: 'owed' },
@@ -24,6 +24,8 @@ const states: { value: CaseState; label: string }[] = [
   { value: 'funnel', label: 'progress' },
   { value: 'calls', label: 'call records' },
   { value: 'script', label: 'export script' },
+  { value: 'empty', label: 'nothing owed' },
+  { value: 'failed', label: 'save failed' },
 ];
 
 export function CaseDeliverables() {
@@ -56,6 +58,17 @@ export function CaseDeliverables() {
             </div>
           ))}
           <Card tone="gold"><div className="flex gap-2 text-[10px] leading-[1.45] text-[#c7b58e]"><History size={14} className="mt-0.5 shrink-0" />Every change below writes one case-history fact. The list is work, not decoration.</div></Card>
+        </div>
+      )}
+
+      {state === 'empty' && (
+        <div className="fade-in space-y-3">
+          <SectionLabel icon={ListChecks}>nothing is owed</SectionLabel>
+          <Card tone="sage">
+            <div className="flex items-center gap-2 text-[11px] font-bold text-[#b6d9c4]"><Check size={15} />The case worklist is complete</div>
+            <p className="mt-2 text-[10px] leading-[1.45] text-[#a8c6b6]">The call record is kept, the decision is recorded, and the sheet is written. Later quotes and outcomes remain available below.</p>
+          </Card>
+          <PrimaryButton tone="quiet" onClick={() => setState('sheet')} className="w-full"><FileEdit size={14} />Read the sheet</PrimaryButton>
         </div>
       )}
 
@@ -147,6 +160,15 @@ export function CaseDeliverables() {
           </Card>
           <PrimaryButton tone="gold" onClick={() => setSaved(true)} className="w-full"><ArrowDownToLine size={14} />{saved ? 'Script export prepared' : 'Export call script'}</PrimaryButton>
           <AlertBox tone="gold">The export is a copy of the script the voice agent runs. It does not expose call records.</AlertBox>
+        </div>
+      )}
+
+      {state === 'failed' && (
+        <div className="fade-in space-y-3">
+          <SectionLabel icon={History}>change could not be saved</SectionLabel>
+          <AlertBox>The case record did not save. The draft remains visible and no history fact was added.</AlertBox>
+          <Card tone="gold"><div className="flex items-center justify-between"><span className="text-[10px] text-[#8fa59c]">record</span><span className="mono text-[10px] font-bold tracking-[0.08em] text-[#e0c18c]">H8TF7-AFJYL</span></div><div className="mt-3 text-[10px] leading-[1.45] text-[#c7b58e]">Retry the same action before leaving this record.</div></Card>
+          <PrimaryButton tone="coral" onClick={() => setState('sheet')} className="w-full"><FileEdit size={14} />Return to the draft</PrimaryButton>
         </div>
       )}
     </PhoneShell>

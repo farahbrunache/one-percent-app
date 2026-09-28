@@ -14,7 +14,7 @@ import {
   TrustLine,
 } from './_shared/Ui';
 
-type AccountState = 'signed-out' | 'sign-in' | 'no-session' | 'library' | 'sheet' | 'link';
+type AccountState = 'signed-out' | 'sign-in' | 'no-session' | 'library' | 'sheet' | 'link' | 'failed';
 
 const states: { value: AccountState; label: string }[] = [
   { value: 'signed-out', label: 'signed out' },
@@ -23,6 +23,7 @@ const states: { value: AccountState; label: string }[] = [
   { value: 'library', label: 'your sessions' },
   { value: 'sheet', label: 'read sheet' },
   { value: 'link', label: 'paste claim link' },
+  { value: 'failed', label: 'link failed' },
 ];
 
 export function AccountLibrary() {
@@ -117,6 +118,16 @@ export function AccountLibrary() {
           <Field label="Claim link" value={claimLink} onChange={setClaimLink} placeholder="onepercent.co/s/H8TF7-AFJYL" />
           <PrimaryButton tone="coral" onClick={() => setState('library')} disabled={!claimLink.trim()} className="w-full"><Link2 size={14} />Link session</PrimaryButton>
           <Card><div className="flex gap-2 text-[10px] leading-[1.45] text-[#9fb5ab]"><Search size={14} className="mt-0.5 shrink-0 text-[#d7b57f]" />The reference code stays usable even after linking.</div></Card>
+        </div>
+      )}
+
+      {state === 'failed' && (
+        <div className="fade-in space-y-3">
+          <SectionLabel icon={Link2}>claim link could not be linked</SectionLabel>
+          <AlertBox>The link does not match a paid session. Check the full claim link, including the reference code, and try again. The purchase is not changed.</AlertBox>
+          <Field label="Claim link" value={claimLink} onChange={setClaimLink} placeholder="onepercent.co/s/H8TF7-AFJYL" />
+          <PrimaryButton tone="coral" onClick={() => setState('library')} disabled={!claimLink.trim()} className="w-full"><Link2 size={14} />Try linking again</PrimaryButton>
+          <button onClick={() => setState('no-session')} className="w-full py-2 text-[9px] font-bold text-[#80978e] hover:text-[#ddb077]">Leave the account unchanged</button>
         </div>
       )}
     </PhoneShell>

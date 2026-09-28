@@ -4,6 +4,7 @@ import {
   BackLabel,
   Card,
   CodeLine,
+  AlertBox,
   Field,
   PhoneShell,
   PreviewStates,
@@ -13,7 +14,7 @@ import {
   TrustLine,
 } from './_shared/Ui';
 
-type PayState = 'route' | 'wise' | 'gift' | 'handed' | 'recover';
+type PayState = 'route' | 'wise' | 'gift' | 'handed' | 'recover' | 'empty' | 'failed';
 
 const states: { value: PayState; label: string }[] = [
   { value: 'route', label: 'choose route' },
@@ -21,6 +22,8 @@ const states: { value: PayState; label: string }[] = [
   { value: 'gift', label: 'gift card' },
   { value: 'handed', label: 'claim link' },
   { value: 'recover', label: 'recover' },
+  { value: 'empty', label: 'no route' },
+  { value: 'failed', label: 'payment failed' },
 ];
 
 export function PaySession() {
@@ -122,6 +125,27 @@ export function PaySession() {
           <Field label="Reference or gift card code" value={reference} onChange={setReference} placeholder="H8TF7-AFJYL" />
           <PrimaryButton tone="coral" onClick={() => { setState('handed'); setMessage('Matching claim link found'); }} disabled={!reference.trim()} className="w-full"><Search size={14} />Find claim link</PrimaryButton>
           <Card><div className="flex gap-2 text-[10px] leading-[1.45] text-[#a6bbb3]"><KeyRound size={14} className="mt-0.5 shrink-0 text-[#d7b57f]" />No account or contact address is required to recover the purchase.</div></Card>
+        </div>
+      )}
+
+      {state === 'empty' && (
+        <div className="fade-in space-y-3">
+          <SectionLabel icon={WalletCards}>no payment route available</SectionLabel>
+          <Card tone="gold">
+            <div className="text-[12px] font-bold text-[#f0ddb0]">There is no open route for this session.</div>
+            <p className="mt-2 text-[10px] leading-[1.45] text-[#bca982]">The purchase cannot continue until Wise or a valid gift card route is available. No money has been taken.</p>
+          </Card>
+          <PrimaryButton tone="gold" onClick={() => setState('route')} className="w-full"><WalletCards size={14} />Show payment routes</PrimaryButton>
+        </div>
+      )}
+
+      {state === 'failed' && (
+        <div className="fade-in space-y-3">
+          <SectionLabel icon={Search}>payment could not be recorded</SectionLabel>
+          <AlertBox>The payment check did not complete. Keep the reference or gift card code, then try the same route again. Do not send a second Wise transfer until the first result is clear.</AlertBox>
+          <Card><div className="flex items-center justify-between text-[10px] text-[#9fb5ab]"><span>session value</span><span className="serif text-[24px] text-[#e3c18a]">$7</span></div></Card>
+          <PrimaryButton tone="coral" onClick={() => setState('route')} className="w-full"><Search size={14} />Try payment again</PrimaryButton>
+          <button onClick={() => setState('recover')} className="w-full py-2 text-[9px] font-bold text-[#80978e] hover:text-[#ddb077]">Recover with a reference</button>
         </div>
       )}
     </PhoneShell>
