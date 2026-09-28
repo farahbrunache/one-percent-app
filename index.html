@@ -44,6 +44,20 @@
     <div id="state"></div>
     <div id="rows" class="rows" aria-live="polite"></div>
 
+    <section id="talk" hidden>
+      <h3>Talk to me</h3>
+      <p class="meta" id="talknote"></p>
+      <div id="thread" class="rows" aria-live="polite"></div>
+      <form class="fields" id="sendform" novalidate>
+        <div class="field">
+          <label for="body">Write something</label>
+          <textarea id="body" rows="4" maxlength="4000"></textarea>
+        </div>
+        <div class="actions"><button type="submit" class="quiet">Send</button></div>
+      </form>
+      <div id="sendmsg" hidden></div>
+    </section>
+
     <section id="linker" hidden>
       <h3>Link the session you paid for</h3>
       <p>
@@ -117,8 +131,8 @@
     if (data.approved) {
       state.append(el('p', 'You are a client.', 'lede'));
       state.append(el('p',
-        'The chat is not built yet. When it is, it opens here, and nothing you have to do '
-        + 'will change in the meantime.', 'meta'));
+        'Everything after the call happens in writing, below. A call is what you bought to '
+        + 'get here rather than how you are reached afterwards.', 'meta'));
     } else {
       state.append(el('p', 'Your session is linked to this account.', 'lede'));
       state.append(el('p',
@@ -140,7 +154,60 @@
       }
       rows.append(row);
     }
+
+    document.getElementById('talk').hidden = false;
+    document.getElementById('talknote').textContent = data.approved
+      ? 'Written replies, whenever either of us gets to them.'
+      : 'You can write before the call has been read. It will be read by a person, so there '
+        + 'is no wrong time to say something.';
+    loadThread();
   }
+
+  function renderThread(messages) {
+    const list = document.getElementById('thread');
+    list.textContent = '';
+    if (!messages.length) {
+      list.append(el('p', 'Nothing said yet. You can go first.', 'meta'));
+      return;
+    }
+    for (const message of messages) {
+      const row = el('div', null, message.author === 'client' ? 'row said us' : 'row said them');
+      row.append(el('div', message.author === 'client' ? 'You' : 'Farah', 'label'));
+      row.append(el('div', message.body, null));
+      row.append(el('div', when(message.at), 'meta'));
+      list.append(row);
+    }
+  }
+
+  async function loadThread() {
+    try {
+      const data = await call('/api/client?action=thread');
+      renderThread(data.messages);
+    } catch (error) {
+      document.getElementById('thread').textContent = '';
+      document.getElementById('thread').append(el('p', error.message, 'meta'));
+    }
+  }
+
+  document.getElementById('sendform').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const field = document.getElementById('body');
+    const box = document.getElementById('sendmsg');
+    box.hidden = true;
+    try {
+      const data = await call('/api/client?action=send', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ body: field.value }),
+      });
+      field.value = '';
+      renderThread(data.messages);
+    } catch (error) {
+      box.hidden = false;
+      box.className = 'msg bad';
+      box.textContent = error.message;
+    }
+  });
 
   document.getElementById('linkform').addEventListener('submit', async (event) => {
     event.preventDefault();

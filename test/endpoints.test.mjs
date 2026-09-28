@@ -239,6 +239,10 @@ r = await run(client, 'GET', '/api/client?action=mine');
 check('refuses to say anything without a session', r.statusCode === 401, r.payload);
 r = await run(client, 'POST', '/api/client?action=link', { t: 'x' });
 check('refuses to link without a session', r.statusCode === 401, r.payload);
+r = await run(client, 'GET', '/api/client?action=thread');
+check('the thread refuses without a session', r.statusCode === 401, r.payload);
+r = await run(client, 'POST', '/api/client?action=send', { body: 'x' });
+check('sending refuses without a session', r.statusCode === 401, r.payload);
 r = await run(client, 'POST', '/api/client?action=nonsense', {});
 check('an unknown client action is refused', r.statusCode === 400, r.payload);
 r = await run(client, 'DELETE', '/api/client');
@@ -254,6 +258,8 @@ r = await run(desk, 'POST', '/api/desk?action=assess', { id: 1, assessment: 'go'
 check('a decision refuses without a session', r.statusCode === 401, r.payload);
 r = await run(desk, 'POST', '/api/desk?action=milestone-record', { id: 1, milestoneId: 1, status: 'worked' });
 check('recording an outcome refuses without a session', r.statusCode === 401, r.payload);
+r = await run(desk, 'POST', '/api/desk?action=reply', { id: 1, body: 'x' });
+check('replying refuses without a session', r.statusCode === 401, r.payload);
 r = await run(desk, 'GET', '/api/desk?action=nonsense');
 check('an unknown desk action is refused', r.statusCode === 400, r.payload);
 check('and the refusal names the ones that exist', /queue/.test(r.payload?.error || ''), r.payload);
@@ -269,9 +275,12 @@ check('a milestone can be recorded as stalled or ghosted',
 check('an invented status is refused', !vocab.isMilestoneStatus('abandoned'));
 check('the decision is go or no-go and nothing else',
   vocab.isAssessment('go') && vocab.isAssessment('no-go') && !vocab.isAssessment('maybe'));
-check('the queues are the three that exist',
-  vocab.isQueueState('waiting') && vocab.isQueueState('active') && vocab.isQueueState('closed')
-    && !vocab.isQueueState('all'));
+check('the queues are the four that exist',
+  vocab.isQueueState('waiting') && vocab.isQueueState('replies') && vocab.isQueueState('active')
+    && vocab.isQueueState('closed') && !vocab.isQueueState('all'));
+check('a message has one of two authors',
+  vocab.isMessageAuthor('operator') && vocab.isMessageAuthor('client')
+    && !vocab.isMessageAuthor('system'));
 
 console.log('the transcript coming back');
 const retell = (await import('../api/retell.js')).default;

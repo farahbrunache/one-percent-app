@@ -59,6 +59,17 @@
     <p class="meta">Two paths, neither above the other.</p>
     <div id="plan"></div>
 
+    <h2>The conversation</h2>
+    <p class="meta" id="threadnote"></p>
+    <div id="thread" class="rows"></div>
+    <form class="fields" id="reply" hidden novalidate>
+      <div class="field">
+        <label for="replybody">Write back</label>
+        <textarea id="replybody" rows="4" maxlength="4000"></textarea>
+      </div>
+      <div class="actions"><button type="submit" class="quiet">Send</button></div>
+    </form>
+
     <h2>Milestones</h2>
     <p class="meta">A stalled step is something that happened, not a verdict on anybody.</p>
     <div id="steps" class="rows"></div>
@@ -85,7 +96,8 @@
 
 <script type="module">
   const STATES = [
-    ['waiting', 'Waiting on you'],
+    ['waiting', 'New calls'],
+    ['replies', 'Replies'],
     ['active', 'Working'],
     ['closed', 'Closed'],
   ];
@@ -180,6 +192,7 @@
       const row = el('div', null, 'row');
       row.append(link(person.reference || `Order ${person.id}`, `/desk?id=${person.id}`, 'code'));
       row.append(el('div', `${when(person.calledAt)} · ${minutes(person.seconds)}`, 'meta'));
+      if (person.awaitingReply) row.append(el('div', 'Wrote to you and is waiting', 'flag'));
       if (person.planLabel) row.append(el('div', person.planLabel, 'meta'));
       if (!person.linked) row.append(el('div', 'No account linked yet', 'meta'));
       list.append(row);
@@ -315,6 +328,45 @@
     }
   }
 
+  function renderThread(person) {
+    const list = document.getElementById('thread');
+    const note = document.getElementById('threadnote');
+    const form = document.getElementById('reply');
+    list.textContent = '';
+
+    if (!person.linked) {
+      note.textContent =
+        'No account is linked to this order yet, so there is nowhere to send a message. ' +
+        'They link it by opening their claim link while signed in.';
+      form.hidden = true;
+      return;
+    }
+    note.textContent = 'This is the channel. A call is what they bought to get here, not how they are reached afterwards.';
+    form.hidden = false;
+
+    if (!person.messages.length) {
+      list.append(el('p', 'Nothing said yet.', 'meta'));
+    }
+    for (const message of person.messages) {
+      const row = el('div', null, message.author === 'client' ? 'row said them' : 'row said us');
+      row.append(el('div', message.author === 'client' ? 'Them' : 'You', 'label'));
+      row.append(el('div', message.body, null));
+      row.append(el('div', when(message.at), 'meta'));
+      list.append(row);
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const input = document.getElementById('replybody');
+      try {
+        await post('reply', { id: person.id, body: input.value });
+        window.location.reload();
+      } catch (error) {
+        msg('rmsg', error.message, 'bad');
+      }
+    });
+  }
+
   function renderEvents(person) {
     const list = document.getElementById('events');
     list.textContent = '';
@@ -355,6 +407,7 @@
       document.getElementById('tdetails').hidden = true;
     }
     renderAssess(person);
+    renderThread(person);
     renderPlan(person);
     renderSteps(person);
     renderEvents(person);
