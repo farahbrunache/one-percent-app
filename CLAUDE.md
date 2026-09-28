@@ -51,6 +51,54 @@ the frame on a desktop — so size in fixed units.
 Check a change by rendering at 390 pixels rather than assuming. Playwright with the
 preinstalled Chromium does it; the horizontal overflow figure should always be zero.
 
+## Where the design comes from
+
+Two surfaces, two answers.
+
+The sales page is settled. Its design stays as it is and is not redesigned, restyled or
+reorganized. A change there is copy or a fix, never a new look.
+
+The screens behind the sign-in follow the Skills Economy app rather than the sales page. That
+is the design the owner wants for a signed-in screen, and it is the one they have already
+approved once, on their own product.
+
+Follow it, never copy it. It is a reference to read and reason from, not a file to paste in,
+and three things do not travel with it:
+
+- Copy that does not make sense here. It was written for a free community product with
+  plugins, members and a directory. This has one caller, one call and one sheet. Rewrite it
+  for what this screen actually does, or leave the screen's own words alone.
+- A feature that is not in this product. A control that appears because it was in the
+  reference is a feature nobody asked for, and it ships looking like a decision somebody made.
+- Anything that would overwrite copy or layout already shipped here. Be additive and
+  surgical: change what the task needs and leave the rest as it ships.
+
+**A new feature is the owner's call, every time.** If following the design would add a
+capability this product does not have, stop and ask. Do not build it and offer to remove it
+afterwards.
+
+The phone-width and dark-only rules above hold over any of this. Where the reference and one
+of them disagree, the rule wins.
+
+## No loading screens
+
+Nothing on any screen says it is checking, reading, or loading. A screen is blank for the
+moment it takes, then it is the page.
+
+A line saying "checking who you are" is not information. It is there for a fraction of a
+second, it tells somebody nothing they can act on, and it is one more thing to build,
+translate and keep true when the thing underneath it changes.
+
+What does get said is a failure. A request that does not come back says what failed and
+what to do about it, in the place the content would have been. That is the rule in
+`137-verbose-error-handling` terms: silence while it works, words when it breaks.
+
+This is not a licence to leave somebody staring at nothing after they press something. A
+control that starts work disables itself while the work runs, and says what it is doing on
+the control itself where the wait is real and long — a call starting, a draft coming back
+from a cold worker. That is a button reporting on itself, not a screen standing in for the
+page.
+
 ## Dark only
 
 One theme. No light theme, no `prefers-color-scheme` branch, no switch. A second theme is a

@@ -21,8 +21,6 @@
     <div id="lmsg" hidden></div>
   </div>
 
-  <div id="starting"><p class="meta">Checking who you are.</p></div>
-
   <div id="work" hidden>
     <div id="counts" class="status-line"></div>
     <div class="actions">
@@ -64,7 +62,6 @@
   };
 
   const signin = document.getElementById('signin');
-  const starting = document.getElementById('starting');
   const work = document.getElementById('work');
   const rows = document.getElementById('rows');
   const counts = document.getElementById('counts');
@@ -302,7 +299,6 @@
       }
       await loadHistory();
     } catch (error) {
-      starting.hidden = true;
       signin.hidden = false;
       work.hidden = true;
       if (!/^sign in with skills economy first/i.test(error.message)) {
@@ -323,10 +319,9 @@
   if (problem) {
     history.replaceState(null, '', '/payments');
     signin.hidden = false;
-    starting.hidden = true;
     msg('lmsg', problem, 'bad');
   } else {
-    load().finally(() => { starting.hidden = true; });
+    load();
   }
 </script>
 </body>
