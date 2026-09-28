@@ -19,7 +19,7 @@ const PAGES = {
   '/': ['index.html', 'text/html; charset=utf-8'],
   '/buy': ['buy.html', 'text/html; charset=utf-8'],
   '/claim': ['claim.html', 'text/html; charset=utf-8'],
-  '/admin': ['admin.html', 'text/html; charset=utf-8'],
+  '/payments': ['payments.html', 'text/html; charset=utf-8'],
   '/desk': ['desk.html', 'text/html; charset=utf-8'],
   '/style.css': ['style.css', 'text/css; charset=utf-8'],
   '/robots.txt': ['robots.txt', 'text/plain; charset=utf-8'],
@@ -30,7 +30,7 @@ const ENDPOINTS = {
   '/api/status': () => import('./api/status.js'),
   '/api/recover': () => import('./api/recover.js'),
   '/api/call': () => import('./api/call.js'),
-  '/api/admin': () => import('./api/admin.js'),
+  '/api/payments': () => import('./api/payments.js'),
   '/api/desk': () => import('./api/desk.js'),
   '/api/auth': () => import('./api/auth.js'),
   '/api/retell': () => import('./api/retell.js'),
@@ -40,7 +40,7 @@ const ENDPOINTS = {
 // The claim link, the payments screen and the desk must never be held by a browser or
 // anything between it and here: one shows an order's live state, one shows card codes, and
 // the third shows what somebody said in half an hour of their life.
-const NEVER_CACHE = new Set(['/claim', '/admin', '/desk']);
+const NEVER_CACHE = new Set(['/claim', '/payments', '/desk']);
 
 function securityHeaders(res) {
   res.setHeader('x-content-type-options', 'nosniff');
@@ -71,6 +71,15 @@ export async function route(req, res) {
   if (pathname === '/auth/callback') {
     req.url = `/api/auth?action=callback&${url.searchParams.toString()}`;
     pathname = '/api/auth';
+  }
+
+  // The screen is payments and nothing else, so that is what it is called. Anyone holding the
+  // old address is sent on rather than shown nothing; it costs one line and nobody has to be
+  // told about a rename.
+  if (pathname === '/admin') {
+    res.statusCode = 308;
+    res.setHeader('location', '/payments');
+    return res.end('');
   }
 
   // Asking for the file when the address is what is served would give two addresses for one

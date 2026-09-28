@@ -6,12 +6,21 @@
 
 import Retell from 'retell-sdk';
 
-import { ensureSchema, findByClaimTokenHash, secondsSpent, sql, underLimit } from '../lib/db.js';
+import {
+  abandonCall,
+  ensureSchema,
+  findByClaimTokenHash,
+  secondsSpent,
+  sql,
+  underLimit,
+} from '../lib/db.js';
 import { callerKey, keyedHash } from '../lib/crypto.js';
 import {
+  ABANDON_WITHIN_SECONDS,
   ASSUME_FULL_AFTER_SECONDS,
   MAX_SESSION_STARTS,
   SESSION_BUDGET_SECONDS,
+  UNREPORTED_AFTER_SECONDS,
   SESSION_WINDOW_HOURS,
   describeStatus,
 } from '../lib/orders.js';
@@ -42,6 +51,19 @@ export default handle('POST', async (req, res) => {
   const order = await findByClaimTokenHash(keyedHash(token));
   if (!order) throw new HttpError(404, 'No order matches this link.');
 
+  // The page telling us the session never connected. Its own minutes are what this protects:
+  // a call left open counts as the whole budget, so one failure to join would otherwise spend
+  // the order and there would be no way to start another.
+  //
+  // It gives nothing back that was not taken a moment ago — the window is short and a call
+  // with a transcript against it is never closed this way.
+  const action = new URL(req.url, 'https://placeholder.invalid').searchParams.get('action');
+  if (action === 'abandon') {
+    const closed = await abandonCall(order.id, String(body.callId || ''), ABANDON_WITHIN_SECONDS);
+    await sql()`update orders set session_starts = greatest(session_starts - 1, 0) where id = ${order.id}`;
+    return send(res, 200, { closed });
+  }
+
   const status = describeStatus(order);
   if (status === 'pending') {
     throw new HttpError(409, 'This order is still waiting on your payment.');
@@ -65,7 +87,12 @@ export default handle('POST', async (req, res) => {
   // enough ago that it could have run to the hard stop, assume it did: the webhook may simply
   // never have arrived, and a delivery that goes missing must not become free voice time. If it
   // started moments ago it is still in progress, and nobody is on two calls at once.
-  const used = await secondsSpent(order.id, ASSUME_FULL_AFTER_SECONDS, SESSION_BUDGET_SECONDS);
+  const used = await secondsSpent(
+    order.id,
+    ASSUME_FULL_AFTER_SECONDS,
+    SESSION_BUDGET_SECONDS,
+    UNREPORTED_AFTER_SECONDS,
+  );
   if (used >= SESSION_BUDGET_SECONDS) {
     throw new HttpError(
       409,

@@ -52,7 +52,7 @@ const { route } = await import('../server.js');
 const submit = (await import('../api/submit.js')).default;
 const status = (await import('../api/status.js')).default;
 const recover = (await import('../api/recover.js')).default;
-const admin = (await import('../api/admin.js')).default;
+const admin = (await import('../api/payments.js')).default;
 const call = (await import('../api/call.js')).default;
 
 console.log('routing');
@@ -70,6 +70,10 @@ check('every response carries the security headers',
     r.headers['referrer-policy'] === 'no-referrer', r.headers);
 r = makeRes();
 await route(makeReq('GET', '/admin'), r);
+check('the old address sends you to the new one',
+  r.statusCode === 308 && r.headers.location === '/payments', r.statusCode);
+r = makeRes();
+await route(makeReq('GET', '/payments'), r);
 check('the payments screen is never cached or indexed',
   r.headers['cache-control'] === 'no-store' &&
     r.headers['x-robots-tag'] === 'noindex, nofollow', r.headers);
@@ -151,15 +155,15 @@ r = await run(recover, 'POST', '/api/recover', { code: 'nope' });
 check('rejects a code that is too short', r.statusCode === 400, r.payload);
 
 console.log('admin');
-r = await run(admin, 'GET', '/api/admin?action=list');
+r = await run(admin, 'GET', '/api/payments?action=list');
 check('list refuses without a session', r.statusCode === 401, r.payload);
-r = await run(admin, 'POST', '/api/admin?action=decide', { id: 1, decision: 'confirm' });
+r = await run(admin, 'POST', '/api/payments?action=decide', { id: 1, decision: 'confirm' });
 check('decide refuses without a session', r.statusCode === 401, r.payload);
-r = await run(admin, 'GET', '/api/admin?action=history');
+r = await run(admin, 'GET', '/api/payments?action=history');
 check('history refuses without a session', r.statusCode === 401, r.payload);
-r = await run(admin, 'POST', '/api/admin?action=nonsense', {});
+r = await run(admin, 'POST', '/api/payments?action=nonsense', {});
 check('an unknown action is refused', r.statusCode === 400, r.payload);
-r = await run(admin, 'DELETE', '/api/admin');
+r = await run(admin, 'DELETE', '/api/payments');
 check('rejects an unsupported method', r.statusCode === 405, r.payload);
 
 console.log('signing in with Skills Economy');
@@ -216,7 +220,7 @@ check('the return address and state always travel',
     url.searchParams.get('scope') === 'openid profile', url.search);
 delete process.env.AUTH_CLIENT_SECRET;
 
-r = await run(admin, 'GET', '/api/admin?action=list', undefined,
+r = await run(admin, 'GET', '/api/payments?action=list', undefined,
   { cookie: `op_session=${encodeURIComponent(signed)}` });
 check('a signed-in account that is not an admin is refused', r.statusCode === 403, r.payload);
 check('and the refusal names the account, so it can be added',
