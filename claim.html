@@ -135,7 +135,7 @@
       statusLine('Status', 'Your session is ready');
 
       lede('This runs in your browser. Your microphone is asked for first, then it counts down '
-        + 'and starts speaking. Thirty minutes, and nothing is asked of you beforehand.');
+        + 'and starts speaking. Up to thirty minutes, and nothing is asked of you beforehand.');
 
       const start = el('p', null, 'cta');
       const button = document.createElement('button');
@@ -151,9 +151,10 @@
       body.append(liveMsg);
 
       note([
-        'It is an automated assistant, not a person. It runs about thirty minutes and it '
+        'It is an automated assistant, not a person. It runs for up to thirty minutes and it '
           + 'works through what you do, what you would charge, who your first customer is, '
-          + 'and one thing to do next.',
+          + 'and one thing to do next. It ends when those are answered, which is often sooner '
+          + 'than the half hour — a short call is a finished one, not a cut-off one.',
         'A person reads everything it takes down.',
         'If it drops, come back to this page and start it again. It opens a few times inside '
           + 'a day, which covers a call that fails without letting the link be passed around.',
