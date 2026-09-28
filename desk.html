@@ -37,8 +37,10 @@
 
     <div class="actions">
       <a class="button quiet-link" href="/payments">Payments</a>
+      <button type="button" class="quiet" id="script">Export the script</button>
       <button type="button" class="quiet" id="logout">Sign out</button>
     </div>
+    <div id="qmsg" hidden></div>
   </div>
 
   <!-- One person. Its own address, so it can be linked, bookmarked and come back to. -->
@@ -184,6 +186,23 @@
   function get(action) {
     return call(`/api/desk?action=${action}`);
   }
+
+  // The script the agent runs lives in the voice service's dashboard and nowhere else. This
+  // puts a copy on the clipboard, to be committed where it can be read, reviewed and recovered.
+  document.getElementById('script')?.addEventListener('click', async () => {
+    const button = document.getElementById('script');
+    button.disabled = true;
+    button.textContent = 'Asking…';
+    try {
+      const exported = await get('agent-script');
+      await navigator.clipboard.writeText(JSON.stringify(exported, null, 2));
+      button.textContent = 'Copied — commit it';
+    } catch (error) {
+      button.textContent = 'Export the script';
+      button.disabled = false;
+      msg('qmsg', error.message, 'bad');
+    }
+  });
 
   function post(action, body) {
     return call(`/api/desk?action=${action}`, {

@@ -353,6 +353,58 @@ async function person(req, res) {
 // key: those are settings and are not writable from a browser at any privilege.
 const MODEL_CHOICE = 'draft.model.slot';
 
+// The script the agent runs, as the voice service holds it.
+//
+// It lives in their dashboard and nowhere else, which means no history, no review, and no copy
+// if the account goes. It is also the product: eight questions in a particular order, with
+// particular wordings, is what somebody pays for. That belongs in a repository.
+//
+// The agent record alone is not the script -- it points at a response engine, and the engine
+// is where the questions live -- so both are fetched and handed over as one document.
+async function agentScript(req, res) {
+  requireAdmin(req);
+
+  const apiKey = process.env.RETELL_SECRET_KEY;
+  const agentId = process.env.RETELL_AGENT_ID;
+  if (!apiKey || !agentId) {
+    throw new HttpError(503, 'RETELL_SECRET_KEY or RETELL_AGENT_ID is not set, so nothing can be asked.');
+  }
+
+  const retell = new Retell({ apiKey });
+  try {
+    const agent = await retell.agent.retrieve(agentId);
+    const engine = agent.response_engine || {};
+
+    // Which one it is decides where the questions are kept.
+    let script = null;
+    if (engine.conversation_flow_id) {
+      script = await retell.conversationFlow.retrieve(engine.conversation_flow_id);
+    } else if (engine.llm_id) {
+      script = await retell.llm.retrieve(engine.llm_id);
+    }
+
+    send(res, 200, {
+      takenAt: new Date().toISOString(),
+      agent,
+      engine: engine.type || null,
+      script,
+      note: script
+        ? null
+        : `The agent names a response engine of type ${engine.type || 'unknown'}, which this ` +
+          'does not know how to read. The agent itself is above; the questions are not.',
+    });
+  } catch (error) {
+    if (error instanceof Retell.APIError) {
+      throw new HttpError(
+        502,
+        `The voice service would not hand over the agent (${error.status}): ` +
+          JSON.stringify(error.error ?? error.message).slice(0, 400),
+      );
+    }
+    throw new HttpError(502, `Could not reach the voice service: ${error.message}`);
+  }
+}
+
 // Everything the voice service holds about one call, as it holds it.
 //
 // What is kept here is the transcript and the summary, because those are what the work runs
