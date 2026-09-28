@@ -61,7 +61,12 @@ async function history(req, res) {
         sql()`
           select id, reference_code, payment_method, card_amount_cents, status, reject_reason,
                  created_at, decided_at, session_starts, first_started_at,
-                 transcript_encrypted is not null as has_transcript, call_seconds
+                 exists (select 1 from calls c
+                          where c.order_id = orders.id
+                            and c.transcript_encrypted is not null) as has_transcript,
+                 (select c.seconds from calls c
+                   where c.order_id = orders.id and c.transcript_encrypted is not null
+                   order by c.ended_at desc nulls last limit 1) as call_seconds
             from orders where reference_code = ${reference}
            order by created_at desc limit ${PER_PAGE} offset ${offset}
         `,
@@ -71,7 +76,12 @@ async function history(req, res) {
         sql()`
           select id, reference_code, payment_method, card_amount_cents, status, reject_reason,
                  created_at, decided_at, session_starts, first_started_at,
-                 transcript_encrypted is not null as has_transcript, call_seconds
+                 exists (select 1 from calls c
+                          where c.order_id = orders.id
+                            and c.transcript_encrypted is not null) as has_transcript,
+                 (select c.seconds from calls c
+                   where c.order_id = orders.id and c.transcript_encrypted is not null
+                   order by c.ended_at desc nulls last limit 1) as call_seconds
             from orders
            order by created_at desc limit ${PER_PAGE} offset ${offset}
         `,

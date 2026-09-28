@@ -4,8 +4,9 @@
 // from: the owner reads a transcript on a phone and starts the next conversation from it, and
 // a session nobody can read is a session that produced nothing.
 //
-// So the transcript is copied here, against the order it was bought with. The reference and
-// the order id travelled out with the call, so nothing has to be matched by hand.
+// So the transcript is copied here, onto the call record opened when the session started. The
+// call's own id is what matches them, and that id was minted by the voice service and written
+// here at the start — so a delivery naming a session this site never started finds nothing.
 //
 // It is encrypted at rest, like the card codes. A transcript is somebody's trade, their rate,
 // their first customer and what is standing in their way.
@@ -39,7 +40,6 @@ function checkSecret(req) {
 // field is looked for in more than one place and nothing is required except the call itself.
 function readCall(payload) {
   const call = payload.call || payload.data || payload;
-  const metadata = call.metadata || {};
   const analysis = call.call_analysis || call.analysis || null;
 
   const startMs = Number(call.start_timestamp) || 0;
@@ -53,8 +53,6 @@ function readCall(payload) {
 
   return {
     id: call.call_id || call.id || null,
-    orderId: Number(metadata.order_id) || null,
-    reference: metadata.reference ? String(metadata.reference) : null,
     transcript: typeof call.transcript === 'string' ? call.transcript : null,
     analysis,
     endedAt: endMs ? new Date(endMs).toISOString() : null,
@@ -75,10 +73,6 @@ export default handle('POST', async (req, res) => {
 
   const call = readCall(payload);
   if (!call.id) throw new HttpError(400, 'That delivery names no call.');
-  if (!call.orderId && !call.reference) {
-    throw new HttpError(400, `Call ${call.id} carries no order, so there is nothing to file it against.`);
-  }
-
   await ensureSchema();
 
   // Retell sends more than one event for a call and the later one carries more, so this
@@ -87,37 +81,27 @@ export default handle('POST', async (req, res) => {
   const transcript = call.transcript ? encrypt(call.transcript) : null;
   const summary = call.analysis ? encrypt(JSON.stringify(call.analysis)) : null;
 
-  // Two statements rather than one with a condition inside it: this driver does not compose
-  // a query out of pieces, and a query built by joining strings is how an injection gets in.
-  // The order has to be expecting this call. api/call.js writes the id it was given when the
-  // session started, so a delivery cannot be aimed at an order it does not belong to — the
-  // caller chooses the order id in the payload, and that is not enough on its own.
-  const rows = call.orderId
-    ? await sql()`
-        update orders set
-          call_id = ${call.id},
-          transcript_encrypted = coalesce(${transcript}, transcript_encrypted),
-          call_summary_encrypted = coalesce(${summary}, call_summary_encrypted),
-          call_ended_at = coalesce(${call.endedAt}, call_ended_at),
-          call_seconds = coalesce(${call.seconds}, call_seconds)
-        where id = ${call.orderId} and call_id = ${call.id}
-        returning id
-      `
-    : await sql()`
-        update orders set
-          call_id = ${call.id},
-          transcript_encrypted = coalesce(${transcript}, transcript_encrypted),
-          call_summary_encrypted = coalesce(${summary}, call_summary_encrypted),
-          call_ended_at = coalesce(${call.endedAt}, call_ended_at),
-          call_seconds = coalesce(${call.seconds}, call_seconds)
-        where reference_code = ${call.reference} and call_id = ${call.id}
-        returning id
-      `;
+  // The row api/call.js opened when the session started is what this fills in. Matching on the
+  // call id alone is enough and is the whole check: that id was minted by the voice service and
+  // written here at start, so a delivery naming an order it does not belong to finds nothing.
+  //
+  // The later event carries more than the earlier one, so this overwrites — but `coalesce`
+  // never writes a null over something already there, because sometimes the earlier event is
+  // the only one with a field in it.
+  const rows = await sql()`
+    update calls set
+      transcript_encrypted = coalesce(${transcript}, transcript_encrypted),
+      summary_encrypted = coalesce(${summary}, summary_encrypted),
+      ended_at = coalesce(${call.endedAt}, ended_at),
+      seconds = coalesce(${call.seconds}, seconds)
+    where call_id = ${call.id}
+    returning id
+  `;
   if (!rows.length) {
     throw new HttpError(
       404,
-      `No order is expecting call ${call.id}. Either it names an order that does not exist, ` +
-        'or that order was never started with this call.',
+      `No session here is expecting call ${call.id}. Either it was never started from this ` +
+        'site, or it was started against an order that no longer exists.',
     );
   }
 

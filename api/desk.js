@@ -70,15 +70,24 @@ async function queue(req, res) {
 
   const [rows, totals] = await Promise.all([
     sql()`
-      select o.id, o.reference_code, o.call_ended_at, o.call_seconds, o.assessment,
+      select o.id, o.reference_code, o.assessment,
              o.assessed_at, o.client_account_id is not null as linked,
              p.path as plan_path,
+             (select c.ended_at from calls c
+               where c.order_id = o.id and c.transcript_encrypted is not null
+               order by c.ended_at desc nulls last limit 1) as called_at,
+             (select c.seconds from calls c
+               where c.order_id = o.id and c.transcript_encrypted is not null
+               order by c.ended_at desc nulls last limit 1) as seconds,
+             (select count(*)::int from calls c
+               where c.order_id = o.id and c.transcript_encrypted is not null) as call_count,
              (select m.author from messages m
                where m.account_id = o.client_account_id
                order by m.created_at desc limit 1) = 'client' as awaiting_reply
         from orders o
         left join plans p on p.order_id = o.id and p.in_force
-       where o.transcript_encrypted is not null
+       where exists (select 1 from calls c
+                      where c.order_id = o.id and c.transcript_encrypted is not null)
          and case ${state}
                when 'waiting' then o.assessment is null
                when 'replies' then o.client_account_id is not null
@@ -88,12 +97,13 @@ async function queue(req, res) {
                when 'active'  then o.assessment = 'go'
                else                o.assessment = 'no-go'
              end
-       order by o.call_ended_at desc nulls last, o.id desc
+       order by o.id desc
        limit ${PER_PAGE} offset ${offset}
     `,
     sql()`
       select count(*)::int as n from orders o
-       where o.transcript_encrypted is not null
+       where exists (select 1 from calls c
+                      where c.order_id = o.id and c.transcript_encrypted is not null)
          and case ${state}
                when 'waiting' then o.assessment is null
                when 'replies' then o.client_account_id is not null
@@ -114,8 +124,9 @@ async function queue(req, res) {
     people: rows.map((r) => ({
       id: r.id,
       reference: r.reference_code,
-      calledAt: r.call_ended_at,
-      seconds: r.call_seconds,
+      calledAt: r.called_at,
+      seconds: r.seconds,
+      callCount: r.call_count,
       assessment: r.assessment,
       assessedAt: r.assessed_at,
       linked: r.linked,
@@ -135,8 +146,7 @@ async function person(req, res) {
   const id = orderId(query(req).get('id'));
 
   const rows = await sql()`
-    select id, reference_code, status, transcript_encrypted, call_summary_encrypted,
-           call_ended_at, call_seconds, assessment, assessed_at,
+    select id, reference_code, status, assessment, assessed_at,
            client_account_id, approved_as_client_at
       from orders where id = ${id}
   `;
@@ -153,6 +163,13 @@ async function person(req, res) {
       `
     : [];
 
+  // Every call against this order, newest first, each with its own transcript. A session that
+  // dropped and was restarted shows as two, which is a fact the owner could not see before.
+  const calls = await sql()`
+    select id, kind, transcript_encrypted, summary_encrypted, started_at, ended_at, seconds
+      from calls where order_id = ${id} order by started_at desc
+  `;
+
   const [plans, events] = await Promise.all([
     sql()`select id, path, in_force, created_at from plans where order_id = ${id} order by created_at desc`,
     sql()`select kind, detail_encrypted, created_at from case_events where order_id = ${id} order by created_at desc limit 100`,
@@ -165,14 +182,14 @@ async function person(req, res) {
       `
     : [];
 
-  let summary = null;
-  if (row.call_summary_encrypted) {
+  // Not always the shape the voice service usually sends. The transcript is the part that
+  // matters and it is right there, so an unreadable summary does not fail the request.
+  function readSummary(value) {
+    if (!value) return null;
     try {
-      summary = JSON.parse(decrypt(row.call_summary_encrypted));
+      return JSON.parse(decrypt(value));
     } catch {
-      // Not the shape the voice service usually sends. The transcript is the part that
-      // matters and it is right here, so this does not fail the request.
-      summary = null;
+      return null;
     }
   }
 
@@ -180,10 +197,15 @@ async function person(req, res) {
     id: row.id,
     reference: row.reference_code,
     status: row.status,
-    transcript: row.transcript_encrypted ? decrypt(row.transcript_encrypted) : null,
-    summary,
-    calledAt: row.call_ended_at,
-    seconds: row.call_seconds,
+    calls: calls.map((c) => ({
+      id: c.id,
+      kind: c.kind,
+      transcript: c.transcript_encrypted ? decrypt(c.transcript_encrypted) : null,
+      summary: readSummary(c.summary_encrypted),
+      startedAt: c.started_at,
+      endedAt: c.ended_at,
+      seconds: c.seconds,
+    })),
     assessment: row.assessment,
     assessedAt: row.assessed_at,
     linked: Boolean(row.client_account_id),

@@ -278,6 +278,8 @@ check('the decision is go or no-go and nothing else',
 check('the queues are the four that exist',
   vocab.isQueueState('waiting') && vocab.isQueueState('replies') && vocab.isQueueState('active')
     && vocab.isQueueState('closed') && !vocab.isQueueState('all'));
+check('a call is intake or a follow-up and nothing else',
+  vocab.isCallKind('intake') && vocab.isCallKind('follow-up') && !vocab.isCallKind('second'));
 check('a message has one of two authors',
   vocab.isMessageAuthor('operator') && vocab.isMessageAuthor('client')
     && !vocab.isMessageAuthor('system'));
@@ -299,14 +301,12 @@ r = await run(retell, 'POST', '/api/retell', { nothing: true },
   { 'x-retell-secret': 'a-webhook-secret-long-enough' });
 check('refuses a delivery that names no call', r.statusCode === 400 &&
   /names no call/.test(r.payload?.error || ''), r.payload);
-r = await run(retell, 'POST', '/api/retell', { call: { call_id: 'c1', metadata: {} } },
-  { 'x-retell-secret': 'a-webhook-secret-long-enough' });
-check('refuses a call that carries no order', r.statusCode === 400 &&
-  /nothing to file it against/.test(r.payload?.error || ''), r.payload);
+// A delivery that names a call this site never started is refused too, but that check is the
+// update finding no row, so it needs a database and is not covered here.
 r = await run(retell, 'GET', '/api/retell');
 check('rejects GET', r.statusCode === 405, r.payload);
 r = await run(retell, 'POST', '/api/retell?k=a-webhook-secret-long-enough',
-  { call: { call_id: 'c1', metadata: { order_id: '1' } } });
+  { call: { call_id: 'c1' } });
 check('the secret is not accepted from the address', r.statusCode === 401, r.payload);
 
 console.log('who the rate limit counts');
