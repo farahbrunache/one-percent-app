@@ -46,6 +46,12 @@ KEYS=(
   RETELL_SECRET_KEY
   RETELL_AGENT_ID
   PAY_WISE
+  DRAFT_MODEL_A_NAME
+  DRAFT_MODEL_A_URL
+  DRAFT_MODEL_A_KEY
+  DRAFT_MODEL_B_NAME
+  DRAFT_MODEL_B_URL
+  DRAFT_MODEL_B_KEY
 )
 
 die() { echo "::error title=Deploy stopped::$*"; exit 1; }

@@ -9,7 +9,7 @@
 // be returned to — never one scroll holding the list and the detail together, which has no
 // way back to where somebody was.
 
-import { ensureSchema, sql } from '../lib/db.js';
+import { ensureSchema, readChoice, sql, underLimit, writeChoice } from '../lib/db.js';
 import { decrypt, encrypt } from '../lib/crypto.js';
 import { requireAdmin } from '../lib/auth.js';
 import {
@@ -26,6 +26,14 @@ import {
   isPlanPath,
   isQueueState,
 } from '../lib/desk.js';
+import {
+  DRAFTS_PER_ORDER,
+  DRAFT_WINDOW_SECONDS,
+  SLOTS,
+  SYSTEM_PROMPT,
+  draft as askForDraft,
+  models,
+} from '../lib/draft.js';
 import { normalizeReference } from '../lib/orders.js';
 import { HttpError, handle, readJson, send } from '../lib/http.js';
 
@@ -334,7 +342,87 @@ async function person(req, res) {
       detail: readDetail(e),
       at: e.created_at,
     })),
+    drafting: { models: models(), chosen: await readChoice(MODEL_CHOICE) },
   });
+}
+
+// The name of the one choice this screen owns. A slot letter, never an address and never a
+// key: those are settings and are not writable from a browser at any privilege.
+const MODEL_CHOICE = 'draft.model.slot';
+
+async function chooseModel(req, res) {
+  requireAdmin(req);
+  await ensureSchema();
+  const body = await readJson(req);
+  const slot = String(body.slot || '').toUpperCase();
+  if (!SLOTS.includes(slot)) {
+    throw new HttpError(400, `The slots are ${SLOTS.join(' and ')}. That was ${slot || 'empty'}.`);
+  }
+  const offered = models().map((m) => m.slot);
+  if (!offered.includes(slot)) {
+    throw new HttpError(
+      409,
+      `Slot ${slot} has no address or no key set, so there is nothing to switch to. A slot is ` +
+        'configured in the secrets store, not here.',
+    );
+  }
+  await writeChoice(MODEL_CHOICE, slot);
+  send(res, 200, { ok: true, chosen: slot });
+}
+
+// Writes a reply into the operator's box. It does not send one. What comes back is read,
+// edited or thrown away, and the operator presses send themselves.
+async function writeDraft(req, res) {
+  requireAdmin(req);
+  await ensureSchema();
+  const body = await readJson(req);
+  const id = orderId(body.id);
+
+  // A draft costs money and the button is one press.
+  if (!(await underLimit('draft', String(id), DRAFTS_PER_ORDER, DRAFT_WINDOW_SECONDS))) {
+    throw new HttpError(
+      429,
+      `That is ${DRAFTS_PER_ORDER} drafts against this order today, which is the limit. Write ` +
+        'this one, or come back tomorrow.',
+    );
+  }
+
+  const rows = await sql()`select client_account_id from orders where id = ${id}`;
+  if (!rows.length) throw new HttpError(404, 'No order with that number.');
+  const account = rows[0].client_account_id;
+  if (!account) {
+    throw new HttpError(409, 'Nobody has linked an account to this order, so there is no thread.');
+  }
+
+  const thread = await sql()`
+    select author, body_encrypted from messages
+      where account_id = ${account}
+      order by created_at desc
+      limit 20
+  `;
+  if (!thread.length) {
+    throw new HttpError(409, 'This thread has nothing in it yet, so there is nothing to answer.');
+  }
+
+  const messages = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    ...thread
+      .reverse()
+      .map((m) => ({
+        role: m.author === 'operator' ? 'assistant' : 'user',
+        content: decrypt(m.body_encrypted),
+      })),
+  ];
+
+  const written = await askForDraft(messages, await readChoice(MODEL_CHOICE));
+
+  await sql()`
+    insert into drafts (order_id, slot, model, prompt_tokens, completion_tokens, seconds)
+    values (${id}, ${written.slot}, ${written.model}, ${written.promptTokens},
+            ${written.completionTokens}, ${written.seconds})
+  `;
+
+  send(res, 200, written);
 }
 
 // The end of the method. METHOD.md ends the relationship here rather than at a session count,
@@ -650,6 +738,8 @@ const ACTIONS = {
     'milestone-add': addMilestone,
     'milestone-record': recordMilestone,
     reply,
+    draft: writeDraft,
+    model: chooseModel,
     quote: writeQuote,
     'quote-move': moveQuote,
     introduce,

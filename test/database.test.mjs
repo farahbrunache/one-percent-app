@@ -184,5 +184,32 @@ check('an amount is held in cents, not dollars',
   mine.some((q) => Number(q.amount_cents) === 40000), mine);
 check('a new quote starts as offered', mine.some((q) => q.status === 'offered'), mine);
 
+console.log('the operator\'s choices');
+// A choice the operator makes from a screen. It replaces rather than accumulating, because
+// there is one model in use and not a history of them.
+await db.writeChoice('draft.model.slot', 'A');
+await db.writeChoice('draft.model.slot', 'B');
+check('a choice replaces the one before it', (await db.readChoice('draft.model.slot')) === 'B');
+check('a choice nobody has made reads as nothing',
+  (await db.readChoice('draft.model.never.set')) === null);
+
+console.log('what a draft cost');
+// The text is not kept. What is kept is the arithmetic, because the cost of serving somebody
+// through a chat is measured rather than read off a pricing page.
+const costedId = await newOrder();
+await tagged`insert into drafts (order_id, slot, model, prompt_tokens, completion_tokens, seconds)
+             values (${costedId}, 'A', 'llama3.2', 900, 120, 7)`;
+const spent = await tagged`
+  select sum(prompt_tokens)::int as inbound, sum(completion_tokens)::int as outbound
+    from drafts where order_id = ${costedId}`;
+check('tokens in and out are both recorded',
+  spent[0].inbound === 900 && spent[0].outbound === 120, spent[0]);
+
+const draftColumns = await tagged`
+  select column_name from information_schema.columns where table_name = 'drafts'`;
+check('no draft text is stored',
+  !draftColumns.some((c) => /content|body|text|encrypted/.test(c.column_name)),
+  draftColumns.map((c) => c.column_name));
+
 console.log(failures ? `\n${failures} failed` : '\nall passed');
 process.exit(failures ? 1 : 0);

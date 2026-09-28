@@ -68,7 +68,12 @@
         <label for="replybody">Write back</label>
         <textarea id="replybody" rows="4" maxlength="4000"></textarea>
       </div>
-      <div class="actions"><button type="submit" class="quiet">Send</button></div>
+      <div class="actions">
+        <button type="submit" class="quiet">Send</button>
+        <button type="button" class="quiet" id="draftit">Draft a reply</button>
+      </div>
+      <p class="meta" id="draftnote"></p>
+      <p class="meta" id="models"></p>
     </form>
 
     <h2>Milestones</h2>
@@ -470,6 +475,67 @@
         window.location.reload();
       } catch (error) {
         msg('rmsg', error.message, 'bad');
+      }
+    });
+
+    renderDrafting(person);
+  }
+
+  // The draft button writes into the reply box and stops there. Nothing it produces is sent
+  // until it has been read and the operator presses Send.
+  function renderDrafting(person) {
+    const drafting = person.drafting || { models: [], chosen: null };
+    const button = document.getElementById('draftit');
+    const note = document.getElementById('draftnote');
+    const row = document.getElementById('models');
+    row.textContent = '';
+
+    if (!drafting.models.length) {
+      button.hidden = true;
+      note.textContent = 'No drafting model is configured, so replies are written by hand.';
+      return;
+    }
+
+    if (drafting.models.length > 1) {
+      row.append(document.createTextNode('Drafting with: '));
+      for (const model of drafting.models) {
+        const chosen = model.slot === drafting.chosen;
+        const pick = el('button', model.name + (chosen ? ' (in use)' : ''), 'quiet');
+        pick.type = 'button';
+        pick.disabled = chosen;
+        pick.addEventListener('click', async () => {
+          try {
+            await post('model', { slot: model.slot });
+            window.location.reload();
+          } catch (error) {
+            msg('rmsg', error.message, 'bad');
+          }
+        });
+        row.append(pick);
+      }
+    }
+
+    button.addEventListener('click', async () => {
+      const input = document.getElementById('replybody');
+      button.disabled = true;
+      note.textContent = 'Asking. A worker starting from cold takes up to a minute.';
+      try {
+        const written = await post('draft', { id: person.id });
+        input.value = written.content;
+        input.focus();
+        const cost = [
+          written.model,
+          written.seconds + 's',
+          written.promptTokens ? written.promptTokens + ' in' : null,
+          written.completionTokens ? written.completionTokens + ' out' : null,
+        ].filter(Boolean).join(' · ');
+        note.textContent = 'Read it before sending. ' + cost +
+          (written.fellBack ? ' — the chosen model is no longer configured, so this is the one that is.' : '');
+      } catch (error) {
+        note.textContent = '';
+        msg('rmsg', error.message, 'bad');
+      } finally {
+        button.disabled = false;
       }
     });
   }
