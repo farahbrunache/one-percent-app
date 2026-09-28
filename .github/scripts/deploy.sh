@@ -45,21 +45,33 @@ KEYS=(
   RETELL_SECRET_KEY
   RETELL_AGENT_ID
   PAY_WISE
-  SWEEP_SECRET
 )
 
 # Settings the service runs without. A missing one is not a broken deploy, it is a feature
 # nobody has turned on yet, so these are written as empty rather than refused.
 #
-# The drafting models are the whole list: a slot with no address is not configured, the desk
-# does not offer it, and nothing calls it. Requiring a value would make the second slot
-# impossible to leave empty, which is the state it is supposed to be in until there is a
+# What belongs in the list above is a value without which the site cannot serve a page or
+# take money. Everything else belongs here, however much somebody wants the feature: a
+# required setting is a switch that takes the entire product down while it is off, and the
+# feature it belongs to is usually the least important thing in the repository.
+#
+# That is not a hypothetical. SWEEP_SECRET was put in the required list the day the record
+# sweep was built, and every deploy of the whole product failed from that moment until
+# somebody noticed -- a scheduled job nobody had switched on yet held back the screens
+# people pay to use. It is here now. The sweep endpoint already refuses with a 503 saying
+# it cannot prove itself, and the workflow fails loudly and names the setting, so an
+# unconfigured job says so in the one place somebody is looking.
+#
+# The drafting models are here for the same reason: a slot with no address is not configured,
+# the desk does not offer it, and nothing calls it. Requiring a value would make the second
+# slot impossible to leave empty, which is the state it is supposed to be in until there is a
 # second model worth comparing.
 OPTIONAL_KEYS=(
   # Empty on purpose when the sign-in application is a Public one. A public OAuth client has
   # no secret to hold, and proves itself with PKCE instead; requiring a value here forced
   # something to be invented, and an invented secret is refused as an unknown client.
   AUTH_CLIENT_SECRET
+  SWEEP_SECRET
   DRAFT_MODEL_A_NAME
   DRAFT_MODEL_A_URL
   DRAFT_MODEL_A_KEY
