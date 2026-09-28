@@ -12,7 +12,12 @@ services:
     region: ohio
     buildCommand: npm install --omit=dev
     startCommand: node server.js
-    healthCheckPath: /buy
+    # The smallest thing this server serves, because Render asks for it about every five
+    # seconds and pays outbound bandwidth on the answer. The buy page was 9,820 bytes, which
+    # is roughly five gigabytes a month before a single visitor arrives; robots.txt is 26.
+    # It exercises the same path — the router, the address table, a read from disk — so it
+    # proves as much about the process being up as the larger page did.
+    healthCheckPath: /robots.txt
     # Deploys come from the deploy workflow, after the checks pass, never from Render
     # watching the repository — otherwise a commit that fails its checks ships anyway.
     autoDeploy: false
