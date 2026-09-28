@@ -1,12 +1,19 @@
 // What a claim link shows. The phone number and the access code appear here and nowhere else.
 
-import { ensureSchema, findByClaimTokenHash, secondsSpent, underLimit } from '../lib/db.js';
+import {
+  ensureSchema,
+  findByClaimTokenHash,
+  reconcileStarts,
+  secondsSpent,
+  underLimit,
+} from '../lib/db.js';
 import { callerKey, keyedHash } from '../lib/crypto.js';
 import {
   ASSUME_FULL_AFTER_SECONDS,
   PAYMENT_METHODS,
   REJECT_REASONS,
   SESSION_BUDGET_SECONDS,
+  UNREPORTED_AFTER_SECONDS,
   describeStatus,
 } from '../lib/orders.js';
 import { HttpError, handle, send } from '../lib/http.js';
@@ -21,7 +28,7 @@ export default handle('GET', async (req, res) => {
     throw new HttpError(429, 'Too many lookups from here in the last hour. Try later.');
   }
 
-  const order = await findByClaimTokenHash(keyedHash(token));
+  let order = await findByClaimTokenHash(keyedHash(token));
   if (!order) {
     throw new HttpError(
       404,
@@ -30,11 +37,30 @@ export default handle('GET', async (req, res) => {
     );
   }
 
+  // The same repair the start gate does, because this page is what decides whether the button
+  // is offered at all. Doing it only at the gate left an order whose attempts all failed
+  // showing that its sessions were used, with no button to press to put it right — the repair
+  // was behind the door it was meant to open.
+  //
+  // A lookup writing something is worth a word: it is recounting a derived figure from rows
+  // that already exist, it reaches the same answer every time, and nothing about the order
+  // itself is changed by it.
+  await reconcileStarts(order.id, UNREPORTED_AFTER_SECONDS);
+  order = await findByClaimTokenHash(keyedHash(token));
+
   // What the start gate will actually do, asked here rather than guessed. A page that invites
   // somebody into a session the next request refuses is worse than one that says no first.
+  //
+  // Every argument the gate passes is passed here too. Leaving one out is how this page came
+  // to answer a different question from the one it is reporting on.
   let status = describeStatus(order);
   if (status === 'confirmed') {
-    const used = await secondsSpent(order.id, ASSUME_FULL_AFTER_SECONDS, SESSION_BUDGET_SECONDS);
+    const used = await secondsSpent(
+      order.id,
+      ASSUME_FULL_AFTER_SECONDS,
+      SESSION_BUDGET_SECONDS,
+      UNREPORTED_AFTER_SECONDS,
+    );
     if (used >= SESSION_BUDGET_SECONDS) status = 'used';
   }
 
