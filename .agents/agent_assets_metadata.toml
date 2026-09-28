@@ -28,3 +28,17 @@ mtime_ms = 1790525877718
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:310f8762-2454-4b7e-b638-3811dacd5f10/29e86035-b821-4d17-b98f-d0da4dac7875/d851d896-71b7-4311-9a36-a01c86b7873d"
 storage_version_token = "1790525893323081"
 content_type = "image/jpeg"
+
+[[outputs]]
+id = "igTfPFqHqKfiNaFZmcMOs"
+uri = "file://artifacts/operator-command-center/client-chat-verification.jpg"
+type = "image"
+title = "Client chat / pay or talk"
+description = "Verified fixed mobile-first client chat mockup with the $7 AI intake call, operator-quoted chat invoice, and paid-session composer state."
+logical_id = "1e35e76e-6c5c-4ed0-8caf-28dc80922f51"
+content_hash = "sha256:1993ea3311121ad98f831b8265d4be5b85360acc317d3d97875b175d44f14f56"
+size = 49783
+mtime_ms = 1790626075314
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:310f8762-2454-4b7e-b638-3811dacd5f10/1e35e76e-6c5c-4ed0-8caf-28dc80922f51/774ac55e-6f01-4b59-a088-4d6b4f3f459a"
+storage_version_token = "1790626083882846"
+content_type = "image/jpeg"
