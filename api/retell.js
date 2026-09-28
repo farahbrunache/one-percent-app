@@ -11,9 +11,9 @@
 // It is encrypted at rest, like the card codes. A transcript is somebody's trade, their rate,
 // their first customer and what is standing in their way.
 
-import { verify } from 'retell-sdk';
+import Retell, { verify } from 'retell-sdk';
 
-import { ensureSchema, sql } from '../lib/db.js';
+import { ensureSchema, keepRecord, sql } from '../lib/db.js';
 import { encrypt } from '../lib/crypto.js';
 import { HttpError, handle, readRaw, send } from '../lib/http.js';
 
@@ -49,6 +49,19 @@ async function checkSignature(req, body) {
     ok = false;
   }
   if (!ok) throw new HttpError(401, 'That signature does not check out.');
+}
+
+async function keepEverything(callId) {
+  const apiKey = process.env.RETELL_SECRET_KEY;
+  if (!apiKey || !callId) return;
+  try {
+    const record = await new Retell({ apiKey }).call.retrieve(callId);
+    await keepRecord(callId, encrypt(JSON.stringify(record)));
+  } catch (error) {
+    // Said out loud rather than swallowed. A record that was not kept is gone in seven days,
+    // and nothing else will notice.
+    console.error(`[one-percent] could not keep the record for ${callId}:`, error.message);
+  }
 }
 
 // The shape differs between the events Retell sends and between versions of them, so every
@@ -106,6 +119,15 @@ export default handle('POST', async (req, res) => {
   // The later event carries more than the earlier one, so this overwrites — but `coalesce`
   // never writes a null over something already there, because sometimes the earlier event is
   // the only one with a field in it.
+  // The voice service keeps its own record for seven days and then forgets it. Everything in
+  // it that is not the transcript -- what the agent was configured to do that day, what the
+  // call cost, how long each turn took, why it ended -- exists nowhere else afterwards.
+  //
+  // So it is asked for and kept, on every delivery, because the later event carries more than
+  // the earlier one. It never fails the delivery: a transcript has already arrived, and
+  // refusing would make the service retry something that landed.
+  await keepEverything(call.id);
+
   const rows = await sql()`
     update calls set
       transcript_encrypted = coalesce(${transcript}, transcript_encrypted),

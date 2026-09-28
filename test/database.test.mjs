@@ -51,7 +51,7 @@ try {
 }
 check('and running it a second time changes nothing', twice === null, twice);
 
-const { abandonCall, reconcileStarts, secondsSpent } = db;
+const { abandonCall, keepRecord, reconcileStarts, secondsSpent } = db;
 const sql = () => tagged;
 
 async function newOrder(overrides = {}) {
@@ -181,6 +181,25 @@ try { await secondsSpent(stuck, ASSUME_FULL_AFTER_SECONDS, SESSION_BUDGET_SECOND
 catch (error) { missing = error; }
 check('leaving out a figure is refused rather than ignored',
   /unreportedAfter/.test(missing?.message || ''), missing?.message);
+
+console.log('keeping what the voice service forgets');
+// Their retention is seven days. Anything not taken by then exists nowhere.
+const recorded = await newOrder();
+await tagged`insert into calls (order_id, call_id) values (${recorded}, 'c-with-a-record')`;
+check('a record is kept against the call it belongs to',
+  (await keepRecord('c-with-a-record', 'encrypted-blob')) === true);
+const kept = await tagged`
+  select record_encrypted, record_taken_at from calls where call_id = 'c-with-a-record'`;
+check('and when it was taken is kept with it',
+  kept[0].record_encrypted === 'encrypted-blob' && kept[0].record_taken_at !== null, kept[0]);
+check('a call this site never started keeps nothing',
+  (await keepRecord('c-never-heard-of', 'encrypted-blob')) === false);
+
+// The later delivery carries more than the earlier one, so it replaces rather than accumulates.
+await keepRecord('c-with-a-record', 'the-fuller-one');
+const replaced = await tagged`
+  select record_encrypted from calls where call_id = 'c-with-a-record'`;
+check('a fuller record replaces the first', replaced[0].record_encrypted === 'the-fuller-one');
 
 console.log('the reservation');
 // Two requests arriving together must not both buy a session on one order.
