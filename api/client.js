@@ -66,6 +66,27 @@ async function thread(req, res) {
   });
 }
 
+// What has been quoted to them, and what each one covers. Read-only from this end: agreeing
+// happens by saying so in the conversation, because a button that creates an obligation to pay
+// somebody real money should not be the lightest thing on the screen.
+async function quotes(req, res) {
+  const account = requireAccount(req);
+  await ensureSchema();
+  const rows = await sql()`
+    select amount_cents, scope_encrypted, status, created_at
+      from quotes where account_id = ${account}
+     order by created_at desc limit 50
+  `;
+  send(res, 200, {
+    quotes: rows.map((r) => ({
+      amount: r.amount_cents / 100,
+      scope: decrypt(r.scope_encrypted),
+      status: r.status,
+      writtenAt: r.created_at,
+    })),
+  });
+}
+
 // Writing in. Held to a rate because one person cannot read fifty thousand inboxes, and an
 // account that can send without limit is a way to make sure nobody else gets read.
 //
@@ -133,7 +154,11 @@ export default handle(['GET', 'POST'], async (req, res) => {
   const action = new URL(req.url, 'https://placeholder.invalid').searchParams.get('action');
   if (req.method === 'GET' && action === 'mine') return mine(req, res);
   if (req.method === 'GET' && action === 'thread') return thread(req, res);
+  if (req.method === 'GET' && action === 'quotes') return quotes(req, res);
   if (req.method === 'POST' && action === 'link') return link(req, res);
   if (req.method === 'POST' && action === 'send') return sendMessage(req, res);
-  throw new HttpError(400, 'Use action=mine, action=thread, action=link or action=send.');
+  throw new HttpError(
+    400,
+    'Use action=mine, action=thread, action=quotes, action=link or action=send.',
+  );
 });
