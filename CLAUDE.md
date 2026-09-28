@@ -71,10 +71,17 @@ That branch drew one screen, the desk. Payments and the client area were inferre
 the same palette, the same type, the same card, applied to what those screens already did.
 When the branch gains a design for one of them, that design wins over what was inferred.
 
-Paying and the call are on the other side of the line and are not touched by any of this.
-They need no account, they are the end of the path that starts on the sales page, and they
-keep that page's look. The sign-in is where the product stops selling and starts working,
-and the two look different because they are doing different things.
+**The app has two looks and the sign-in is the line between them** (owner decision,
+2026-09-28). Paying and the call are on the other side of it. They need no account, they
+are the end of the path that starts on the sales page, and they keep that page's look. The
+sign-in is where the product stops selling and starts working, and the two look different
+because they are doing different things.
+
+This is settled, so do not go looking for the inconsistency and correct it. One app with
+two looks reads as an oversight to anybody who arrives at the stylesheet and not at the
+reason, and the reason is that somebody deciding whether to spend seven dollars and
+somebody working through a queue are not the same person doing the same thing. Making the
+sales path look like a working surface would be the error, and so would the reverse.
 
 Follow it, never copy it. Three things do not travel with it:
 
