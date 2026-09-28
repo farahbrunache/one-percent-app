@@ -370,27 +370,6 @@ button.danger { background: transparent; color: var(--ink-soft); border: 1px sol
   color: var(--ink);
 }
 
-/* The three queues on the desk. Links rather than toggles, because which one is open belongs
-   in the address — a place in a list has to survive the back button. */
-.tabs {
-  display: flex;
-  gap: 0.4rem;
-  margin-top: 1rem;
-  flex-wrap: wrap;
-}
-.tab {
-  border: 1px solid var(--rule);
-  border-radius: 999px;
-  padding: 0.3rem 0.85rem;
-  font-size: 0.95rem;
-  color: var(--ink-soft);
-  text-decoration: none;
-}
-.tab.on {
-  border-color: var(--accent);
-  color: var(--ink);
-}
-
 /* A row in the queue that is waiting on an answer. */
 .flag {
   color: var(--accent);
@@ -404,3 +383,374 @@ button.danger { background: transparent; color: var(--ink-soft); border: 1px sol
   white-space: pre-wrap;
   color: var(--ink-soft);
 }
+
+/* ------------------------------------------------------------------------------------
+   The operator desk.
+
+   Its look comes from the `design/ops-command-center` branch of this repository, which is
+   a design tool's mockup in React and Tailwind. Nothing is pasted from it: the palette,
+   the type and the shapes are read off it and written here by hand, because this app is
+   plain HTML and one stylesheet and is staying that way.
+
+   Everything below is under `.desk`, so the pages somebody pays and calls from keep the
+   look they ship with. The desk is one person's own screen and is the only place this
+   applies.
+
+   What the mockup shows and this does not build: a search box, queue filters, a
+   notifications bell, desk preferences, a live daily counter, an assessment scorer, a
+   relationship graph, a drafted reply that sends itself, and toasts. Those are features
+   nobody asked for, and a control that exists because it was in a picture ships looking
+   like somebody decided on it.
+   ------------------------------------------------------------------------------------ */
+
+.desk {
+  --d-shell: #151918;
+  --d-panel: #1d2524;
+  --d-panel-sage: #1c2b27;
+  --d-inset: #202a28;
+  --d-rule-card: #2c3d39;
+  --d-ink: #e6eee9;
+  --d-cream: #f4eadb;
+  --d-soft: #c8d9d0;
+  --d-muted: #829994;
+  --d-gold: #ddb077;
+  --d-gold-soft: #d0a26d;
+  --d-coral: #c96859;
+  --d-coral-soft: #cb847b;
+  --d-sage: #83c1a6;
+  --d-sage-bright: #a9dfbf;
+
+  background: var(--d-shell);
+  color: var(--d-ink);
+  font-family: "DM Sans", "Avenir Next", ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+
+  /* A 24px ink grid, barely there. It is what keeps a column of dark cards from reading
+     as one flat field, and it is the cheapest depth in the design — no shadow spread and
+     nothing to repaint on scroll. */
+  background-image:
+    linear-gradient(rgba(144, 179, 163, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(144, 179, 163, 0.022) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.desk ::selection { background: #d09668; color: #171b1a; }
+
+/* Serif for the things somebody reads as a name or a number, sans for everything that is
+   a label. The mockup's own split, and the reason its density does not read as noise. */
+.desk h1 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.75rem;
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+  color: #f2e7d8;
+}
+
+/* Every section label on this screen is the same small uppercase line, so the eye runs
+   down one column of them rather than sizing up each heading in turn. */
+.desk h2 {
+  font-family: inherit;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--d-muted);
+  margin-top: 2rem;
+}
+
+.desk .meta,
+.desk .row .meta { font-size: 0.625rem; color: #8fa49c; line-height: 1.45; }
+.desk .lede { font-size: 0.8125rem; color: var(--d-soft); }
+
+.desk .mono,
+.desk .dateline,
+.desk .row .code {
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* The line above the headline. The dot is the design's one piece of ornament and it is
+   doing work: it marks where the screen starts on a phone, above a heading that is
+   otherwise the same weight as the rest. */
+.desk .dateline {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #819790;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.desk .dateline::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--d-coral);
+  flex: none;
+}
+
+/* What the mockup calls a panel: the card every section sits in. One radius, one border,
+   one fill, and a shadow deep enough to lift it off the grid without announcing itself. */
+.desk .panel {
+  border: 1px solid var(--d-rule-card);
+  background: var(--d-panel);
+  border-radius: 16px;
+  padding: 1rem;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.15), 0 2px 7px rgba(0, 0, 0, 0.12);
+}
+.desk .panel + .panel { margin-top: 1rem; }
+.desk .panel.sage { background: var(--d-panel-sage); border-color: #2d4840; }
+
+/* Figures, across the top. The app counts how far people get; the mockup's four tiles are
+   the shape that fits it, two to a row at this width. */
+.desk .stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.desk .stat {
+  border: 1px solid #2d3d39;
+  background: var(--d-panel);
+  border-radius: 12px;
+  padding: 0.625rem 0.75rem;
+}
+.desk .stat .figure {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.375rem;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+  color: var(--d-sage);
+}
+.desk .stat:first-child .figure { color: #d67d6d; }
+.desk .stat .what {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #9aafa7;
+  margin-top: 2px;
+}
+
+/* The queues, as a list rather than a strip of tabs. The one you are in is filled, which
+   is the only place solid gold appears on the screen and is therefore never ambiguous. */
+.desk .navlist { display: flex; flex-direction: column; gap: 4px; margin-top: 1.25rem; }
+.desk .navlist a {
+  display: block;
+  border-radius: 12px;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.75rem;
+  color: #a9c0b8;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+.desk .navlist a:hover { background: #21332f; color: var(--d-cream); }
+.desk .navlist a.on { background: var(--d-gold); color: #1a2522; font-weight: 700; }
+
+/* A person in the queue, and every list row on the record. The rule moved from under the
+   row to around it: a card can carry a badge and a second line without the two running
+   into the row beneath. */
+.desk .rows { margin-top: 0.75rem; }
+.desk .row {
+  border: 1px solid transparent;
+  border-bottom: 1px solid transparent;
+  border-radius: 16px;
+  padding: 0.75rem;
+  margin-bottom: 6px;
+  background: var(--d-inset);
+}
+.desk .row:last-child { border-bottom: 1px solid transparent; }
+.desk .row .code {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #d9e7df;
+}
+.desk .row a.code { color: #d9e7df; text-decoration: none; }
+.desk .row a.code:hover { color: var(--d-cream); }
+
+/* Somebody waiting on you. Coral is the screen's one alarm colour and it is spent here
+   and on a no-go, nowhere else. */
+.desk .flag {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--d-coral-soft);
+  margin-top: 0.35rem;
+}
+
+/* A state, said in a pill. The dot carries the same colour as the text so the pill still
+   reads as one thing when somebody is not going by colour at all. */
+.desk .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 9999px;
+  border: 1px solid;
+  padding: 4px 10px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-top: 0.4rem;
+}
+.desk .badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: currentColor;
+  flex: none;
+}
+.desk .badge.go { border-color: #356958; background: #1c3e35; color: var(--d-sage-bright); }
+.desk .badge.nogo { border-color: #70413e; background: #3b2929; color: #e6a29a; }
+.desk .badge.open { border-color: #465b59; background: #283837; color: #a3b9b4; }
+
+/* The decision. Two buttons of equal weight, because the screen must not make either one
+   the easy press -- a no-go is a sheet and a path, not a rejection, and the design gives
+   it the same size and the same shape as a go. */
+.desk .actions button.decide,
+.desk .actions a.decide {
+  border-radius: 12px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.desk .actions button.decide.yes { border-color: #385f51; background: #1d302a; color: #8bc2a8; }
+.desk .actions button.decide.yes:hover { border-color: #4b987b; }
+.desk .actions button.decide.yes.on { border-color: #4b987b; background: #1d4035; color: var(--d-sage-bright); }
+.desk .actions button.decide.no { border-color: #543936; background: #261f1e; color: var(--d-coral-soft); }
+.desk .actions button.decide.no:hover { border-color: #9c554f; }
+.desk .actions button.decide.no.on { border-color: #9c554f; background: #422d2c; color: #eaa39a; }
+
+/* The words that came back. Its own sunk pane inside the card, scrolled on its own, so a
+   long call does not push the decision off the bottom of the screen. */
+.desk .transcript {
+  background: #1a2321;
+  border: 1px solid #293733;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  max-height: 360px;
+  overflow: auto;
+}
+.desk .transcript pre {
+  font-family: inherit;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: var(--d-soft);
+  white-space: pre-wrap;
+}
+
+/* What somebody is told, and the path they are on. Read as prose rather than as data, so
+   it keeps the measure and the line breaks that were typed. */
+.desk .sheet { font-size: 0.75rem; color: var(--d-soft); }
+
+.desk .field label { color: var(--d-muted); }
+.desk .field .hint { color: #8fa49c; }
+.desk textarea, .desk input, .desk select {
+  border-radius: 12px;
+  background: #18211f;
+  border-color: #344741;
+  color: var(--d-ink);
+}
+.desk textarea:focus-visible,
+.desk input:focus-visible,
+.desk select:focus-visible {
+  outline: 2px solid rgba(201, 104, 89, 0.65);
+  outline-offset: 1px;
+}
+
+.desk .status-line { color: var(--d-soft); }
+.desk .back { color: var(--d-coral-soft); }
+.desk .back:hover { color: #eda097; }
+.desk a { color: var(--d-coral-soft); }
+
+/* Controls, at the size a label is. The base stylesheet sizes a button and a field label
+   for a page somebody reads once on the way to paying; this screen is a working surface
+   with thirty of them on it, and at that size they shout over the words they sit under. */
+.desk .field { margin-top: 1rem; }
+.desk .field label {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  margin-bottom: 0.35rem;
+}
+.desk .field .hint { font-size: 0.625rem; line-height: 1.45; margin-bottom: 0.5rem; }
+
+.desk .actions { margin-top: 1rem; gap: 0.5rem; }
+.desk button,
+.desk a.button {
+  border-radius: 12px;
+  border: 1px solid #33443f;
+  background: transparent;
+  color: #a9c0b8;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.5rem 0.75rem;
+}
+.desk button:hover,
+.desk a.button:hover { border-color: #5d8473; color: var(--d-cream); filter: none; }
+.desk button:focus-visible,
+.desk a.button:focus-visible { outline: 2px solid rgba(201, 104, 89, 0.65); outline-offset: 1px; }
+
+/* One filled control per screen. The design spends a solid fill on the thing that commits
+   something, and everything else is an outline, so the committing one is never guessed at. */
+.desk button.go-on {
+  background: #326b57;
+  border-color: #326b57;
+  color: #e7f4ea;
+}
+.desk button.go-on:hover { background: #3f8068; border-color: #3f8068; }
+
+/* A path, as the design draws it: the two are the same size and the same shape, and the
+   one in force is the one with a border, because neither is the better path. */
+.desk .path {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1px solid #30413d;
+  background: var(--d-inset);
+  border-radius: 12px;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #d8e5dd;
+}
+.desk .path:hover { border-color: #526b60; }
+.desk .path.on { border-color: #a86054; background: #342624; color: #e9d6cf; }
+.desk .path .why {
+  display: block;
+  font-size: 0.625rem;
+  font-weight: 400;
+  line-height: 1.45;
+  color: #8fa49c;
+  margin-top: 0.25rem;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* The top of the funnel is one figure, not one of a pair. It spans, and the steps below
+   it sit two to a row, so the shape of the grid says which number the others came out of. */
+.desk .stats .stat:first-child { grid-column: 1 / -1; }
+.desk .stats .stat:first-child .figure { font-size: 1.75rem; }
+
+/* Something owed, said once per line. It was in the alarm colour and there are often two
+   at a time, which turned a list of ordinary work into a screen of warnings. */
+.desk .flag { color: var(--d-gold-soft); font-weight: 600; letter-spacing: normal; }
+
+/* A card's own label sits at the top of it. The section spacing that separates one
+   heading from the last one's text is the card gap's job once they are in cards. */
+.desk .panel > h2:first-child { margin-top: 0; }
+.desk .panel > h2 { margin-top: 1.5rem; }
+.desk .panel > .rows:first-of-type { margin-top: 0.5rem; }
+.desk .panel .row { background: #1a2220; }
+.desk .panel.sage .row { background: transparent; padding: 0.5rem 0; margin-bottom: 0; }

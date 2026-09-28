@@ -7,11 +7,11 @@
 <meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700&family=IBM+Plex+Mono:wght@400&display=swap">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<main class="wrap">
+<main class="wrap desk">
 
   <div id="signin" hidden>
     <h1>Desk</h1>
@@ -25,15 +25,17 @@
   <!-- The queue. Which one and which page are both in the address, so a place in a list can
        be returned to and the back button does what it looks like it does. -->
   <div id="queue" hidden>
+    <p class="dateline" id="today"></p>
     <h1>Desk</h1>
-    <nav class="tabs" id="tabs"></nav>
-    <p class="meta" id="qcount"></p>
-    <div id="people" class="rows" aria-live="polite"></div>
-    <div class="actions" id="pager" hidden></div>
 
     <h2>How far people get</h2>
     <p class="meta">Everybody counted once, however many sessions they have bought.</p>
-    <div id="funnel" class="rows"></div>
+    <div id="funnel" class="stats"></div>
+
+    <nav class="navlist" id="tabs"></nav>
+    <p class="meta" id="qcount"></p>
+    <div id="people" class="rows" aria-live="polite"></div>
+    <div class="actions" id="pager" hidden></div>
 
     <div class="actions">
       <a class="button quiet-link" href="/payments">Payments</a>
@@ -50,97 +52,118 @@
     <p class="meta" id="called"></p>
     <div id="rmsg" hidden></div>
 
-    <h2>Waiting on you</h2>
-    <div id="owed" class="rows"></div>
+    <div class="panel sage">
+      <h2>Waiting on you</h2>
+      <div id="owed" class="rows"></div>
+    </div>
 
-    <h2>Calls</h2>
-    <div id="calls"></div>
+    <div class="panel">
+      <h2>Calls</h2>
+      <div id="calls"></div>
+    </div>
 
-    <h2>Go or no-go</h2>
-    <p class="meta">Read it first. Nothing here decides on its own, and a decision can be changed — both stay on the record.</p>
-    <p id="assessed" class="status-line" hidden></p>
-    <div class="actions" id="assess"></div>
+    <div class="panel">
+      <h2>Go or no-go</h2>
+      <p class="meta">Read it first. Nothing here decides on its own, and a decision can be changed — both stay on the record.</p>
+      <p id="assessed" class="status-line" hidden></p>
+      <div class="actions" id="assess"></div>
+    </div>
 
-    <h2>What they are told</h2>
-    <p class="meta">Everybody who calls gets this, whichever way the decision went. A no-go is
-      not a rejection and must not read as one: they keep everything they had, Skills Economy is
-      unchanged and free, and what this adds is your time.</p>
-    <p class="meta" id="recommendedat"></p>
-    <form class="fields" id="recommendform" novalidate>
-      <div class="field">
-        <label for="recommendbody">Recommendations</label>
-        <span class="hint">Things worth doing, in their own situation. They read this word for
-          word, so write it to them rather than about them.</span>
-        <textarea id="recommendbody" rows="8" maxlength="8000"></textarea>
-      </div>
-      <div class="actions">
-        <button type="submit" class="quiet">Write it</button>
-        <button type="button" class="quiet" id="draftit">Draft it from the call</button>
-      </div>
-      <p class="meta" id="draftnote"></p>
-      <p class="meta" id="models"></p>
-    </form>
+    <div class="panel">
+      <h2>What they are told</h2>
+      <p class="meta">Everybody who calls gets this, whichever way the decision went. A no-go is
+        not a rejection and must not read as one: they keep everything they had, Skills Economy is
+        unchanged and free, and what this adds is your time.</p>
+      <p class="meta" id="recommendedat"></p>
+      <form class="fields" id="recommendform" novalidate>
+        <div class="field">
+          <label for="recommendbody">Recommendations</label>
+          <span class="hint">Things worth doing, in their own situation. They read this word for
+            word, so write it to them rather than about them.</span>
+          <textarea id="recommendbody" rows="8" maxlength="8000"></textarea>
+        </div>
+        <div class="actions">
+          <button type="submit" class="quiet">Write it</button>
+          <button type="button" class="quiet" id="draftit">Draft it from the call</button>
+        </div>
+        <p class="meta" id="draftnote"></p>
+        <p class="meta" id="models"></p>
+      </form>
+    </div>
 
-    <h2>The path</h2>
-    <p class="meta">Two paths, neither above the other.</p>
-    <div id="plan"></div>
+    <div class="panel">
+      <h2>The path</h2>
+      <p class="meta">Two paths, neither above the other.</p>
+      <div id="plan"></div>
+    </div>
 
-    <h2>Milestones</h2>
-    <p class="meta">A stalled step is something that happened, not a verdict on anybody.</p>
-    <div id="steps" class="rows"></div>
-    <form class="fields" id="addstep" hidden novalidate>
-      <div class="field">
-        <label for="steptitle">Add a step</label>
-        <input id="steptitle" type="text" autocomplete="off" maxlength="300">
-      </div>
-      <div class="actions"><button type="submit" class="quiet">Add</button></div>
-    </form>
+    <div class="panel">
+      <h2>Milestones</h2>
+      <p class="meta">A stalled step is something that happened, not a verdict on anybody.</p>
+      <div id="steps" class="rows"></div>
+      <form class="fields" id="addstep" hidden novalidate>
+        <div class="field">
+          <label for="steptitle">Add a step</label>
+          <input id="steptitle" type="text" autocomplete="off" maxlength="300">
+        </div>
+        <div class="actions"><button type="submit" class="quiet">Add</button></div>
+      </form>
+    </div>
 
-    <h2>Quotes</h2>
-    <p class="meta" id="quotenote"></p>
-    <div id="quotes" class="rows"></div>
-    <form class="fields" id="writequote" hidden novalidate>
-      <div class="field">
-        <label for="amount">Dollars</label>
-        <input id="amount" type="number" inputmode="decimal" min="1" step="0.01" autocomplete="off">
-      </div>
-      <div class="field">
-        <label for="scope">What it covers</label>
-        <textarea id="scope" rows="3" maxlength="2000"></textarea>
-      </div>
-      <div class="actions"><button type="submit" class="quiet">Write the quote</button></div>
-    </form>
+    <div class="panel">
+      <h2>Quotes</h2>
+      <p class="meta" id="quotenote"></p>
+      <div id="quotes" class="rows"></div>
+      <form class="fields" id="writequote" hidden novalidate>
+        <div class="field">
+          <label for="amount">Dollars</label>
+          <input id="amount" type="number" inputmode="decimal" min="1" step="0.01" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="scope">What it covers</label>
+          <textarea id="scope" rows="3" maxlength="2000"></textarea>
+        </div>
+        <div class="actions"><button type="submit" class="quiet">Write the quote</button></div>
+      </form>
+    </div>
 
-    <h2>Introductions</h2>
-    <p class="meta">Who they have been put in touch with, and what came of it.</p>
-    <div id="intros" class="rows"></div>
-    <form class="fields" id="introduce" novalidate>
-      <div class="field">
-        <label for="otherref">Introduce them to a reference</label>
-        <input id="otherref" type="text" inputmode="latin" autocapitalize="characters"
-               autocomplete="off" placeholder="Their reference">
-      </div>
-      <div class="field">
-        <label for="introreason">Why these two</label>
-        <textarea id="introreason" rows="2" maxlength="2000"></textarea>
-      </div>
-      <div class="actions"><button type="submit" class="quiet">Record the introduction</button></div>
-    </form>
+    <div class="panel">
+      <h2>Introductions</h2>
+      <p class="meta">Who they have been put in touch with, and what came of it.</p>
+      <div id="intros" class="rows"></div>
+      <form class="fields" id="introduce" novalidate>
+        <div class="field">
+          <label for="otherref">Introduce them to a reference</label>
+          <input id="otherref" type="text" inputmode="latin" autocapitalize="characters"
+                 autocomplete="off" placeholder="Their reference">
+        </div>
+        <div class="field">
+          <label for="introreason">Why these two</label>
+          <textarea id="introreason" rows="2" maxlength="2000"></textarea>
+        </div>
+        <div class="actions"><button type="submit" class="quiet">Record the introduction</button></div>
+      </form>
+    </div>
 
-    <h2>Where it ends</h2>
-    <p class="meta">The work ends when they have somebody paying them, not at a session count.</p>
-    <p id="earned" class="status-line" hidden></p>
-    <div class="actions" id="firstcustomer"></div>
+    <div class="panel">
+      <h2>Where it ends</h2>
+      <p class="meta">The work ends when they have somebody paying them, not at a session count.</p>
+      <p id="earned" class="status-line" hidden></p>
+      <div class="actions" id="firstcustomer"></div>
+    </div>
 
-    <h2>The record</h2>
-    <form class="fields" id="addnote" novalidate>
-      <div class="field">
-        <label for="note">Add a note</label>
-        <textarea id="note" rows="3"></textarea>
-      </div>
-      <div class="actions"><button type="submit" class="quiet">Write it down</button></div>
-    </form>
-    <div id="events" class="rows"></div>
+    <div class="panel">
+      <h2>The record</h2>
+      <form class="fields" id="addnote" novalidate>
+        <div class="field">
+          <label for="note">Add a note</label>
+          <textarea id="note" rows="3"></textarea>
+        </div>
+        <div class="actions"><button type="submit" class="quiet">Write it down</button></div>
+      </form>
+      <div id="events" class="rows"></div>
+    </div>
+
   </div>
 
 </main>
@@ -228,11 +251,19 @@
 
   // ---- the queue -------------------------------------------------------------------
 
+  // The day, said once at the top. A desk is opened, worked and left, and the date is what
+  // tells somebody at a glance whether what is on the screen is today's.
+  function renderToday() {
+    document.getElementById('today').textContent = new Date().toLocaleDateString(undefined, {
+      weekday: 'long', month: 'long', day: 'numeric',
+    });
+  }
+
   function renderTabs(active) {
     const tabs = document.getElementById('tabs');
     tabs.textContent = '';
     for (const [value, label] of STATES) {
-      const a = link(label, `/desk?state=${value}`, value === active ? 'tab on' : 'tab');
+      const a = link(label, `/desk?state=${value}`, value === active ? 'on' : null);
       if (value === active) a.setAttribute('aria-current', 'page');
       tabs.append(a);
     }
@@ -261,11 +292,13 @@
       const data = await call('/api/desk?action=funnel');
       box.textContent = '';
       for (const stage of data.stages) {
-        const row = el('div', null, 'row');
-        row.append(el('div', stage.label, 'label'));
-        row.append(el('div', String(stage.count), 'value'));
-        if (stage.rate !== null) row.append(el('div', `${stage.rate}% of the step above`, 'meta'));
-        box.append(row);
+        const tile = el('div', null, 'stat');
+        tile.append(el('div', String(stage.count), 'figure'));
+        tile.append(el('div', stage.label, 'what'));
+        if (stage.rate !== null) {
+          tile.append(el('div', `${stage.rate}% of the step above`, 'meta'));
+        }
+        box.append(tile);
       }
     } catch (error) {
       box.textContent = '';
@@ -274,6 +307,7 @@
   }
 
   function renderQueue(data) {
+    renderToday();
     renderTabs(data.state);
     const first = (data.page - 1) * data.perPage + 1;
     const last = first + data.people.length - 1;
@@ -288,6 +322,14 @@
       row.append(link(person.reference || `Order ${person.id}`, `/desk?id=${person.id}`, 'code'));
       row.append(el('div', `${when(person.calledAt)} · ${minutes(person.seconds)}`, 'meta'));
       if (person.callCount > 1) row.append(el('div', `${person.callCount} calls`, 'meta'));
+      // The decision, said as a state rather than left to be worked out from which queue
+      // the row happens to be in.
+      if (person.assessment) {
+        const tone = person.assessment === 'go' ? 'go' : 'nogo';
+        row.append(el('div', person.assessment === 'go' ? 'Go' : 'No-go', `badge ${tone}`));
+      } else {
+        row.append(el('div', 'Not read yet', 'badge open'));
+      }
       for (const item of owed(person)) {
         if (item.yours) row.append(el('div', item.what, 'flag'));
       }
@@ -354,8 +396,11 @@
     } else {
       said.hidden = true;
     }
-    for (const [value, label] of [['go', 'Go'], ['no-go', 'No-go']]) {
-      const button = el('button', label, value === person.assessment ? null : 'quiet');
+    // Equal weight, both ways. A no-go is a sheet and a path, not a rejection, so the
+    // screen must not make one of the two the easy press.
+    for (const [value, label, tone] of [['go', 'Go', 'yes'], ['no-go', 'No-go', 'no']]) {
+      const on = value === person.assessment;
+      const button = el('button', label, `quiet decide ${tone}${on ? ' on' : ''}`);
       button.type = 'button';
       button.style.flex = '1';
       button.addEventListener('click', async () => {
@@ -372,20 +417,27 @@
     }
   }
 
+  // Both paths, always both on screen and the same size, with the one in force outlined.
+  // Hiding the path somebody is already on made the screen offer one option and read as a
+  // recommendation, which is the opposite of what two paths neither above the other means.
+  const PATHS = [
+    ['reach', 'Reaching past the average',
+      'What the work is worth to the person who needs it, rather than what the going rate is.'],
+    ['smallest', 'The smallest number',
+      'One price, one person, once. A sound next step under somebody\'s feet.'],
+  ];
+
   function renderPlan(person) {
     const box = document.getElementById('plan');
     box.textContent = '';
-    if (person.plan) {
-      const now = el('div', null, 'row');
-      now.append(el('div', person.plan.label, null));
-      now.append(el('div', `Set ${when(person.plan.setAt)}`, 'meta'));
-      box.append(now);
-    }
-    const choices = el('div', null, 'actions');
-    for (const [value, label] of [['reach', 'Reaching past the average'], ['smallest', 'The smallest number']]) {
-      if (person.plan && person.plan.path === value) continue;
-      const button = el('button', label, 'quiet');
+    for (const [value, label, why] of PATHS) {
+      const on = Boolean(person.plan && person.plan.path === value);
+      const button = el('button', null, on ? 'path on' : 'path');
       button.type = 'button';
+      button.append(document.createTextNode(label));
+      button.append(el('span', why, 'why'));
+      if (on) button.append(el('span', `In force since ${when(person.plan.setAt)}.`, 'why'));
+      button.disabled = on;
       button.addEventListener('click', async () => {
         button.disabled = true;
         try {
@@ -396,9 +448,8 @@
           msg('rmsg', error.message, 'bad');
         }
       });
-      choices.append(button);
+      box.append(button);
     }
-    box.append(choices);
     for (const former of person.formerPlans) {
       box.append(el('p', `Was on ${former.label} from ${when(former.setAt)}.`, 'meta'));
     }
@@ -789,7 +840,10 @@
       said.textContent = `Had somebody paying them by ${when(person.firstCustomerAt)}.`;
     }
     const reached = !person.firstCustomerAt;
-    const button = el('button', reached ? 'They have a paying customer' : 'Take that back', reached ? null : 'quiet');
+    // The one filled control on the screen. It is the end of the work, and the design
+    // spends its single solid fill on the thing that finishes something.
+    const button = el('button', reached ? 'They have a paying customer' : 'Take that back',
+      reached ? 'go-on' : 'quiet');
     button.type = 'button';
     button.style.flex = '1';
     button.addEventListener('click', async () => {
