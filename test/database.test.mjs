@@ -148,5 +148,41 @@ const counted = await tagged`
   select count(distinct who) filter (where called and assessment = 'go') as go from people`;
 check('two orders from one person count once', Number(counted[0].go) === 1, counted[0]);
 
+console.log('introductions');
+// A pair, not a direction. The same two people have to be found whichever way round the query
+// asks, or the check refusing a second introduction between them never fires and the graph fills
+// with the same pairing twice.
+const one = await newOrder();
+const other = await newOrder();
+await tagged`insert into introductions (a_order_id, b_order_id) values (${one}, ${other})`;
+const reverse = await tagged`
+  select id from introductions
+   where (a_order_id = ${other} and b_order_id = ${one})
+      or (a_order_id = ${one} and b_order_id = ${other}) limit 1`;
+check('the pair is found whichever way round it is asked', reverse.length === 1);
+
+let selfIntro = null;
+try {
+  await tagged`insert into introductions (a_order_id, b_order_id) values (${one}, ${one})`;
+} catch (error) {
+  selfIntro = error.message;
+}
+check('and nobody is introduced to themselves', selfIntro !== null);
+
+console.log('quotes');
+// Money in cents, keyed to the account rather than the order, so somebody who bought twice
+// carries one set of quotes rather than two.
+const quoted = 'user_invented_for_the_quote_test';
+await tagged`insert into quotes (account_id, amount_cents, scope_encrypted)
+             values (${quoted}, 40000, 'x')`;
+await tagged`insert into quotes (account_id, amount_cents, scope_encrypted, status)
+             values (${quoted}, 12000, 'y', 'paid')`;
+const mine = await tagged`
+  select amount_cents, status from quotes where account_id = ${quoted} order by created_at desc`;
+check('both quotes belong to the one person', mine.length === 2, mine.length);
+check('an amount is held in cents, not dollars',
+  mine.some((q) => Number(q.amount_cents) === 40000), mine);
+check('a new quote starts as offered', mine.some((q) => q.status === 'offered'), mine);
+
 console.log(failures ? `\n${failures} failed` : '\nall passed');
 process.exit(failures ? 1 : 0);

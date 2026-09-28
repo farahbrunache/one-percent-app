@@ -68,9 +68,14 @@ if [ "$sync_settings" = yes ]; then
   # `production` is the environment slug, not its display name. Infisical names it Production
   # and often slugs it `prod`, and a slug that does not match returns an empty set rather than
   # an error, which reads as every secret being missing.
+  # Only the scheme and host, whatever was pasted — the value is copied from a browser and
+  # usually still carries the project path.
+  origin=$(printf '%s' "$INFISICAL_API_URL" | sed -E 's#^(https?://[^/]+).*#\1#')
+  [ -n "$origin" ] || die "INFISICAL_URL is not an address. It has to start with https:// and a host name."
+
   raw=$(curl -sS --fail-with-body --max-time 30 \
     -H "authorization: Bearer $INFISICAL_TOKEN" \
-    "${INFISICAL_API_URL%/}/api/v3/secrets/raw?workspaceId=${INFISICAL_PROJECT_ID}&environment=production") || \
+    "$origin/api/v3/secrets/raw?workspaceId=${INFISICAL_PROJECT_ID}&environment=production") || \
     die "Infisical would not hand over the settings. It answered: $raw"
 
   printf '%s' "$raw" | jq -e 'has("secrets")' > /dev/null 2>&1 || \
