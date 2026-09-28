@@ -15,13 +15,16 @@ import { requireAdmin } from '../lib/auth.js';
 import {
   EVENT_KINDS,
   FUNNEL_STAGES,
+  INTRODUCTION_OUTCOMES,
   MILESTONE_STATUSES,
   PLAN_PATHS,
   isAssessment,
+  isIntroductionOutcome,
   isMilestoneStatus,
   isPlanPath,
   isQueueState,
 } from '../lib/desk.js';
+import { normalizeReference } from '../lib/orders.js';
 import { HttpError, handle, readJson, send } from '../lib/http.js';
 
 const PER_PAGE = 25;
@@ -218,6 +221,19 @@ async function person(req, res) {
       from calls where order_id = ${id} order by started_at desc
   `;
 
+  // Both sides. An introduction belongs to a pair, so it appears on either person's record and
+  // reads the same way from each end.
+  const intros = await sql()`
+    select i.id, i.a_order_id, i.b_order_id, i.reason_encrypted, i.outcome,
+           i.outcome_encrypted, i.made_at,
+           a.reference_code as a_reference, b.reference_code as b_reference
+      from introductions i
+      join orders a on a.id = i.a_order_id
+      join orders b on b.id = i.b_order_id
+     where i.a_order_id = ${id} or i.b_order_id = ${id}
+     order by i.made_at desc limit 100
+  `;
+
   const [plans, events] = await Promise.all([
     sql()`select id, path, in_force, created_at from plans where order_id = ${id} order by created_at desc`,
     sql()`select kind, detail_encrypted, created_at from case_events where order_id = ${id} order by created_at desc limit 100`,
@@ -278,6 +294,19 @@ async function person(req, res) {
       outcome: m.outcome_encrypted ? decrypt(m.outcome_encrypted) : null,
       updatedAt: m.updated_at,
     })),
+    introductions: intros.map((i) => {
+      const them = Number(i.a_order_id) === Number(id)
+        ? { id: i.b_order_id, reference: i.b_reference }
+        : { id: i.a_order_id, reference: i.a_reference };
+      return {
+        id: i.id,
+        them,
+        reason: i.reason_encrypted ? decrypt(i.reason_encrypted) : null,
+        outcome: i.outcome,
+        note: i.outcome_encrypted ? decrypt(i.outcome_encrypted) : null,
+        madeAt: i.made_at,
+      };
+    }),
     events: events.map((e) => ({
       kind: e.kind,
       label: EVENT_KINDS[e.kind] || e.kind,
@@ -445,6 +474,73 @@ async function reply(req, res) {
   send(res, 201, { ok: true });
 }
 
+// Made, not proposed. The row is a record of something done: two people were put in touch.
+// There is no state for a match that was considered and rejected, because that is not a thing
+// that happened to anybody.
+async function introduce(req, res) {
+  requireAdmin(req);
+  await ensureSchema();
+  const body = await readJson(req);
+  const id = orderId(body.id);
+  const reference = normalizeReference(body.reference);
+  if (!reference) throw new HttpError(400, 'Which reference are they introduced to?');
+
+  const them = await sql()`select id from orders where reference_code = ${reference}`;
+  if (!them.length) throw new HttpError(404, `No order here carries the reference ${reference}.`);
+  const otherId = Number(them[0].id);
+  if (otherId === id) throw new HttpError(400, 'That is the same person.');
+
+  // The pair is unordered, so check it both ways round before writing a second row for the
+  // same two people.
+  const already = await sql()`
+    select id from introductions
+     where (a_order_id = ${id} and b_order_id = ${otherId})
+        or (a_order_id = ${otherId} and b_order_id = ${id})
+     limit 1
+  `;
+  if (already.length) throw new HttpError(409, 'These two have already been introduced.');
+
+  const reason = String(body.reason || '').trim().slice(0, 2000);
+  await sql()`
+    insert into introductions (a_order_id, b_order_id, reason_encrypted)
+    values (${id}, ${otherId}, ${reason ? encrypt(reason) : null})
+  `;
+  // On both records, because it happened to both of them.
+  await record(id, 'introduction.made', `To ${reference}. ${reason}`.trim());
+  await record(otherId, 'introduction.made', `To ${await referenceOf(id)}. ${reason}`.trim());
+  send(res, 201, { ok: true });
+}
+
+async function referenceOf(id) {
+  const rows = await sql()`select reference_code from orders where id = ${id}`;
+  return rows[0]?.reference_code || `order ${id}`;
+}
+
+async function recordIntroduction(req, res) {
+  requireAdmin(req);
+  await ensureSchema();
+  const body = await readJson(req);
+  const id = orderId(body.id);
+  const introId = orderId(body.introductionId);
+  const outcome = String(body.outcome || '');
+  if (!isIntroductionOutcome(outcome)) {
+    throw new HttpError(400, `Pick one: ${INTRODUCTION_OUTCOMES.join(', ')}.`);
+  }
+  const note = String(body.note || '').trim().slice(0, 2000);
+
+  const done = await sql()`
+    update introductions set
+      outcome = ${outcome},
+      outcome_encrypted = ${note ? encrypt(note) : null},
+      updated_at = now()
+     where id = ${introId} and (a_order_id = ${id} or b_order_id = ${id})
+     returning a_order_id, b_order_id
+  `;
+  if (!done.length) throw new HttpError(404, 'No introduction with that number involving them.');
+  await record(id, 'introduction.recorded', `${outcome}. ${note}`.trim());
+  send(res, 200, { ok: true, outcome });
+}
+
 async function addNote(req, res) {
   requireAdmin(req);
   await ensureSchema();
@@ -467,6 +563,8 @@ const ACTIONS = {
     'milestone-add': addMilestone,
     'milestone-record': recordMilestone,
     reply,
+    introduce,
+    'introduction-record': recordIntroduction,
     'first-customer': firstCustomer,
     note: addNote,
   },
