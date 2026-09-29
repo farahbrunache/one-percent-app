@@ -99,6 +99,7 @@
       <h2>The conversation</h2>
       <p class="meta" id="threadnote"></p>
       <div id="thread" class="rows"></div>
+      <div class="actions" id="threadpager" hidden></div>
       <form class="fields" id="reply" hidden novalidate>
         <div class="field">
           <label for="replybody">Write back</label>
@@ -196,6 +197,9 @@
   const personId = here.searchParams.get('id');
   const state = here.searchParams.get('state') || 'waiting';
   const page = Math.max(1, Number(here.searchParams.get('page')) || 1);
+  // Which page of the conversation. Absent means the newest, which the endpoint decides,
+  // because only it knows how many there are.
+  const mpage = here.searchParams.get('mpage');
 
   function el(tag, text, className) {
     const node = document.createElement(tag);
@@ -397,6 +401,32 @@
       list.append(row);
     }
     renderPager(data);
+  }
+
+  // Where in the conversation this is. Same shape as the queue's pager, and the page number
+  // goes in the address for the same reason: a place in a list has to be linkable and the
+  // back button has to work. A conversation rendered in full grows without end, which leaves
+  // a keyboard or a screen reader no way past it.
+  function renderThreadPager(person) {
+    const box = document.getElementById('threadpager');
+    box.textContent = '';
+    const total = person.messageCount;
+    const perPage = person.messagesPerPage;
+    const at = person.messagePage;
+    const last = Math.max(1, Math.ceil(total / perPage));
+    box.hidden = total <= perPage;
+    if (box.hidden) return;
+
+    const first = (at - 1) * perPage + 1;
+    const upTo = Math.min(at * perPage, total);
+    const to = (n) => {
+      const url = new URL(window.location.href);
+      url.searchParams.set('mpage', String(n));
+      return url.pathname + url.search;
+    };
+    if (at > 1) box.append(link('Older', to(at - 1), 'button quiet-link'));
+    box.append(el('span', `${first}–${upTo} of ${total} · page ${at} of ${last}`, 'meta'));
+    if (at < last) box.append(link('Newer', to(at + 1), 'button quiet-link'));
   }
 
   // What is owed on somebody, in the order it has to happen.
@@ -731,12 +761,16 @@
       list.append(row);
     }
 
+    renderThreadPager(person);
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const input = document.getElementById('replybody');
       try {
         await post('reply', { id: person.id, body: input.value });
-        window.location.reload();
+        const back = new URL(window.location.href);
+        back.searchParams.delete('mpage');
+        window.location.replace(back);
       } catch (error) {
         msg('rmsg', error.message, 'bad');
       }
@@ -1130,6 +1164,7 @@
   async function start() {
     const url = personId
       ? `/api/desk?action=person&id=${encodeURIComponent(personId)}`
+        + (mpage ? `&mpage=${encodeURIComponent(mpage)}` : '')
       : `/api/desk?action=queue&state=${encodeURIComponent(state)}&page=${page}`;
     try {
       const data = await call(url);

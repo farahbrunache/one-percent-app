@@ -170,6 +170,12 @@ for (const file of files.filter((f) => f.includes('/api/') && f.endsWith('.js'))
     const next = desk.indexOf('\nasync function', start + 10);
     const body = desk.slice(start, next < 0 ? undefined : next);
     for (const m of body.matchAll(/\b([a-zA-Z]\w*):/g)) sent.add(m[1]);
+    // Shorthand too -- `messageCount,` on its own line is a key exactly as much as
+    // `messageCount: n` is, and reading only the second form reported a field that was
+    // being sent as one that was not. A check that cries wolf is a check people stop
+    // reading. This counts a few names that are not payload keys, which costs nothing:
+    // the worst it can do is stay quiet about a field, which is where it started.
+    for (const m of body.matchAll(/^\s*([a-zA-Z]\w*),\s*$/gm)) sent.add(m[1]);
   }
 
   if (sent.size < 10) {
