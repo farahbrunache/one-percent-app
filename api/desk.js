@@ -29,6 +29,7 @@ import {
   isDecision,
   isIntroductionOutcome,
   isQuoteStatus,
+  MAX_OPEN_QUOTES,
   isMilestoneStatus,
   isPlanPath,
   isQueueState,
@@ -267,7 +268,8 @@ async function person(req, res) {
   // quote, which the screen says rather than offering a form that cannot work.
   const quotes = row.client_account_id
     ? await sql()`
-        select id, amount_cents, scope_encrypted, status, created_at, updated_at
+        select id, amount_cents, scope_encrypted, status, created_at, updated_at,
+               answered_at, reason_encrypted
           from quotes where account_id = ${row.client_account_id}
          order by created_at desc limit 50
       `
@@ -350,6 +352,10 @@ async function person(req, res) {
       status: q.status,
       writtenAt: q.created_at,
       movedAt: q.updated_at,
+      // What they said back, and when. Without it a quote that was turned down for a reason
+      // and one that went nowhere read the same afterwards.
+      answeredAt: q.answered_at,
+      reason: q.reason_encrypted ? decrypt(q.reason_encrypted) : null,
     })),
     introductions: intros.map((i) => {
       const them = Number(i.a_order_id) === Number(id)
@@ -814,10 +820,27 @@ async function writeQuote(req, res) {
     );
   }
 
-  await sql()`
+  // Three at once, and the insert is what counts them, so two taps arriving together cannot
+  // both pass a check made before either wrote. What is capped is how many are waiting on an
+  // answer -- answering one frees the slot, so a long relationship carries any number over
+  // time. Three is a choice somebody reads in one go; a fourth makes it a list, and a list of
+  // prices arriving unasked is what a sales pitch looks like.
+  const written = await sql()`
     insert into quotes (account_id, amount_cents, scope_encrypted)
-    values (${account}, ${cents}, ${encrypt(scope)})
+    select ${account}, ${cents}, ${encrypt(scope)}
+     where (
+       select count(*) from quotes
+        where account_id = ${account} and status = 'offered'
+     ) < ${MAX_OPEN_QUOTES}
+    returning id
   `;
+  if (!written.length) {
+    throw new HttpError(
+      409,
+      `There are already ${MAX_OPEN_QUOTES} quotes waiting on an answer from this person, ` +
+        'which is as many as anybody can choose between. Withdraw one, or wait for an answer.',
+    );
+  }
   await record(id, 'quote.written', `$${amount.toFixed(2)}. ${scope}`);
   send(res, 201, { ok: true });
 }

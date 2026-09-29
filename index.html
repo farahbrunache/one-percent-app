@@ -45,8 +45,9 @@
     <section id="quotes" class="panel" hidden>
       <h3>What has been quoted to you</h3>
       <p class="meta">
-        Each one says what it covers. If you want to go ahead with one, or you want it
-        changed, say so in the conversation — nothing here commits you to anything.
+        Each one says what it covers, and what it would cost. Answer them one at a time:
+        saying no to one says nothing about the others, and nothing here commits you to
+        anything. Anything longer than an answer goes in the conversation below.
       </p>
       <div id="quotelist" class="rows"></div>
     </section>
@@ -138,6 +139,7 @@
     // to appear at once, so the screen said the call was going to be read directly above
     // the thing that came out of reading it.
     const read = data.sessions.some((s) => s.recommendations);
+    approved = Boolean(data.approved);
     if (data.approved) {
       state.append(el('p', 'You are a client.', 'lede'));
       state.append(el('p',
@@ -216,18 +218,22 @@
       state.append(again);
     }
 
-    // The conversation opens on a go and on nothing else. Somebody waiting on a decision
-    // does not see it, and neither does somebody told no -- in both cases there is nothing
-    // decided to talk about, and a box that invites a message anyway is how one person
-    // becomes reachable by anybody who paid seven dollars.
-    const talk = document.getElementById('talk');
-    talk.hidden = !data.approved;
-    if (data.approved) {
-      document.getElementById('talknote').textContent =
-        'Written, both ways, whenever either of us gets to it.';
-      loadThread();
-    }
+    // A go opens the conversation, and so does being quoted. Somebody waiting on a decision
+    // does not see it, and neither does somebody told no and never quoted -- in both cases
+    // there is nothing decided to talk about, and a box that invites a message anyway is how
+    // one person becomes reachable by anybody who paid seven dollars.
+    //
+    // The server decides the same way. This asked only about the go, so a quoted person was
+    // told to say what needed changing and had nowhere on the page to say it.
     loadQuotes();
+  }
+
+  function openTheConversation() {
+    const talk = document.getElementById('talk');
+    talk.hidden = false;
+    document.getElementById('talknote').textContent =
+      'Written, both ways, whenever either of us gets to it.';
+    loadThread();
   }
 
   function renderThread(messages) {
@@ -283,24 +289,104 @@
     }
   });
 
+  // A quote is answered here rather than talked about somewhere else. Three answers, each
+  // one a moment on the record, so afterwards there is a state and a time rather than a
+  // conversation somebody has to read and interpret.
+  //
+  // Saying no or asking for a change takes a line. Without it the other end is guessing at
+  // which part was wrong -- the number, the scope, the timing -- and a guess produces a
+  // second quote that is wrong the same way.
+  const ANSWERS = [
+    ['agreed', 'Agree to this', false],
+    ['changes asked', 'Ask for a change', true],
+    ['declined', 'No thanks', true],
+  ];
+
+  function renderQuote(quote) {
+    const row = el('div', null, 'row');
+    row.append(el('div', `$${Number(quote.amount).toFixed(2)}`, 'value'));
+    row.append(el('div', `Written ${when(quote.writtenAt)}`, 'meta'));
+    row.append(el('div', quote.scope, null));
+
+    if (quote.status !== 'offered') {
+      row.append(el('div', `${quote.status} · ${when(quote.answeredAt || quote.writtenAt)}`,
+        'badge open'));
+      if (quote.reason) row.append(el('div', quote.reason, 'sheet'));
+      return row;
+    }
+
+    const why = el('div', null, 'field');
+    why.hidden = true;
+    const label = el('label', 'In a line, what is wrong with it?');
+    const input = document.createElement('textarea');
+    input.rows = 2;
+    input.maxLength = 2000;
+    label.htmlFor = input.id = `why-${quote.id}`;
+    why.append(label, input);
+
+    const said = el('div', null, 'msg');
+    said.hidden = true;
+
+    const actions = el('div', null, 'actions');
+    for (const [answer, wording, needsReason] of ANSWERS) {
+      const button = el('button', wording, answer === 'agreed' ? 'go-on' : 'quiet');
+      button.type = 'button';
+      button.addEventListener('click', async () => {
+        // The first press on one that needs a reason opens the box rather than sending
+        // nothing, so nobody has to find the field before they know it is wanted.
+        if (needsReason && (why.hidden || !input.value.trim())) {
+          why.hidden = false;
+          input.focus();
+          said.hidden = false;
+          said.className = 'msg';
+          said.textContent = 'Say what is wrong with it, then press this again.';
+          return;
+        }
+        button.disabled = true;
+        try {
+          await call('/api/client?action=quote-answer', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ id: quote.id, answer, reason: input.value }),
+          });
+          loadQuotes();
+        } catch (error) {
+          button.disabled = false;
+          said.hidden = false;
+          said.className = 'msg bad';
+          said.textContent = error.message;
+        }
+      });
+      actions.append(button);
+    }
+
+    row.append(why);
+    row.append(actions);
+    row.append(said);
+    return row;
+  }
+
+  // `approved` is remembered from the last render, because whether the conversation opens
+  // depends on the go and on the quotes together, and the two arrive in different requests.
+  let approved = false;
+
   async function loadQuotes() {
     const section = document.getElementById('quotes');
     const list = document.getElementById('quotelist');
     try {
       const data = await call('/api/client?action=quotes');
+      if (approved || data.quotes.length) openTheConversation();
       if (!data.quotes.length) { section.hidden = true; return; }
       section.hidden = false;
       list.textContent = '';
       for (const quote of data.quotes) {
-        const row = el('div', null, 'row');
-        row.append(el('div', `$${Number(quote.amount).toFixed(2)}`, 'value'));
-        row.append(el('div', `${quote.status} · ${when(quote.writtenAt)}`, 'meta'));
-        row.append(el('div', quote.scope, null));
-        list.append(row);
+        list.append(renderQuote(quote));
       }
     } catch {
       // Their sessions are the page. A quote that cannot be read is worth saying nothing
-      // about rather than putting an error where a figure should be.
+      // about rather than putting an error where a figure should be. A go still opens the
+      // conversation, since that does not depend on the quotes coming back.
+      if (approved) openTheConversation();
       section.hidden = true;
     }
   }

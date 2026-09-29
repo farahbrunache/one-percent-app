@@ -833,8 +833,12 @@
     });
   }
 
-  const QUOTE_STATUSES = ['offered', 'agreed', 'paid', 'withdrawn'];
   const INTRO_OUTCOMES = ['waiting', 'worked', 'went nowhere'];
+
+  // Three at once. More than that stops being a choice and starts being a catalogue, and a
+  // list of prices arriving unasked is what a sales pitch looks like. The endpoint counts
+  // the same way; this is so the screen says where it stands before somebody types.
+  const MAX_OPEN_QUOTES = 3;
 
   function money(value) {
     return `$${Number(value).toFixed(2)}`;
@@ -859,21 +863,51 @@
     // two are not impossible together -- somebody turned down for the method can still be
     // the right person for one piece of work -- but it is a thing to notice rather than a
     // thing to do by reflex, so the screen says so before the form and asks again after it.
-    note.textContent = person.decision === 'no-go'
-      ? 'This was a no-go. A quote is for paid work, so quoting somebody you turned down is '
-        + 'worth being deliberate about. It is allowed and nothing stops it.'
-      : 'Written for them, in dollars, against what the work actually is.';
-    form.hidden = false;
+    // Three at once, because three is a choice somebody reads in one go and a fourth makes
+    // it a list. Each one is answered on its own -- saying no to a price for one piece of
+    // work says nothing about the next, so the count is what is waiting rather than what has
+    // ever been written.
+    const open = person.quotes.filter((q) => q.status === 'offered').length;
+    const room = MAX_OPEN_QUOTES - open;
+
+    const lines = [];
+    if (person.decision === 'no-go') {
+      lines.push('This was a no-go. A quote is for paid work, so quoting somebody you turned '
+        + 'down is worth being deliberate about. It is allowed and nothing stops it.');
+    }
+    lines.push(room > 0
+      ? `Written for them, in dollars, against what the work actually is. ${open} of `
+        + `${MAX_OPEN_QUOTES} waiting on an answer.`
+      : `${MAX_OPEN_QUOTES} are already waiting on an answer, which is as many as anybody can `
+        + 'choose between. Withdraw one, or wait.');
+    note.textContent = lines.join(' ');
+    form.hidden = room <= 0;
 
     if (!person.quotes.length) list.append(el('p', 'Nothing quoted yet.', 'meta'));
     for (const quote of person.quotes) {
       const row = el('div', null, 'row');
       row.append(el('div', money(quote.amount), 'value'));
-      row.append(el('div', `${quote.status} · written ${when(quote.writtenAt)}`, 'meta'));
+      row.append(el('div', `Written ${when(quote.writtenAt)}`, 'meta'));
       row.append(el('div', quote.scope, null));
 
+      // What they said back. A quote answered by the person it was written for is a fact
+      // with a time on it, so it reads as one rather than as a status that moved.
+      if (quote.answeredAt) {
+        const tone = quote.status === 'agreed' ? 'go' : quote.status === 'declined' ? 'nogo' : 'open';
+        row.append(el('div', `They said: ${quote.status}`, `badge ${tone}`));
+        row.append(el('div', `Answered ${when(quote.answeredAt)}`, 'meta'));
+        if (quote.reason) row.append(el('div', quote.reason, 'sheet'));
+      } else if (quote.status === 'offered') {
+        row.append(el('div', 'Waiting on them', 'badge open'));
+      } else {
+        row.append(el('div', `${quote.status} · moved ${when(quote.movedAt)}`, 'meta'));
+      }
+
+      // Only the moves that belong to this end. Agreeing, declining and asking for a change
+      // are the other person's to make, and a control here that does any of them would put
+      // their answer on the record in somebody else's hand.
       const actions = el('div', null, 'actions');
-      for (const status of QUOTE_STATUSES) {
+      for (const status of ['paid', 'withdrawn']) {
         if (status === quote.status) continue;
         const button = el('button', status, 'quiet');
         button.type = 'button';
