@@ -702,7 +702,7 @@
       return;
     }
     if (!person.approvedAt) {
-      note.textContent = person.assessment === 'no-go'
+      note.textContent = person.decision === 'no-go'
         ? 'A no-go, so the conversation is closed. They keep their sheet and everything they '
           + 'already had. Changing the decision opens it.'
         : 'Not decided yet, so there is no conversation. A go opens it, and the opening line '
