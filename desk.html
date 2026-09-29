@@ -305,56 +305,53 @@
   //
   // It is on the queue and nowhere else. A person's record is about that person, and a
   // figure covering everybody has nothing to do with the one in front of you.
-  // The colour of each step, top to bottom. Coral where everybody is, sage where the work
-  // has ended in somebody being paid -- so the shape narrows and warms at the same time.
-  const FUNNEL_COLOURS = ['#c96859', '#c08262', '#a89a6d', '#8bab84', '#6fb894'];
-
-  // Never narrower than this. A band at its true width of one or two percent is a line
-  // nobody can see, and a stage that has one person in it is still a stage.
-  const NARROWEST = 9;
+  // The funnel's widest and narrowest bands, as a share of the row. The steps between
+  // them are even: a band has to hold a number and a line of words, and one that is
+  // literally proportional to its count does not -- one person out of twelve is a sliver.
+  // What the shape says is that there is a drop at every step. What the drop was is the
+  // number in the band and the percentage beside it.
+  const WIDEST = 100;
+  const NARROWEST = 56;
 
   function renderFunnel() {
     const box = document.getElementById('funnel');
     return call('/api/desk?action=funnel').then((data) => {
       box.textContent = '';
 
-      const top = data.stages[0] ? data.stages[0].count : 0;
-      if (!top) {
+      if (!data.stages[0] || !data.stages[0].count) {
         box.append(el('p', 'No call has come back yet, so there is no shape to draw. The '
           + 'first one fills the top of this.', 'nothing'));
         return;
       }
 
-      // Each band runs from the width of the step above it to its own, so the sides slope
-      // and the drop between two steps is what the eye lands on.
-      let above = 100;
+      // The open top of the vessel. Without it the first band is a rectangle and the
+      // shape starts as a box.
+      box.append(el('div', null, 'rim'));
+
+      // Every band tapers, the last one included. The step is the full drop divided by the
+      // number of bands rather than by the gaps between them, so the bottom of the last
+      // band is the narrowest width and nothing ends as a rectangle.
+      const step = (WIDEST - NARROWEST) / data.stages.length;
       data.stages.forEach((stage, i) => {
-        const width = Math.max(NARROWEST, Math.round((stage.count / top) * 100));
-        // Narrow enough that the number is wider than the band it sits on, so it is
-        // standing on the panel and has to be light rather than dark. Two digits at this
-        // size are about an eighth of the track, so the turn is a little above that.
-        const row = el('div', null, width < 18 ? 'stage thin' : 'stage');
+        const top = WIDEST - step * i;
+        const bottom = WIDEST - step * (i + 1);
+        const row = el('div', null, 'stage');
+        row.style.setProperty('--top-left', `${(100 - top) / 2}%`);
+        row.style.setProperty('--top-right', `${100 - (100 - top) / 2}%`);
+        row.style.setProperty('--bottom-left', `${(100 - bottom) / 2}%`);
+        row.style.setProperty('--bottom-right', `${100 - (100 - bottom) / 2}%`);
+        // Keep the words inside the shape at its narrowest point rather than inside the
+        // row. The row is full width; the band is not, and a clipped shape cuts its own
+        // text, so the bottom label was being sliced by the taper it sat in.
+        row.style.paddingInline = `calc(${(100 - bottom) / 2}% + 0.6rem)`;
 
-        const words = el('div', null, 'words');
-        words.append(el('div', stage.label, 'name'));
-        if (stage.rate !== null) {
-          words.append(el('div', `${stage.rate}% of the step above`, 'rate'));
-        }
-        row.append(words);
-
-        const track = el('div', null, 'track');
-        const band = el('div', null, 'band');
-        band.style.setProperty('--band', FUNNEL_COLOURS[i] || FUNNEL_COLOURS.at(-1));
-        band.style.setProperty('--top-left', `${(100 - above) / 2}%`);
-        band.style.setProperty('--top-right', `${100 - (100 - above) / 2}%`);
-        band.style.setProperty('--bottom-left', `${(100 - width) / 2}%`);
-        band.style.setProperty('--bottom-right', `${100 - (100 - width) / 2}%`);
-        track.append(band);
-        track.append(el('div', String(stage.count), 'count'));
-        row.append(track);
+        // The rate reads on the same line as the name. Put against the band's edge it was
+        // cut off, because a clipped shape clips its own text too.
+        row.append(el('div', String(stage.count), 'count'));
+        row.append(el('div',
+          stage.rate === null ? stage.label : `${stage.label} · ${stage.rate}%`, 'name'));
 
         box.append(row);
-        above = width;
       });
     }).catch((error) => {
       box.textContent = '';
