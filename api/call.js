@@ -11,6 +11,7 @@ import {
   ensureSchema,
   reconcileStarts,
   findByClaimTokenHash,
+  aCallCameBack,
   secondsSpent,
   sql,
   underLimit,
@@ -105,6 +106,20 @@ export default handle('POST', async (req, res) => {
       409,
       `This order has used the ${Math.round(SESSION_BUDGET_SECONDS / 60)} minutes it bought. ` +
         'If a session dropped before you got anywhere, say so and it can be looked at.',
+    );
+  }
+
+  // A session is spent by being had, not by running out of minutes. The call ends when the
+  // questions are answered, which is often well short of half an hour, and counting only
+  // minutes left somebody who had their session able to start another on the same seven
+  // dollars. A start that never connected leaves no transcript, which is the case the
+  // restarts are for.
+  if (await aCallCameBack(order.id)) {
+    throw new HttpError(
+      409,
+      'This session has already happened, and a call that ends early is a finished one ' +
+        'rather than a cut-off one. What comes next is the writing, which arrives on this ' +
+        'page. Another conversation is another session.',
     );
   }
 

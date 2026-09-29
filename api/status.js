@@ -4,6 +4,7 @@ import {
   ensureSchema,
   findByClaimTokenHash,
   reconcileStarts,
+  aCallCameBack,
   secondsSpent,
   underLimit,
 } from '../lib/db.js';
@@ -61,7 +62,7 @@ export default handle('GET', async (req, res) => {
       SESSION_BUDGET_SECONDS,
       UNREPORTED_AFTER_SECONDS,
     );
-    if (used >= SESSION_BUDGET_SECONDS) status = 'used';
+    if (used >= SESSION_BUDGET_SECONDS || (await aCallCameBack(order.id))) status = 'used';
   }
 
   const spec = PAYMENT_METHODS[order.payment_method] || null;
