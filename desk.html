@@ -28,7 +28,7 @@
 
     <h2>How far people get</h2>
     <p class="meta">Everybody counted once, however many sessions they have bought.</p>
-    <div id="funnel" class="stats"></div>
+    <div id="funnel" class="funnel"></div>
 
     <nav class="navlist" id="tabs"></nav>
     <p class="meta" id="qcount"></p>
@@ -305,24 +305,61 @@
   //
   // It is on the queue and nowhere else. A person's record is about that person, and a
   // figure covering everybody has nothing to do with the one in front of you.
-  async function renderFunnel() {
+  // The colour of each step, top to bottom. Coral where everybody is, sage where the work
+  // has ended in somebody being paid -- so the shape narrows and warms at the same time.
+  const FUNNEL_COLOURS = ['#c96859', '#c08262', '#a89a6d', '#8bab84', '#6fb894'];
+
+  // Never narrower than this. A band at its true width of one or two percent is a line
+  // nobody can see, and a stage that has one person in it is still a stage.
+  const NARROWEST = 9;
+
+  function renderFunnel() {
     const box = document.getElementById('funnel');
-    try {
-      const data = await call('/api/desk?action=funnel');
+    return call('/api/desk?action=funnel').then((data) => {
       box.textContent = '';
-      for (const stage of data.stages) {
-        const tile = el('div', null, 'stat');
-        tile.append(el('div', String(stage.count), 'figure'));
-        tile.append(el('div', stage.label, 'what'));
-        if (stage.rate !== null) {
-          tile.append(el('div', `${stage.rate}% of the step above`, 'meta'));
-        }
-        box.append(tile);
+
+      const top = data.stages[0] ? data.stages[0].count : 0;
+      if (!top) {
+        box.append(el('p', 'No call has come back yet, so there is no shape to draw. The '
+          + 'first one fills the top of this.', 'nothing'));
+        return;
       }
-    } catch (error) {
+
+      // Each band runs from the width of the step above it to its own, so the sides slope
+      // and the drop between two steps is what the eye lands on.
+      let above = 100;
+      data.stages.forEach((stage, i) => {
+        const width = Math.max(NARROWEST, Math.round((stage.count / top) * 100));
+        // Narrow enough that the number is wider than the band it sits on, so it is
+        // standing on the panel and has to be light rather than dark. Two digits at this
+        // size are about an eighth of the track, so the turn is a little above that.
+        const row = el('div', null, width < 18 ? 'stage thin' : 'stage');
+
+        const words = el('div', null, 'words');
+        words.append(el('div', stage.label, 'name'));
+        if (stage.rate !== null) {
+          words.append(el('div', `${stage.rate}% of the step above`, 'rate'));
+        }
+        row.append(words);
+
+        const track = el('div', null, 'track');
+        const band = el('div', null, 'band');
+        band.style.setProperty('--band', FUNNEL_COLOURS[i] || FUNNEL_COLOURS.at(-1));
+        band.style.setProperty('--top-left', `${(100 - above) / 2}%`);
+        band.style.setProperty('--top-right', `${100 - (100 - above) / 2}%`);
+        band.style.setProperty('--bottom-left', `${(100 - width) / 2}%`);
+        band.style.setProperty('--bottom-right', `${100 - (100 - width) / 2}%`);
+        track.append(band);
+        track.append(el('div', String(stage.count), 'count'));
+        row.append(track);
+
+        box.append(row);
+        above = width;
+      });
+    }).catch((error) => {
       box.textContent = '';
-      box.append(el('p', error.message, 'meta'));
-    }
+      box.append(el('p', error.message, 'nothing'));
+    });
   }
 
   function renderQueue(data) {

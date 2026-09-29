@@ -850,3 +850,89 @@ button.danger { background: transparent; color: var(--ink-soft); border: 1px sol
   color: var(--ink-soft);
 }
 .how li + li { margin-top: 0.6rem; }
+
+/* ---- the funnel -----------------------------------------------------------------------
+   Five stages, each a subset of the one above, drawn as a shape that narrows.
+   It was five tiles in a grid, and a grid of numbers is not a funnel: five equal boxes
+   say the five things are the same size, which is the one fact a funnel exists to
+   contradict. Each band's width is its count against the top of the funnel, and each
+   band's sloped sides run from the width above it to its own, so the drop between two
+   steps is the thing the eye lands on.
+
+   The words are beside the shape rather than on it. Laid over the band they crossed the
+   edge between a light fill and a dark panel halfway through a word, which is unreadable
+   whichever colour the text is. So the left of the row is names and the right is the
+   funnel, and the two never overlap.
+
+   No chart library. Five trapezoids are five clip-paths.
+   -------------------------------------------------------------------------------------- */
+.inside .funnel { margin-top: 1rem; }
+
+.inside .funnel .stage {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 3rem;
+}
+
+.inside .funnel .words {
+  flex: 0 0 43%;
+  text-align: right;
+  line-height: 1.2;
+}
+.inside .funnel .name {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--in-soft);
+}
+/* How much of the step above survived. Under the name rather than beside it, because it is
+   the figure that says whether a step is working and it should not be hunted for. */
+.inside .funnel .rate {
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.625rem;
+  color: var(--in-muted);
+}
+
+/* The shape's own column. The band is centered in it, so the funnel has a middle to
+   narrow toward. */
+.inside .funnel .track {
+  position: relative;
+  flex: 1 1 auto;
+  align-self: stretch;
+}
+
+.inside .funnel .band {
+  position: absolute;
+  inset: 0;
+  background: var(--band);
+  clip-path: polygon(
+    var(--top-left) 0%, var(--top-right) 0%,
+    var(--bottom-right) 100%, var(--bottom-left) 100%
+  );
+}
+
+/* A hairline where one band meets the next, so five stages read as five rather than as one
+   tapering block. */
+.inside .funnel .stage + .stage .band { border-top: 1px solid rgba(21, 25, 24, 0.55); }
+
+.inside .funnel .count {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.25rem;
+  letter-spacing: -0.03em;
+  color: #16201e;
+}
+/* Past a point the band is narrower than its own number, so the number is standing on the
+   panel instead of on the colour and has to be light to be read. */
+.inside .funnel .stage.thin .count { color: var(--in-cream); }
+
+.inside .funnel .nothing {
+  font-size: 0.75rem;
+  color: var(--in-muted);
+}
