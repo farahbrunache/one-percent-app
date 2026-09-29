@@ -245,6 +245,26 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 select { appearance: none; background-image: none; }
 
+/* Stop Safari on iOS zooming the page when a field is tapped.
+ *
+ * It zooms whenever the focused field's font-size is under 16px, and the zoom sticks -- the
+ * page stays magnified and clipped, and every tap into a field does it again. The desk was
+ * setting its fields to 13px to match the rest of that screen, which is exactly the trigger.
+ *
+ * Pinning every form control to 16px prevents the jump and leaves pinch-to-zoom working,
+ * unlike locking the viewport's maximum scale, which takes zooming away from somebody who
+ * needs it. `!important` is here because a field styled anywhere else is still a field, and
+ * this is the one rule that must win. It applies at every width, so a wide screen renders
+ * what a phone renders.
+ *
+ * Skills Economy hit this and fixed it the same way, in `ctf/packages/web/app/globals.css`.
+ * Copied rather than shared: these are two repositories with one stylesheet each. */
+input,
+textarea,
+select {
+  font-size: 16px !important;
+}
+
 /* a.button is a link that has to look like a button: signing in leaves the site, so it is a
    link and not a form. */
 button,
@@ -803,7 +823,6 @@ button.danger { background: transparent; color: var(--ink-soft); border: 1px sol
 .inside input,
 .inside textarea,
 .inside select {
-  font-size: 0.8125rem;
   padding: 0.625rem 0.75rem;
 }
 .inside .row select { margin-top: 0.4rem; }
