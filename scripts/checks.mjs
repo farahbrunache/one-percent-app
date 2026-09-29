@@ -127,6 +127,30 @@ for (const file of files.filter((f) => f.includes('/api/') && f.endsWith('.js'))
   }
 }
 
+// ---- a field small enough for Safari to zoom into -------------------------------------------
+//
+// Safari on iOS zooms the page when a form field with a font under 16px is focused, and the
+// zoom sticks: the page stays magnified and clipped, and every tap into a field does it
+// again. The desk shipped that way, because its fields were sized to 13px to match the rest
+// of that screen.
+//
+// The stylesheet pins every control to 16px with `!important`. This is here so nobody
+// quietly writes a smaller one underneath it and finds out from a phone.
+{
+  const css = read(`${ROOT}/style.css`);
+  const withoutComments = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  for (const rule of withoutComments.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const selector = rule[1];
+    if (!/\b(input|textarea|select)\b/.test(selector)) continue;
+    const size = rule[2].match(/font-size:\s*([\d.]+)(px|rem)/);
+    if (!size) continue;
+    const px = size[2] === 'rem' ? Number(size[1]) * 16 : Number(size[1]);
+    if (px < 16) {
+      fail('zoom', `style.css gives "${selector.trim()}" a font-size of ${px}px. Under 16px, Safari zooms the page when the field is tapped.`);
+    }
+  }
+}
+
 // ---- renaming a column onto one that is already there ---------------------------------------
 //
 // `assessed_at` was renamed to `decided_at`, and `decided_at` was already on the orders
