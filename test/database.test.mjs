@@ -386,6 +386,38 @@ check('and what they said is kept with when they said it',
 check('a quote already answered cannot be answered again',
   (await answer(quoteId, 'acct-quoted', 'agreed', null)) === false);
 
+// Three waiting at once, and the insert counts them.
+//
+// Counted in the statement that writes rather than before it, so two taps arriving together
+// cannot both pass a check neither of them updated. What is capped is how many are waiting
+// on an answer: answering one frees the slot.
+async function offerQuote(account, cents) {
+  const rows = await tagged`
+    insert into quotes (account_id, amount_cents, scope_encrypted)
+    select ${account}, ${cents}, 'what it covers'
+     where (select count(*) from quotes where account_id = ${account} and status = 'offered') < 3
+    returning id`;
+  return rows.length > 0;
+}
+
+const choosing = 'acct-three-at-a-time';
+check('a first, second and third all land',
+  (await offerQuote(choosing, 10000)) && (await offerQuote(choosing, 20000))
+    && (await offerQuote(choosing, 30000)));
+check('and a fourth does not', (await offerQuote(choosing, 40000)) === false);
+
+// One answered frees a slot. A no to one price says nothing about the next, so a long
+// relationship carries any number of quotes over time.
+await tagged`update quotes set status = 'declined', answered_at = now()
+              where account_id = ${choosing} and status = 'offered'
+                and id = (select min(id) from quotes
+                           where account_id = ${choosing} and status = 'offered')`;
+check('answering one makes room for another', (await offerQuote(choosing, 50000)) === true);
+
+const still = await tagged`
+  select count(*)::int as n from quotes where account_id = ${choosing} and status = 'offered'`;
+check('and never more than three are waiting', still[0].n === 3, still[0]);
+
 // Being quoted opens the conversation, the same as a go does. Without it a quote asking
 // somebody to say what needs changing had nowhere for them to say it.
 const conversation = await tagged`

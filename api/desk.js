@@ -29,6 +29,7 @@ import {
   isDecision,
   isIntroductionOutcome,
   isQuoteStatus,
+  MAX_OPEN_QUOTES,
   isMilestoneStatus,
   isPlanPath,
   isQueueState,
@@ -819,10 +820,27 @@ async function writeQuote(req, res) {
     );
   }
 
-  await sql()`
+  // Three at once, and the insert is what counts them, so two taps arriving together cannot
+  // both pass a check made before either wrote. What is capped is how many are waiting on an
+  // answer -- answering one frees the slot, so a long relationship carries any number over
+  // time. Three is a choice somebody reads in one go; a fourth makes it a list, and a list of
+  // prices arriving unasked is what a sales pitch looks like.
+  const written = await sql()`
     insert into quotes (account_id, amount_cents, scope_encrypted)
-    values (${account}, ${cents}, ${encrypt(scope)})
+    select ${account}, ${cents}, ${encrypt(scope)}
+     where (
+       select count(*) from quotes
+        where account_id = ${account} and status = 'offered'
+     ) < ${MAX_OPEN_QUOTES}
+    returning id
   `;
+  if (!written.length) {
+    throw new HttpError(
+      409,
+      `There are already ${MAX_OPEN_QUOTES} quotes waiting on an answer from this person, ` +
+        'which is as many as anybody can choose between. Withdraw one, or wait for an answer.',
+    );
+  }
   await record(id, 'quote.written', `$${amount.toFixed(2)}. ${scope}`);
   send(res, 201, { ok: true });
 }

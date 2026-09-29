@@ -835,6 +835,11 @@
 
   const INTRO_OUTCOMES = ['waiting', 'worked', 'went nowhere'];
 
+  // Three at once. More than that stops being a choice and starts being a catalogue, and a
+  // list of prices arriving unasked is what a sales pitch looks like. The endpoint counts
+  // the same way; this is so the screen says where it stands before somebody types.
+  const MAX_OPEN_QUOTES = 3;
+
   function money(value) {
     return `$${Number(value).toFixed(2)}`;
   }
@@ -858,11 +863,25 @@
     // two are not impossible together -- somebody turned down for the method can still be
     // the right person for one piece of work -- but it is a thing to notice rather than a
     // thing to do by reflex, so the screen says so before the form and asks again after it.
-    note.textContent = person.decision === 'no-go'
-      ? 'This was a no-go. A quote is for paid work, so quoting somebody you turned down is '
-        + 'worth being deliberate about. It is allowed and nothing stops it.'
-      : 'Written for them, in dollars, against what the work actually is.';
-    form.hidden = false;
+    // Three at once, because three is a choice somebody reads in one go and a fourth makes
+    // it a list. Each one is answered on its own -- saying no to a price for one piece of
+    // work says nothing about the next, so the count is what is waiting rather than what has
+    // ever been written.
+    const open = person.quotes.filter((q) => q.status === 'offered').length;
+    const room = MAX_OPEN_QUOTES - open;
+
+    const lines = [];
+    if (person.decision === 'no-go') {
+      lines.push('This was a no-go. A quote is for paid work, so quoting somebody you turned '
+        + 'down is worth being deliberate about. It is allowed and nothing stops it.');
+    }
+    lines.push(room > 0
+      ? `Written for them, in dollars, against what the work actually is. ${open} of `
+        + `${MAX_OPEN_QUOTES} waiting on an answer.`
+      : `${MAX_OPEN_QUOTES} are already waiting on an answer, which is as many as anybody can `
+        + 'choose between. Withdraw one, or wait.');
+    note.textContent = lines.join(' ');
+    form.hidden = room <= 0;
 
     if (!person.quotes.length) list.append(el('p', 'Nothing quoted yet.', 'meta'));
     for (const quote of person.quotes) {
