@@ -186,7 +186,7 @@ console.log('what they are told afterwards');
 // Everybody who calls gets a sheet. The decision changes whether the conversation opens, not
 // whether there is something to read.
 const told = await newOrder();
-await tagged`update orders set decision = 'no-go', decided_at = now(),
+await tagged`update orders set decision = 'no-go', decision_at = now(),
                                recommendations_encrypted = 'x', recommendations_written_at = now()
               where id = ${told}`;
 const sheet = await tagged`
@@ -229,51 +229,74 @@ check('a fuller record replaces the first', replaced[0].record_encrypted === 'th
 // The rename, run against the real table.
 //
 // `assessment` was retired because the word sounds like a score and a score sounds like
-// people are being ranked. The column is `decision` now, and the statement that gets there
-// runs on every cold start, so it has to be safe on a database that already has the new
-// name and on one that still has the old.
+// people are being ranked. The column is `decision` now and its timestamp is `decision_at`.
 //
-// This puts the old name back, runs the statement, and checks the data came through. Then
-// it runs it again to prove a second pass does nothing.
-console.log('the column that was called assessment');
+// The timestamp is not `decided_at`, and that is the point of this test. `decided_at` was
+// already on the table and means the moment the *payment* was confirmed or rejected. The
+// first version of this renamed onto it, which threw on every cold start and took the site
+// down -- and the test passed, because it renamed the payment's own column out of the way
+// first and so was checking a table that does not exist anywhere.
+//
+// So this leaves the payment's column alone and checks it is still there and still itself
+// afterwards. Then it runs the statements again to prove a second pass does nothing.
+console.log('the columns that were called assessment');
 
-const RENAME = `
+// The two statements the schema runs, separately, because that is how it runs them.
+const RENAME_COLUMN = (from, to) => `
   do $$
   begin
     if exists (
       select 1 from information_schema.columns
-      where table_name = 'orders' and column_name = 'assessment'
+      where table_name = 'orders' and column_name = '${from}'
     ) and not exists (
       select 1 from information_schema.columns
-      where table_name = 'orders' and column_name = 'decision'
+      where table_name = 'orders' and column_name = '${to}'
     ) then
-      alter table orders rename column assessment to decision;
-      alter table orders rename column assessed_at to decided_at;
+      alter table orders rename column ${from} to ${to};
     end if;
   end $$;
 `;
+async function runTheRename() {
+  await pg.query(RENAME_COLUMN('assessment', 'decision'));
+  await pg.query(RENAME_COLUMN('assessed_at', 'decision_at'));
+}
 
 const renamed = await newOrder();
-await tagged`update orders set decision = 'go', decided_at = now() where id = ${renamed}`;
+await tagged`
+  update orders set decision = 'go', decision_at = now(), decided_at = now() - interval '1 day'
+   where id = ${renamed}`;
 
 await pg.query('alter table orders rename column decision to assessment');
-await pg.query('alter table orders rename column decided_at to assessed_at');
-await pg.query(RENAME);
+await pg.query('alter table orders rename column decision_at to assessed_at');
+await runTheRename();
 
 const columns = await tagged`
   select column_name from information_schema.columns
    where table_name = 'orders'
-     and column_name in ('assessment', 'assessed_at', 'decision', 'decided_at')
+     and column_name in ('assessment', 'assessed_at', 'decision', 'decision_at', 'decided_at')
    order by column_name`;
 check('the old names are gone and the new ones are there',
-  columns.map((c) => c.column_name).join(',') === 'decided_at,decision',
+  columns.map((c) => c.column_name).join(',') === 'decided_at,decision,decision_at',
   columns.map((c) => c.column_name));
 
-const carried = await tagged`select decision, decided_at from orders where id = ${renamed}`;
+const carried = await tagged`
+  select decision, decision_at, decided_at from orders where id = ${renamed}`;
 check('and what was in it came across',
-  carried[0].decision === 'go' && carried[0].decided_at !== null, carried[0]);
+  carried[0].decision === 'go' && carried[0].decision_at !== null, carried[0]);
+// The payment's own timestamp is a different decision by a different person. Renaming onto
+// it is what broke the site, so this checks it is untouched and is still the earlier one.
+check('the payment\'s own timestamp is still its own',
+  carried[0].decided_at !== null
+    && new Date(carried[0].decided_at) < new Date(carried[0].decision_at), carried[0]);
 
-await pg.query(RENAME);
+// Half-way through is a state a failure can leave behind, so each column renames on its own
+// and the next start finishes the job rather than needing the first half undone by hand.
+await pg.query('alter table orders rename column decision_at to assessed_at');
+await runTheRename();
+const finished = await tagged`select decision, decision_at from orders where id = ${renamed}`;
+check('a half-done rename finishes itself', finished[0].decision_at !== null, finished[0]);
+
+await runTheRename();
 const again = await tagged`select decision from orders where id = ${renamed}`;
 check('running it a second time changes nothing', again[0].decision === 'go');
 
@@ -300,13 +323,13 @@ check('somebody who has paid and not been read has no conversation',
 
 const turned = await newOrder();
 await tagged`update orders set client_account_id = 'acct-no-go', decision = 'no-go',
-                               decided_at = now(), approved_as_client_at = null
+                               decision_at = now(), approved_as_client_at = null
               where id = ${turned}`;
 check('and a no-go has none either', (await conversationOpen('acct-no-go')) === false);
 
 const client = await newOrder();
 await tagged`update orders set client_account_id = 'acct-go', decision = 'go',
-                               decided_at = now(), approved_as_client_at = now()
+                               decision_at = now(), approved_as_client_at = now()
               where id = ${client}`;
 check('a go opens it', (await conversationOpen('acct-go')) === true);
 
@@ -326,7 +349,7 @@ check('a thread with something in it is not opened again', already.length === 1)
 
 console.log('the desk can read what it reads');
 await tagged`
-  select o.id, o.reference_code, o.decision, o.decided_at, o.status,
+  select o.id, o.reference_code, o.decision, o.decision_at, o.status,
          o.recommendations_encrypted, o.recommendations_written_at,
          o.client_account_id, o.approved_as_client_at, o.first_customer_at,
          o.session_starts, o.first_started_at,

@@ -100,7 +100,7 @@ async function queue(req, res) {
              exists (select 1 from calls c2
                       where c2.order_id = o.id and c2.record_encrypted is null
                         and c2.transcript_encrypted is not null) as record_missing,
-             o.decided_at, o.client_account_id is not null as linked,
+             o.decision_at, o.client_account_id is not null as linked,
              p.path as plan_path,
              (select c.ended_at from calls c
                where c.order_id = o.id and c.transcript_encrypted is not null
@@ -157,7 +157,7 @@ async function queue(req, res) {
       seconds: r.seconds,
       callCount: r.call_count,
       decision: r.decision,
-      decidedAt: r.decided_at,
+      decidedAt: r.decision_at,
       recommendedAt: r.recommendations_written_at,
       recordMissing: Boolean(r.record_missing),
       linked: r.linked,
@@ -224,7 +224,7 @@ async function person(req, res) {
   const id = orderId(query(req).get('id'));
 
   const rows = await sql()`
-    select id, reference_code, status, decision, decided_at,
+    select id, reference_code, status, decision, decision_at,
            client_account_id, approved_as_client_at, first_customer_at,
            recommendations_encrypted, recommendations_written_at
       from orders where id = ${id}
@@ -317,7 +317,7 @@ async function person(req, res) {
     calledAt: calls.find((c) => c.transcript_encrypted)?.started_at || null,
     recordMissing: calls.some((c) => c.transcript_encrypted && !c.record_kept),
     decision: row.decision,
-    decidedAt: row.decided_at,
+    decidedAt: row.decision_at,
     linked: Boolean(row.client_account_id),
     approvedAt: row.approved_as_client_at,
     recommendations: row.recommendations_encrypted ? decrypt(row.recommendations_encrypted) : null,
@@ -628,7 +628,7 @@ async function decide(req, res) {
   const done = await sql()`
     update orders set
       decision = ${decision},
-      decided_at = now(),
+      decision_at = now(),
       approved_as_client_at = case
         when ${decision} = 'go' then coalesce(approved_as_client_at, now())
         else null
