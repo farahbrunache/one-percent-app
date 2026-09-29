@@ -10,9 +10,10 @@
 //
 // Run with: npm run check
 
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -47,6 +48,26 @@ for (const file of scripts) {
     execFileSync(process.execPath, ['--check', file], { stdio: 'pipe' });
   } catch (error) {
     fail('syntax', `${file.slice(ROOT.length + 1)} does not parse.\n${error.stderr}`);
+  }
+}
+
+// Every page runs a module script inline, and nothing was parsing those. A copy pass put an
+// apostrophe inside a single-quoted string on three pages at once -- "it's how you get back"
+// -- and each one is a page that loads, renders nothing, and reports the error only to a
+// browser console nobody has open on a phone. Node parses the script body on its own, so the
+// body is written out and checked the same way a .js file is.
+const pages = files.filter((f) => f.endsWith('.html'));
+for (const file of pages) {
+  const body = read(file).match(/<script type="module">([\s\S]*?)<\/script>/);
+  if (!body) continue;
+  const scratch = join(tmpdir(), `check-${basename(file)}.mjs`);
+  writeFileSync(scratch, body[1]);
+  try {
+    execFileSync(process.execPath, ['--check', scratch], { stdio: 'pipe' });
+  } catch (error) {
+    fail('syntax', `${file.slice(ROOT.length + 1)} has a script that does not parse.\n${error.stderr}`);
+  } finally {
+    rmSync(scratch, { force: true });
   }
 }
 
@@ -340,4 +361,5 @@ if (problems.length) {
   console.error('');
   process.exit(1);
 }
-console.log(`checked ${scripts.length} files, ${deployKeys.size} settings, and every endpoint action.`);
+console.log(`checked ${scripts.length + pages.length} files, ${deployKeys.size} settings, `
+  + 'and every endpoint action.');
