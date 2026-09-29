@@ -267,7 +267,8 @@ async function person(req, res) {
   // quote, which the screen says rather than offering a form that cannot work.
   const quotes = row.client_account_id
     ? await sql()`
-        select id, amount_cents, scope_encrypted, status, created_at, updated_at
+        select id, amount_cents, scope_encrypted, status, created_at, updated_at,
+               answered_at, reason_encrypted
           from quotes where account_id = ${row.client_account_id}
          order by created_at desc limit 50
       `
@@ -350,6 +351,10 @@ async function person(req, res) {
       status: q.status,
       writtenAt: q.created_at,
       movedAt: q.updated_at,
+      // What they said back, and when. Without it a quote that was turned down for a reason
+      // and one that went nowhere read the same afterwards.
+      answeredAt: q.answered_at,
+      reason: q.reason_encrypted ? decrypt(q.reason_encrypted) : null,
     })),
     introductions: intros.map((i) => {
       const them = Number(i.a_order_id) === Number(id)

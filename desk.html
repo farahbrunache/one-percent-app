@@ -833,7 +833,6 @@
     });
   }
 
-  const QUOTE_STATUSES = ['offered', 'agreed', 'paid', 'withdrawn'];
   const INTRO_OUTCOMES = ['waiting', 'worked', 'went nowhere'];
 
   function money(value) {
@@ -862,11 +861,27 @@
     for (const quote of person.quotes) {
       const row = el('div', null, 'row');
       row.append(el('div', money(quote.amount), 'value'));
-      row.append(el('div', `${quote.status} · written ${when(quote.writtenAt)}`, 'meta'));
+      row.append(el('div', `Written ${when(quote.writtenAt)}`, 'meta'));
       row.append(el('div', quote.scope, null));
 
+      // What they said back. A quote answered by the person it was written for is a fact
+      // with a time on it, so it reads as one rather than as a status that moved.
+      if (quote.answeredAt) {
+        const tone = quote.status === 'agreed' ? 'go' : quote.status === 'declined' ? 'nogo' : 'open';
+        row.append(el('div', `They said: ${quote.status}`, `badge ${tone}`));
+        row.append(el('div', `Answered ${when(quote.answeredAt)}`, 'meta'));
+        if (quote.reason) row.append(el('div', quote.reason, 'sheet'));
+      } else if (quote.status === 'offered') {
+        row.append(el('div', 'Waiting on them', 'badge open'));
+      } else {
+        row.append(el('div', `${quote.status} · moved ${when(quote.movedAt)}`, 'meta'));
+      }
+
+      // Only the moves that belong to this end. Agreeing, declining and asking for a change
+      // are the other person's to make, and a control here that does any of them would put
+      // their answer on the record in somebody else's hand.
       const actions = el('div', null, 'actions');
-      for (const status of QUOTE_STATUSES) {
+      for (const status of ['paid', 'withdrawn']) {
         if (status === quote.status) continue;
         const button = el('button', status, 'quiet');
         button.type = 'button';
