@@ -17,22 +17,22 @@
 
   <div id="out" hidden>
     <p class="lede">
-      Sign in with Skills Economy to reach your own sessions. Everything before that — paying,
+      Sign in with Skills Economy to get to your own sessions. Everything before that — paying,
       and the call itself — needs no account at all.
     </p>
     <p class="cta">
       <a class="button go-on" id="go" href="/api/auth?action=start&amp;to=/">Sign in with Skills Economy</a>
     </p>
     <p class="cta after">
-      Signing in does not buy anything and does not get you a session. It is how somebody who
-      has already had their call reaches what came out of it.
+      Signing in doesn't buy anything and doesn't get you a session. It's how someone who has
+      already had their call gets to what came out of it.
     </p>
     <section class="panel">
-      <h3>You have not paid yet</h3>
+      <h3>You haven't paid yet</h3>
       <p>
-        What a session is, what it costs and what happens in it is at
-        <a href="https://farahbrunache.com">farahbrunache.com</a>. You can buy one and have
-        the call without signing in to anything.
+        What a session is, what it costs and what happens in it are all at
+        <a href="https://farahbrunache.com">farahbrunache.com</a>. You can buy one and have the
+        call without signing in to anything.
       </p>
       <p class="cta"><a class="button quiet-link" href="/buy">Pay for a session</a></p>
     </section>
@@ -45,9 +45,9 @@
     <section id="quotes" class="panel" hidden>
       <h3>What has been quoted to you</h3>
       <p class="meta">
-        Each one says what it covers, and what it would cost. Answer them one at a time:
-        saying no to one says nothing about the others, and nothing here commits you to
-        anything. Anything longer than an answer goes in the conversation below.
+        Each one says what it covers and what it costs. Answer them one at a time — saying no
+        to one says nothing about the others, and nothing here commits you to anything. Anything
+        longer than an answer goes in the conversation below.
       </p>
       <div id="quotelist" class="rows"></div>
     </section>
@@ -69,8 +69,8 @@
     <section id="linker" class="panel" hidden>
       <h3>Link the session you paid for</h3>
       <p>
-        Paste the link you were given after paying. It is the one thing that links your order
-        to an account.
+        Paste the link you got after paying. It's the only thing that ties your order to an
+        account.
       </p>
       <form class="fields" id="linkform" novalidate>
         <div class="field">
@@ -130,7 +130,7 @@
 
     if (!data.sessions.length) {
       head.textContent = 'Your sessions';
-      state.append(el('p', 'You are signed in, and no session is linked to this account yet.', 'lede'));
+      state.append(el('p', "You're signed in. No session is linked to this account yet.", 'lede'));
       return;
     }
     head.textContent = 'Your sessions';
@@ -141,17 +141,17 @@
     const read = data.sessions.some((s) => s.recommendations);
     approved = Boolean(data.approved);
     if (data.approved) {
-      state.append(el('p', 'You are a client.', 'lede'));
+      state.append(el('p', "You're a client.", 'lede'));
       state.append(el('p',
-        'Your recommendations are below, and so is the conversation. Following them through '
-        + 'is what happens next, and it happens in writing.', 'meta'));
+        'Your recommendations are below, and so is the conversation. Working through them is '
+        + 'what happens next, and it happens in writing.', 'meta'));
     } else if (read) {
       state.append(el('p', 'Your call has been read.', 'lede'));
     } else {
       state.append(el('p', 'Your session is linked to this account.', 'lede'));
       state.append(el('p',
-        'What happens next is that the call gets read. That is a person reading it, not a '
-        + 'queue position, so there is no number to watch here.', 'meta'));
+        "Next, the call gets read. An actual person reads it, so there's no queue number "
+        + 'to watch here.', 'meta'));
     }
 
     for (const s of data.sessions) {
@@ -175,7 +175,7 @@
         row.append(el('div', 'Waiting to be read', 'badge open'));
         if (called) row.append(el('div', `Called ${called}.`, 'meta'));
       } else if (s.sessionStarts > 0) {
-        row.append(el('div', 'Nothing came back from it', 'badge open'));
+        row.append(el('div', 'Nothing was recorded', 'badge open'));
         if (called) row.append(el('div', `Started ${called}.`, 'meta'));
       } else {
         row.append(el('div', 'Not started yet', 'badge open'));
@@ -205,10 +205,10 @@
     // being told no. It is never the thing to do next.
     if (read && !data.approved) {
       state.append(el('p',
-        'What came out of your call is below, and it is yours. Acting on it happens in '
-        + 'Skills Economy, which costs you nothing.', 'meta'));
+        "What came out of your call is below, and it's yours. You act on it in Skills Economy, "
+        + 'which costs you nothing.', 'meta'));
       state.append(el('p',
-        'If you work through some of it and want another conversation, there is one here.',
+        'If you work through some of it and want another conversation, you can get one here.',
         'meta'));
       const again = el('p', null, 'cta');
       const link = document.createElement('a');
@@ -232,7 +232,7 @@
     const talk = document.getElementById('talk');
     talk.hidden = false;
     document.getElementById('talknote').textContent =
-      'Written, both ways, whenever either of us gets to it.';
+      'Both of us write here, whenever either of us gets to it.';
     loadThread();
   }
 
@@ -317,7 +317,7 @@
 
     const why = el('div', null, 'field');
     why.hidden = true;
-    const label = el('label', 'In a line, what is wrong with it?');
+    const label = el('label', "In a line, what's wrong with it?");
     const input = document.createElement('textarea');
     input.rows = 2;
     input.maxLength = 2000;
@@ -339,7 +339,7 @@
           input.focus();
           said.hidden = false;
           said.className = 'msg';
-          said.textContent = 'Say what is wrong with it, then press this again.';
+          said.textContent = "Say what's wrong with it, then press this again.";
           return;
         }
         button.disabled = true;

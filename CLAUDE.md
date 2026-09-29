@@ -373,6 +373,30 @@ Say exactly what to do, name the actual thing, and give the actual number.
 None of this licenses padding. Saying the same thing twice is not clearer than saying it
 once.
 
+## Write current American English
+
+Copy here kept coming out in a register nobody has written in for decades. Not wrong, just
+old: no contractions anywhere, "by hand" for yourself, "a day on" for a day later, "so there
+is no conversation" where a person would say "so there's no conversation". A reader notices
+the distance before they notice the sentence, and on a paid product that distance reads as
+something other than a person.
+
+So write the way somebody says it out loud, today, in the United States.
+
+- Use contractions. It's, isn't, hasn't, you've, they're, don't, can't, there's. Dropping
+  every one of them is the single loudest tell, and it was dropped on every page.
+- Say yourself, not by hand. Say a day later, not a day on. Say store, not shop.
+- Use the plain verb. Saved, not kept. Started, not opened against. Charged, not taken.
+- Cut the inverted aside. "What the work is worth to the person who needs it, not what the
+  going rate is" beats "rather than what the going rate is".
+- Keep the sentences short enough to say in one breath. A clause that needs a dash to hold
+  itself together usually wants to be two sentences.
+
+Nothing here loosens the voice rule below. Plain is not chatty: no pleasantries, no feelings,
+no filler. This is about the era the words come from, not the warmth.
+
+It applies to commit messages and pull request bodies too, for the same reason.
+
 ## Voice
 
 No pleasantries, no first-person feeling words, no jargon. State the result and stop. It
