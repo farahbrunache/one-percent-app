@@ -1066,8 +1066,18 @@
 
   // ---- getting started -------------------------------------------------------------
 
-  document.getElementById('logout').addEventListener('click', () => {
-    window.location.href = '/api/auth?action=signout&to=/desk';
+  // Signing out is a POST, and this navigated to it. A browser following a link sends GET,
+  // so the endpoint refused it and the press landed on a page of JSON saying which actions
+  // exist. It is POST-only on purpose: anything that can log somebody out by being visited
+  // can be triggered by a link somebody else wrote.
+  document.getElementById('logout').addEventListener('click', async () => {
+    try {
+      await call('/api/auth?action=signout', { method: 'POST' });
+    } catch (error) {
+      msg('qmsg', error.message, 'bad');
+      return;
+    }
+    window.location.replace('/desk');
   });
 
   async function start() {

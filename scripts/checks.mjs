@@ -127,6 +127,47 @@ for (const file of files.filter((f) => f.includes('/api/') && f.endsWith('.js'))
   }
 }
 
+// ---- a page walking into an endpoint that will not answer -----------------------------------
+//
+// Sign out is a POST, and the desk navigated to it. A browser following a link sends GET, so
+// the endpoint refused and the press landed on a page of JSON listing which actions exist.
+// It is POST-only on purpose -- anything that logs somebody out by being visited can be
+// triggered by a link somebody else wrote -- so the page was wrong, not the endpoint.
+//
+// This reads every navigation in the pages: `location.href =`, `location.assign`,
+// `location.replace`, and a plain href in the markup. Anything pointing at `/api/...` with an
+// action has to be an action that file answers on GET.
+{
+  const getActions = new Map();
+  for (const file of files.filter((f) => f.includes('/api/') && f.endsWith('.js'))) {
+    const text = read(file);
+    const name = file.slice(file.lastIndexOf('/') + 1, -3);
+    const allowed = new Set(
+      [...text.matchAll(/req\.method === 'GET' && action === '([a-z][a-z-]*)'/g)].map((m) => m[1]),
+    );
+    // The desk keeps its actions in a map with a key per method.
+    const table = text.match(/GET:\s*\{([^}]*)\}/);
+    if (table) {
+      for (const m of table[1].matchAll(/'?([a-z][a-zA-Z-]*)'?/g)) allowed.add(m[1]);
+    }
+    getActions.set(name, allowed);
+  }
+
+  const navigation = /(?:location\.(?:href\s*=|assign\(|replace\()|href=)\s*['"`]\/api\/([a-z-]+)\?([^'"`]*)['"`]/g;
+  for (const file of files.filter((f) => f.endsWith('.html'))) {
+    for (const m of read(file).matchAll(navigation)) {
+      const endpoint = m[1];
+      const action = (m[2].match(/action=([a-zA-Z-]+)/) || [])[1];
+      if (!action) continue;
+      const allowed = getActions.get(endpoint);
+      if (!allowed) continue;
+      if (!allowed.has(action)) {
+        fail('navigation', `${file.slice(ROOT.length + 1)} navigates to /api/${endpoint}?action=${action}, and that endpoint does not answer ${action} on GET.`);
+      }
+    }
+  }
+}
+
 // ---- a field small enough for Safari to zoom into -------------------------------------------
 //
 // Safari on iOS zooms the page when a form field with a font under 16px is focused, and the
