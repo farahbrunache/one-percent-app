@@ -352,6 +352,27 @@ Never end a piece of work with a command for them to run. Anything they have to 
 doable in a web dashboard. Everything configurable is a setting so it changes without a
 code change.
 
+## Copy somebody has to act on
+
+Say exactly what to do, name the actual thing, and give the actual number.
+
+- **Name the thing rather than referring to it.** "The 10-character code" rather than "your
+  reference" or "that code". On a phone the previous sentence is often off the screen, so
+  "that" points at nothing.
+- **Give the number.** Ten characters, seven dollars, forty-eight hours, half an hour.
+  Knowing how long the thing is, is how somebody knows they have the right thing.
+- **Say where it goes, in the other app's words.** Wise calls it a reference, a note or a
+  message depending on the screen, so the instruction names all three rather than the one
+  this repository happens to use.
+- **Number the steps when there is more than one.** First, then, then, written as prose is a
+  paragraph to hold in your head. A list is a place to come back to after switching apps,
+  which is what somebody is about to do.
+- **Say when there is nothing to do.** Paying by gift card needs no reference anywhere.
+  Saying so stops somebody hunting for a field that is not there.
+
+None of this licenses padding. Saying the same thing twice is not clearer than saying it
+once.
+
 ## Voice
 
 No pleasantries, no first-person feeling words, no jargon. State the result and stop. It

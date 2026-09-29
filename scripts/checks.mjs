@@ -127,6 +127,33 @@ for (const file of files.filter((f) => f.includes('/api/') && f.endsWith('.js'))
   }
 }
 
+// ---- renaming a column onto one that is already there ---------------------------------------
+//
+// `assessed_at` was renamed to `decided_at`, and `decided_at` was already on the orders
+// table meaning the moment the payment was confirmed or rejected. Postgres refused it on
+// every cold start and the site went down. On a database where the rename had never run it
+// would have been quieter and worse: the desk would have shown the payment's timestamp as
+// the moment somebody's call was decided, with nothing to say anything was wrong.
+//
+// So a rename target must not be a column some `create table` in the schema already
+// declares. The `add column if not exists` that follows a rename is the pair of it and is
+// fine; a column in a table body is a different thing wearing the same name.
+{
+  const schema = read(`${ROOT}/lib/db.js`);
+  const declared = new Set();
+  for (const table of schema.matchAll(/create table if not exists \w+ \(([\s\S]*?)\n\s*\)/g)) {
+    for (const line of table[1].split('\n')) {
+      const name = line.trim().split(/\s+/)[0];
+      if (/^\w+$/.test(name)) declared.add(name);
+    }
+  }
+  for (const m of schema.matchAll(/rename column (\w+) to (\w+)/g)) {
+    if (declared.has(m[2])) {
+      fail('collision', `lib/db.js renames ${m[1]} to ${m[2]}, and ${m[2]} is already a column a table declares.`);
+    }
+  }
+}
+
 // ---- calling something that is not there ----------------------------------------------------
 //
 // Twice in one day the trunk ended up calling a function no file defined, because a change
