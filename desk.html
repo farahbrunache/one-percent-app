@@ -23,7 +23,10 @@
   <!-- The queue. Which one and which page are both in the address, so a place in a list can
        be returned to and the back button does what it looks like it does. -->
   <div id="queue" hidden>
-    <p class="dateline" id="today"></p>
+    <div class="topbar">
+      <p class="dateline" id="today"></p>
+      <button type="button" class="quiet" id="again">Refresh</button>
+    </div>
     <h1>Desk</h1>
 
     <h2>How far people get</h2>
@@ -45,7 +48,10 @@
 
   <!-- One person. Its own address, so it can be linked, bookmarked and come back to. -->
   <div id="record" hidden>
-    <p class="meta"><a href="/desk" id="back">Back to the queue</a></p>
+    <div class="topbar">
+      <a class="back" href="/desk" id="back">&larr; The queue</a>
+      <button type="button" class="quiet" id="againrecord">Refresh</button>
+    </div>
     <h1 id="ref"></h1>
     <p class="meta" id="called"></p>
     <div id="rmsg" hidden></div>
@@ -1062,6 +1068,13 @@
         msg('rmsg', error.message, 'bad');
       }
     });
+  }
+
+  // Reloading without reaching for the browser's own button. The desk is a screen somebody
+  // leaves open while the work happens elsewhere -- a call lands, a record gets kept -- so
+  // the thing it shows goes out of date while nothing on the page has changed.
+  for (const id of ['again', 'againrecord']) {
+    document.getElementById(id).addEventListener('click', () => window.location.reload());
   }
 
   // ---- getting started -------------------------------------------------------------

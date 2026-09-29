@@ -101,6 +101,23 @@ afterwards.
 The phone-width and dark-only rules above hold over any of this. Where the reference and one
 of them disagree, the rule wins.
 
+## A way back, and a way to ask again
+
+Every screen reached from another carries a link back to it, and every screen whose figures
+go out of date while it is open carries its own control to bring them up to date. Both sit
+in one row across the top: where it came from on the left, refresh on the right.
+
+Neither is the browser's job. The back button is history rather than structure — it goes
+wherever somebody happened to be, which is not the same as where the screen sits — and a
+person on a phone reaching for the address bar to reload has been failed by the page.
+
+So: payments came from the desk and says so. A person's record came from the queue and says
+so. Paying and the claim page came from the sales page and say so. The desk is the top of
+the operator side and has nothing above it, so it has refresh alone.
+
+The one on the sales side points at the sales page rather than at whichever app screen sent
+somebody there, because that is where those pages sit even when the path in was different.
+
 ## No loading screens
 
 Nothing on any screen says it is checking, reading, or loading. A screen is blank for the
