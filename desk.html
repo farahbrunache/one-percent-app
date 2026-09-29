@@ -854,7 +854,14 @@
       form.hidden = true;
       return;
     }
-    note.textContent = 'Written for them, in dollars, against what the work actually is.';
+    // A quote is for paid work, and a no-go said this is not somebody to go on with. The
+    // two are not impossible together -- somebody turned down for the method can still be
+    // the right person for one piece of work -- but it is a thing to notice rather than a
+    // thing to do by reflex, so the screen says so before the form and asks again after it.
+    note.textContent = person.decision === 'no-go'
+      ? 'This was a no-go. A quote is for paid work, so quoting somebody you turned down is '
+        + 'worth being deliberate about. It is allowed and nothing stops it.'
+      : 'Written for them, in dollars, against what the work actually is.';
     form.hidden = false;
 
     if (!person.quotes.length) list.append(el('p', 'Nothing quoted yet.', 'meta'));
@@ -903,10 +910,15 @@
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
+      const amount = document.getElementById('amount').value;
+      if (person.decision === 'no-go'
+        && !window.confirm(`This person was a no-go. Write them a quote for $${amount}?`)) {
+        return;
+      }
       try {
         await post('quote', {
           id: person.id,
-          amount: document.getElementById('amount').value,
+          amount,
           scope: document.getElementById('scope').value,
         });
         window.location.reload();

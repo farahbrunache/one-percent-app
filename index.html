@@ -158,6 +158,10 @@
       row.append(el('div', s.reference, 'code'));
       // Where this session has got to, said as a state rather than as a sentence to parse.
       // The same pill the desk uses, so the two screens describe one session the same way.
+      // A date that is not there is not a date. This printed "Called null." on a real
+      // screen, because the line was built before asking whether there was anything to
+      // put in it.
+      const called = when(s.calledAt);
       if (s.approved) {
         row.append(el('div', 'Approved', 'badge go'));
       } else if (s.recommendations) {
@@ -165,13 +169,13 @@
         // screen forever for somebody the answer was not yes for -- so the one state that
         // must never read as a rejection read instead as being left in a queue.
         row.append(el('div', 'Read', 'badge open'));
-        row.append(el('div', `Called ${when(s.calledAt)}.`, 'meta'));
+        if (called) row.append(el('div', `Called ${called}.`, 'meta'));
       } else if (s.hasTranscript) {
         row.append(el('div', 'Waiting to be read', 'badge open'));
-        row.append(el('div', `Called ${when(s.calledAt)}.`, 'meta'));
+        if (called) row.append(el('div', `Called ${called}.`, 'meta'));
       } else if (s.sessionStarts > 0) {
         row.append(el('div', 'Nothing came back from it', 'badge open'));
-        row.append(el('div', `Started ${when(s.calledAt)}.`, 'meta'));
+        if (called) row.append(el('div', `Started ${called}.`, 'meta'));
       } else {
         row.append(el('div', 'Not started yet', 'badge open'));
         row.append(el('div', 'Paid for.', 'meta'));
@@ -200,7 +204,7 @@
     // being told no. It is never the thing to do next.
     if (read && !data.approved) {
       state.append(el('p',
-        'What came out of your call is above, and it is yours. Acting on it happens in '
+        'What came out of your call is below, and it is yours. Acting on it happens in '
         + 'Skills Economy, which costs you nothing.', 'meta'));
       state.append(el('p',
         'If you work through some of it and want another conversation, there is one here.',
