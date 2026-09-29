@@ -352,6 +352,32 @@ Never end a piece of work with a command for them to run. Anything they have to 
 doable in a web dashboard. Everything configurable is a setting so it changes without a
 code change.
 
+## Copy a customer follows, not copy a customer admires
+
+Anything somebody has to act on says exactly what to do, names the actual thing, and gives
+the actual number. This has been got wrong repeatedly and in the same way: the sentence
+reads well, and somebody holding a phone still does not know what to type or where.
+
+- **Name the thing, do not refer to it.** "The 10-character code" rather than "your
+  reference" or "that code". Somebody who has not read the previous sentence does not know
+  what "that" is, and on a phone the previous sentence is often off the screen.
+- **Give the number.** Ten characters, seven dollars, forty-eight hours, half an hour. A
+  reader who knows how long the thing is knows when they have the right thing.
+- **Say where it goes, in the other app's words.** Wise calls it a reference, a note or a
+  message depending on the screen, so the instruction names all three rather than the one
+  this repository happens to call it.
+- **Number the steps when there is more than one.** Prose that says first, then, then is a
+  paragraph somebody has to hold in their head. A list is a place to come back to after
+  switching apps, which is exactly what they are about to do.
+- **Say when there is nothing to do.** Paying by gift card needs no reference anywhere, and
+  saying so outright stops somebody hunting for a field that is not there.
+
+The bar is a reader who has never seen this product, is doing it once, and will not ask.
+Write it so they get it right the first time without working anything out.
+
+This is about copy somebody follows. It does not license padding an explanation, and it is
+not an argument for saying the same thing twice.
+
 ## Voice
 
 No pleasantries, no first-person feeling words, no jargon. State the result and stop. It

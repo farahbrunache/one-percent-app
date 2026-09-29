@@ -821,3 +821,13 @@ button.danger { background: transparent; color: var(--ink-soft); border: 1px sol
 }
 .inside .said.them { border-left: 2px solid var(--in-coral); }
 .inside .said.us { border-left: 2px solid #33443f; }
+
+/* Steps somebody follows with a phone in one hand and Wise open in the other. Numbered,
+   because "first, then, then" told as prose is a paragraph to hold in your head and a list
+   is a place to come back to. */
+.how {
+  margin: 0.6rem 0 0;
+  padding-left: 1.4rem;
+  color: var(--ink-soft);
+}
+.how li + li { margin-top: 0.6rem; }

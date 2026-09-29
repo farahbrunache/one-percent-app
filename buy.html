@@ -27,19 +27,28 @@
       world. An <strong>Amazon gift card</strong> if you do not — one can be bought with cash
       in a shop.
     </p>
+    <p><strong>Paying by Wise — three steps</strong></p>
+    <ol class="how">
+      <li>Pick Wise below, then press Start my order.</li>
+      <li>The next screen shows you a code. It is 10 characters, letters and numbers, with a
+        dash in the middle. It also shows you the Wise name to send the money to. Copy both.</li>
+      <li>Open Wise and send $7 to that name. Wise will ask you for a reference, a note or a
+        message before you send — paste the 10-character code in there. That code is the only
+        thing that tells us the money is yours.</li>
+    </ol>
+
+    <p><strong>Paying by Amazon gift card — two steps</strong></p>
+    <ol class="how">
+      <li>Buy an Amazon gift card for $7 and find its claim code. It is on the card, or in the
+        email if you bought it online.</li>
+      <li>Pick Amazon gift card below, paste that claim code in, and press Start my order.
+        There is nothing else to type anywhere — the card code is what tells us the money is
+        yours.</li>
+    </ol>
+
     <p>
-      Choose below and the next screen gives you a ten-character reference and a link. Keep
-      the link — it is where your session opens once the money arrives, and it is the only
-      way back to your order.
-    </p>
-    <p>
-      <strong>Paying by Wise:</strong> type that reference into the note or message on the
-      transfer. A transfer arrives with nothing on it to say whose it is, so the reference is
-      the only thing that matches it to you.
-    </p>
-    <p>
-      <strong>Paying by gift card:</strong> nothing to type anywhere. You paste the card code
-      on the next screen and that code is what matches the payment to your order.
+      Either way, the next screen also gives you a link. Save it. It is the only way back to
+      your order, and it is where you press the button to start your session.
     </p>
   </div>
 
@@ -199,12 +208,14 @@
     const node = box(target, 'good');
 
     if (data.needsCode) {
-      node.append(el('p', 'Your card is in. Save this link before you go anywhere — it is the '
-        + 'only way back to your order, and nothing else was recorded about you that could '
-        + 'find it.'));
+      node.append(el('p', 'Your card is in. There is nothing else to send and nothing else '
+        + 'to type. Save the link below before you go anywhere — it is the only way back to '
+        + 'your order, and nothing else was recorded about you that could find it.'));
     } else {
-      node.append(el('p', `Your order is open. Now send $7 by ${data.label}, and put your `
-        + 'reference in the note so it can be matched to you.'));
+      node.append(el('p', `Your order is open. Now open ${data.label} and send $7 to the `
+        + `name below. ${data.label} will ask you for a reference, a note or a message `
+        + 'before you send — paste the 10-character code below in there. That code is the '
+        + 'only thing that tells us the money is yours.'));
 
       const to = el('div', null, 'status-line');
       to.append(el('div', `Send $7 by ${data.label}`, 'label'));
@@ -213,11 +224,14 @@
     }
 
     const ref = el('div', null, 'status-line');
-    ref.append(el('div', data.needsCode ? 'Your reference' : 'Put this in the note', 'label'));
+    ref.append(el('div', data.needsCode
+      ? 'Your 10-character code'
+      : 'Paste this 10-character code into the note', 'label'));
     ref.append(el('div', data.reference, 'big-code'));
     node.append(ref);
 
-    node.append(el('p', 'Save this link. It is the only record of your order.'));
+    node.append(el('p', 'Save this link. Bookmark it, or send it to yourself. It is the only '
+      + 'record of your order, and it is where you press the button to start your session.'));
     const line = el('p');
     line.style.marginTop = '0.4rem';
     const a = el('a', url, 'mono');
