@@ -417,10 +417,24 @@ pass. Do not wait around to see it happen, and do not leave one off because the 
 serious.
 
 There used to be a second lane: anything touching money, signing in, the database or the
-deploy waited for a person to read it. That is gone. The owner runs several repositories and
-reviewing every change by hand across all of them is more work than one person has, so a
-queue of pull requests waiting on a tap was not safety — it was a backlog that made
-everything ship later and got read less carefully when it finally was.
+deploy waited for a person to read it. That is gone.
+
+**The reason is who absorbs a mistake, not how much time reviewing takes.** Almost every
+screen in this repository is the owner's own — the desk, payments, the settings, the
+deploy. When something ships broken here, the person who finds it is the person who wrote
+it, on their own screen, and they can say so in the same minute. That is what makes
+shipping without a review reasonable: the feedback is immediate and it costs nobody else
+anything.
+
+Do not carry this reasoning to a repository where somebody else eats the error. It is a
+fact about this product, not a position on reviews.
+
+**So the three screens a customer touches are the exception, and they get more care rather
+than less.** `buy.html`, `claim.html`, and the client area in `index.html` are where
+somebody who has paid seven dollars finds out what happened — and nobody will see a mistake
+on those before they do. Read the copy on those as somebody who has never seen the product,
+and render them before pushing. The same goes for what the voice agent says, which lives in
+the private repository, and for the sales page, which is a repository of its own.
 
 **So the checks are the review now, and that is a real obligation rather than a
 reassurance.** Nobody is going to catch it after you. Before opening anything:
