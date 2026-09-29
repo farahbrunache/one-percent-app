@@ -411,20 +411,33 @@ Run `npm test` before pushing. It covers every request path that does not need a
 Never watch a pull request. After opening one, do not subscribe to its activity and do not
 wait for its checks. The harness subscribes on its own; unsubscribe straight away.
 
-Auto-merge is on in this repository. Turn it on for the pull request as soon as it is open,
-squash, and it merges itself when the checks pass. Do not wait around to see it happen.
+**Auto-merge goes on every pull request, without exception** (owner decision, 2026-09-29).
+Turn it on as soon as the pull request is open, squash, and it merges itself when the checks
+pass. Do not wait around to see it happen, and do not leave one off because the change feels
+serious.
 
-Not for everything. A change that touches money, signing in, the database or the deploy
-waits for a person to read it — `api/submit.js`, `api/call.js`, `api/admin.js`,
-`lib/crypto.js`, `lib/auth.js`, `lib/db.js`, `server.js`, `render.yaml`, and anything under
-`.github/`. Open those ready for review and leave auto-merge off.
+There used to be a second lane: anything touching money, signing in, the database or the
+deploy waited for a person to read it. That is gone. The owner runs several repositories and
+reviewing every change by hand across all of them is more work than one person has, so a
+queue of pull requests waiting on a tap was not safety — it was a backlog that made
+everything ship later and got read less carefully when it finally was.
 
-Everything else goes in on its own: a page's copy, a message somebody reads when something
-fails, the stylesheet, documentation, a test.
+**So the checks are the review now, and that is a real obligation rather than a
+reassurance.** Nobody is going to catch it after you. Before opening anything:
 
-The reason is the owner's time rather than speed. Every pull request that waits is a tap on
-a phone, and the ones worth a tap are the ones where a mistake costs money or lets somebody
-in.
+- Run `npm test` and `node scripts/checks.mjs`, and read what they say rather than watching
+  for the word passed.
+- Render any screen you touched at 390 pixels and look at it.
+- Re-read the diff as somebody trying to break it.
+
+**And when something gets through, add the check that would have caught it, in the same
+piece of work.** Not an issue, not a note, not next time. Three things shipped broken in one
+day and every one was a class the gates could have caught: a function called but never
+declared, a column selected but never created, a rename onto a name already taken. All three
+are checked for now, and the repository is worth more for the checks than for any of the
+three fixes.
+
+A check that fails loudly is worth more than a person who means to look.
 
 ## What the money rules are
 
