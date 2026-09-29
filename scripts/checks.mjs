@@ -127,6 +127,43 @@ for (const file of files.filter((f) => f.includes('/api/') && f.endsWith('.js'))
   }
 }
 
+// ---- the desk reading a field the desk endpoint does not send -------------------------------
+//
+// The record said "Not decided yet" on a record with a no-go against it, because the page
+// read `person.assessment` and the payload had carried `person.decision` since the rename.
+// Nothing failed. A missing property is `undefined`, the comparison was false, and the page
+// told the owner the opposite of what the row said two panels above.
+//
+// So every `person.<name>` the desk reads has to be a key the person payload sends. The
+// payload is one object literal, and its top-level keys are the contract between the two
+// halves of that screen.
+{
+  const desk = read(`${ROOT}/api/desk.js`);
+
+  // Both payloads, because the page calls a row in the queue `person` too -- one object
+  // per person either way, and a field named in neither is named nowhere.
+  const sent = new Set();
+  for (const name of ['queue', 'person']) {
+    const start = desk.indexOf(`async function ${name}(`);
+    if (start < 0) continue;
+    const next = desk.indexOf('\nasync function', start + 10);
+    const body = desk.slice(start, next < 0 ? undefined : next);
+    for (const m of body.matchAll(/\b([a-zA-Z]\w*):/g)) sent.add(m[1]);
+  }
+
+  if (sent.size < 10) {
+    fail('payload', 'scripts/checks.mjs could not read the desk payloads, so its fields are unchecked.');
+  } else {
+    const page = read(`${ROOT}/desk.html`);
+    const seen = new Set([...page.matchAll(/\bperson\.([a-zA-Z]\w*)/g)].map((m) => m[1]));
+    for (const field of seen) {
+      if (!sent.has(field)) {
+        fail('payload', `desk.html reads person.${field} and the desk endpoint sends no such field.`);
+      }
+    }
+  }
+}
+
 // ---- a page walking into an endpoint that will not answer -----------------------------------
 //
 // Sign out is a POST, and the desk navigated to it. A browser following a link sends GET, so
