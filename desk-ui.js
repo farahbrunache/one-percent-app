@@ -125,6 +125,11 @@ export function owed(person) {
       yours: Boolean(aDayOn),
     });
   }
+  // A quote they answered, where the answer handed it back. Agreeing and asking for a change
+  // both do. Neither ends by itself: one waits on the work starting, the other on a counter.
+  if (person.quoteWaiting) {
+    out.push({ what: 'They answered a quote and it is back with you.', yours: true });
+  }
   if (!person.decision) out.push({ what: "Go or no-go, once you've read the call.", yours: true });
   if (!person.recommendedAt) {
     out.push({ what: 'Write their sheet. Everyone who calls gets one.', yours: true });

@@ -45,6 +45,12 @@
       <div id="newunread" class="rows"></div>
     </div>
 
+    <div class="panel">
+      <h2>Answered a quote</h2>
+      <p class="meta" id="answeredcount"></p>
+      <div id="newanswered" class="rows"></div>
+    </div>
+
     <div class="actions">
       <button type="button" class="quiet" id="seeddemo">Add demo data</button>
       <button type="button" class="quiet" id="cleardemo">Delete demo data</button>
@@ -164,6 +170,7 @@
       <summary><h2>Quotes</h2><span class="sofar" id="sofar-quotes"></span></summary>
       <p class="meta" id="quotenote"></p>
       <div id="quotes" class="rows"></div>
+      <p class="status-line" id="countering" hidden></p>
       <form class="fields" id="writequote" hidden novalidate>
         <div class="field">
           <label for="amount">Dollars</label>
@@ -224,7 +231,7 @@
 
 <script type="module">
   import { codeFields } from '/codefield.js';
-  import { el, link, msg, call, get, post, when, minutes, demoChip, hours, owed,
+  import { el, link, msg, call, get, post, when, minutes, money, demoChip, hours, owed,
     personId, state, page, mpage, askedForQueue } from '/desk-ui.js';
   import { renderPerson } from '/desk-record.js';
 
@@ -430,6 +437,11 @@
       demoChip(row, line);
       line.append(el('div', hours(row.hoursWaiting), over ? 'flag' : 'meta'));
       if (row.wasBlocked) line.append(el('div', 'Was blocked', 'badge open'));
+      // What they answered and what it was for. A row saying only that somebody answered
+      // sends you into the record to find out which of three things happened.
+      if (row.status) {
+        line.append(el('div', `${row.status} · ${money(row.amount)}`, 'badge open'));
+      }
       line.append(link(verb, `/desk?id=${row.id}`,
         primary && i === 0 ? 'button go-on' : 'button quiet-link'));
       box.append(line);
@@ -452,6 +464,17 @@
       'Nothing unread.', 'Open it', data.calls.length === 0);
     document.getElementById('unreadcount').textContent = data.unread.length
       ? `${data.unread.length} unread` + (stale ? ` · ${stale} past ${data.targetHours} hours` : '')
+      : '';
+
+    // Third, because the first two are somebody waiting to be read and this is somebody who has
+    // already been read and is waiting on you to act. It is still money, so it is not last.
+    const answered = data.answered || [];
+    const overdue = renderTodayList(
+      document.getElementById('newanswered'), answered, data.targetHours,
+      'None answered.', 'Open it', data.calls.length === 0 && data.unread.length === 0);
+    document.getElementById('answeredcount').textContent = answered.length
+      ? `${answered.length} waiting on you`
+        + (overdue ? ` · ${overdue} past ${data.targetHours} hours` : '')
       : '';
   }
 
