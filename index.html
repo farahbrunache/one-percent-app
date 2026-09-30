@@ -56,6 +56,7 @@
       <h3>The conversation</h3>
       <p class="meta" id="talknote"></p>
       <div id="thread" class="rows" aria-live="polite"></div>
+      <div class="actions" id="threadpager" hidden></div>
       <form class="fields" id="sendform" novalidate>
         <div class="field">
           <label for="body">Write something</label>
@@ -156,6 +157,10 @@
 
     for (const s of data.sessions) {
       const row = el('div', null, 'row');
+      // Named, because the code is what somebody is asked for everywhere else -- in the note
+      // on a transfer, on the recovery form, in a message. A bare ten-character string tells
+      // nobody what it is or what to do with it.
+      row.append(el('div', 'Reference code', 'label'));
       row.append(el('div', s.reference, 'code'));
       // Where this session has got to, said as a state rather than as a sentence to parse.
       // The same pill the desk uses, so the two screens describe one session the same way.
@@ -233,7 +238,42 @@
     talk.hidden = false;
     document.getElementById('talknote').textContent =
       'Both of us write here, whenever either of us gets to it.';
-    loadThread();
+    loadThread(new URLSearchParams(window.location.search).get('page'));
+  }
+
+  // Where in the conversation this is, and how to get to the rest of it. The page number is
+  // in the address, so a page can be linked and the back button works. Opening with no page
+  // asked for lands on the newest one.
+  function renderThreadPager(data) {
+    const box = document.getElementById('threadpager');
+    box.textContent = '';
+    const last = Math.max(1, Math.ceil(data.total / data.perPage));
+    const first = data.total === 0 ? 0 : (data.page - 1) * data.perPage + 1;
+    const upTo = Math.min(data.page * data.perPage, data.total);
+    box.hidden = data.total <= data.perPage;
+    if (box.hidden) return;
+
+    const older = el('button', 'Older', 'quiet');
+    older.type = 'button';
+    older.disabled = data.page <= 1;
+    older.addEventListener('click', () => goToPage(data.page - 1));
+
+    const newer = el('button', 'Newer', 'quiet');
+    newer.type = 'button';
+    newer.disabled = data.page >= last;
+    newer.addEventListener('click', () => goToPage(data.page + 1));
+
+    box.append(older);
+    box.append(el('span', `${first}–${upTo} of ${data.total} · page ${data.page} of ${last}`,
+      'meta'));
+    box.append(newer);
+  }
+
+  function goToPage(page) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('page', String(page));
+    window.history.pushState({}, '', url);
+    loadThread(String(page));
   }
 
   function renderThread(messages) {
@@ -259,10 +299,12 @@
     }
   }
 
-  async function loadThread() {
+  async function loadThread(page) {
     try {
-      const data = await call('/api/client?action=thread');
+      const at = page ? `&page=${encodeURIComponent(page)}` : '';
+      const data = await call(`/api/client?action=thread${at}`);
       renderThread(data.messages);
+      renderThreadPager(data);
     } catch (error) {
       document.getElementById('thread').textContent = '';
       document.getElementById('thread').append(el('p', error.message, 'meta'));
@@ -281,7 +323,11 @@
         body: JSON.stringify({ body: field.value }),
       });
       field.value = '';
+      const url = new URL(window.location.href);
+      url.searchParams.delete('page');
+      window.history.replaceState({}, '', url);
       renderThread(data.messages);
+      renderThreadPager(data);
     } catch (error) {
       box.hidden = false;
       box.className = 'msg bad';
