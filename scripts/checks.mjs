@@ -185,11 +185,29 @@ for (const name of renderKeys) {
 // live, and one of them sat in this repository unreachable from anywhere until somebody read the
 // file for another reason.
 
+// A page is no longer one file. The desk imports its record screen, which imports the work
+// module, so a call can sit three files away from the page that owns it. Both checks below
+// read a page as the page plus everything it imports, resolved against the repository root
+// the way a browser resolves them against the site root.
+//
+// Without this the split alone turned six live actions into reported dead weight -- the check
+// was reading markup and finding no JavaScript behind it.
+const importsOf = (text) => [...text.matchAll(/from '\/([\w.-]+\.js)'/g)].map((m) => m[1]);
+
+function bundle(page, seen = new Set()) {
+  const path = page.startsWith(ROOT) ? page : join(ROOT, page);
+  if (seen.has(path)) return '';
+  seen.add(path);
+  if (!files.includes(path)) return '';
+  const text = read(path);
+  return [text, ...importsOf(text).map((name) => bundle(name, seen))].join('\n');
+}
+
 // A page, a test, or a scheduled workflow. The last one counts: a job on a clock is a caller
 // like any other, and leaving it out would report a live endpoint as dead weight.
 const callers = files
   .filter((f) => f.endsWith('.html') || f.includes('/test/') || f.includes('/workflows/'))
-  .map(read)
+  .map((f) => (f.endsWith('.html') ? bundle(f) : read(f)))
   .join('\n');
 
 // What each endpoint answers to, read once and used by this check and the one after it.
@@ -239,7 +257,7 @@ for (const file of files.filter((f) => f.includes('/api/') && f.endsWith('.js'))
 // first argument is the action name. The endpoints a page may be talking to are the /api/
 // addresses it mentions, so a name has to be answered by one of those.
 for (const file of files.filter((f) => f.endsWith('.html'))) {
-  const text = read(file);
+  const text = bundle(file);
   const talksTo = [...text.matchAll(/\/api\/([a-z][a-z-]*)/g)].map((m) => m[1]);
   if (!talksTo.length) continue;
 
