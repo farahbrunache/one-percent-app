@@ -121,12 +121,29 @@
     // spoken with nothing to do and no idea anything else was coming. What they are waiting
     // for is the writing, and the only thing they have to do is come back here.
     if (data.status === 'used') {
+      // Two screens, and which one depends on whether anything has been written yet.
+      //
+      // There was one, and it asked for a sign-in the moment the call ended: money taken, call
+      // had, nothing delivered, now make an account. Nothing had been read and nothing had
+      // been written, so the ask came before there was anything to sign in for. Once the sheet
+      // exists it is a fair trade -- sign in and read what somebody wrote for you -- and that
+      // is the only point at which it is asked.
       statusLine('Status', 'Your call is done');
-      lede('Your call happened. A person reads it and writes you what to do next.');
+
+      if (!data.recommended) {
+        lede('Your call happened. A person reads it and writes you what to do next.');
+        note([
+          'Come back to this page in about 48 hours. What was written for you will be here.',
+          'Nothing is needed from you in the meantime, and this link keeps working.',
+        ]);
+        return;
+      }
+
+      lede('Your call was read, and what to do next is written.');
       note([
-        'Come back to this page in about 48 hours and sign in with a Skills Economy account. '
-          + "What was written for you is there.",
-        'Nothing else is needed from you, and this link keeps working.',
+        'Sign in with a Skills Economy account to read it. That is also how you get back to it '
+          + 'later.',
+        'This link keeps working either way.',
       ]);
       const go = el('p', null, 'cta');
       const link = el('a', 'Sign in and read it');
@@ -134,6 +151,9 @@
       go.append(link);
       body.append(go);
 
+      // Another session is offered here and not on the screen above it, for the same reason
+      // the sign-in is: selling somebody a second conversation before the first one has
+      // produced anything is asking twice and delivering none.
       const again = el('p', null, 'cta after');
       again.textContent = 'Another conversation is another session.';
       body.append(again);

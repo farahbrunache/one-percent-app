@@ -405,6 +405,15 @@ async function person(req, res) {
       body: decrypt(m.body_encrypted),
       at: m.created_at,
     })),
+    // Whether the last thing said was theirs. The queue has carried this since it was built,
+    // and a person's own record never did -- so the panel whose entire job is saying what is
+    // waiting on you could not say the one thing somebody is actually waiting for.
+    awaitingReply: messages.length > 0
+      && (await sql()`
+           select author from messages
+            where account_id = ${row.client_account_id}
+            order by created_at desc limit 1
+         `)[0]?.author === 'client',
     messagePage: messagePage.page,
     messagesPerPage: messagePage.perPage,
     messageCount,
@@ -1054,7 +1063,7 @@ async function addNote(req, res) {
 }
 
 const ACTIONS = {
-  GET: { queue, person, funnel },
+  GET: { queue, person, funnel, 'call-record': callRecord, 'agent-script': agentScript },
   POST: {
     decide,
     plan: setPlan,
@@ -1078,7 +1087,12 @@ export default handle(['GET', 'POST'], async (req, res) => {
   const run = ACTIONS[req.method]?.[action];
   if (!run) {
     const names = Object.keys(ACTIONS[req.method] || {}).join(', ');
-    throw new HttpError(400, `On ${req.method} the actions here are: ${names}.`);
+    throw new HttpError(
+      400,
+      `This screen asked for "${action || '(nothing)'}" and the desk has no such action on `
+        + `${req.method}. That is a bug in the page, not something you did. The ones it does `
+        + `have: ${names}.`,
+    );
   }
   return run(req, res);
 });

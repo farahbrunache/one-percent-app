@@ -74,6 +74,12 @@ export default handle('GET', async (req, res) => {
     reference: order.reference_code,
     submitted: order.created_at,
     decided: order.decided_at,
+    // Whether anything has been written for them yet, and nothing of what it says. The screen
+    // after a call asks for a sign-in, and until this the ask arrived before there was
+    // anything to sign in for -- payment taken, call had, nothing delivered, create an
+    // account. A date flag says which of the two screens to show and reveals nothing: whoever
+    // holds this link already knows there was a call.
+    recommended: Boolean(order.recommendations_written_at),
   };
 
   // Still waiting, and paid by transfer: repeat where to send it and under what reference,

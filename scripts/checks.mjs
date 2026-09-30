@@ -129,22 +129,69 @@ const callers = files
   .map(read)
   .join('\n');
 
+// What each endpoint answers to, read once and used by this check and the one after it.
+const answers = new Map();
 for (const file of files.filter((f) => f.includes('/api/') && f.endsWith('.js'))) {
   const text = read(file);
   const names = new Set([...text.matchAll(/action === '([a-z][a-z-]*)'/g)].map((m) => m[1]));
 
-  // The desk keeps its actions in a map rather than a chain of comparisons.
+  // The desk keeps its actions in a map rather than a chain of comparisons. Its keys come in
+  // three shapes and reading only one of them is how four live actions read as absent: quoted
+  // on their own line ('call-record': callRecord), shorthand (decide,), and several to a line
+  // inside the method's braces ({ queue, person, funnel }).
   const table = text.match(/const ACTIONS = \{[\s\S]*?\n\};/);
   if (table) {
-    for (const m of table[0].matchAll(/^\s+'?([a-z][a-z-]*)'?:/gm)) {
-      if (m[1] !== 'GET' && m[1] !== 'POST') names.add(m[1]);
+    // A key, whichever of the three shapes it takes: quoted ('call-record':), shorthand
+    // (decide,) or several to a line ({ queue, person, funnel }). What follows a colon is a
+    // handler's name rather than an action's, so the lookbehind leaves it alone.
+    for (const m of table[0].matchAll(/(?:[{,]\s*)'?([a-z][a-z-]*)'?\s*(?=[,:}])/g)) {
+      names.add(m[1]);
     }
   }
+  answers.set(file.replace(/^.*\/api\//, '').replace(/\.js$/, ''), names);
 
   for (const name of names) {
-    if (!callers.includes(`'${name}'`) && !callers.includes(`action=${name}`)) {
+    const called = callers.includes(`'${name}'`)
+      || callers.includes(`action=${name}`)
+      || new RegExp(`(?<![.\\w$])(?:get|post)\\(['"\`]${name}[^a-z-]`).test(callers);
+    if (!called) {
       fail('unreachable', `${file.slice(ROOT.length + 1)} accepts action "${name}" and nothing calls it.`);
     }
+  }
+}
+
+// ---- a page asking for an action no endpoint answers ----------------------------------------
+//
+// The opposite of the check above, and it had to be written separately because the two miss
+// different things. That one asks whether every registered action has a caller. This asks
+// whether every call reaches a registered action.
+//
+// The desk's "Everything the voice service has" button asked for `call-record`. The handler
+// was written, commented and never put in the actions table, so it was not an action at all --
+// invisible to the check above, which only reads the table. Pressing the button returned the
+// list of actions that do exist, which says nothing to whoever pressed it, and the button had
+// never worked once.
+//
+// A page's calls are its inline `action=` strings plus its get() and post() helpers, whose
+// first argument is the action name. The endpoints a page may be talking to are the /api/
+// addresses it mentions, so a name has to be answered by one of those.
+for (const file of files.filter((f) => f.endsWith('.html'))) {
+  const text = read(file);
+  const talksTo = [...text.matchAll(/\/api\/([a-z][a-z-]*)/g)].map((m) => m[1]);
+  if (!talksTo.length) continue;
+
+  const asked = new Set([
+    ...[...text.matchAll(/action=([a-z][a-z-]*)/g)].map((m) => m[1]),
+    ...[...text.matchAll(/(?<![.\w$])(?:get|post)\(['"`]([a-z][a-z-]*)/g)].map((m) => m[1]),
+  ]);
+
+  for (const name of asked) {
+    if (talksTo.some((ep) => answers.get(ep)?.has(name))) continue;
+    fail(
+      'unanswered',
+      `${file.slice(ROOT.length + 1)} asks for action "${name}" and no endpoint it talks to `
+        + `(${[...new Set(talksTo)].join(', ')}) answers it.`,
+    );
   }
 }
 

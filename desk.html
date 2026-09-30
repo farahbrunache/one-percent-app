@@ -458,6 +458,12 @@
   // because the voice service forgets a call after seven.
   function owed(person) {
     const out = [];
+    // First, because it is a person waiting on an answer rather than a job waiting on you.
+    // Their messages land in the conversation, which is seven panels down a phone screen, so
+    // without this line they wrote and the screen said nothing was owed.
+    if (person.awaitingReply) {
+      out.push({ what: 'They wrote to you and are waiting on a reply.', yours: true });
+    }
     if (person.recordMissing) {
       const aDayOn = person.calledAt
         && Date.now() - new Date(person.calledAt).getTime() > 24 * 3600 * 1000;
