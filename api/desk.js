@@ -67,9 +67,31 @@ function orderId(value) {
 async function record(id, kind, detail) {
   const text = String(detail || '').trim().slice(0, 2000);
   await sql()`
-    insert into case_events (order_id, kind, detail_encrypted)
-    values (${id}, ${kind}, ${text ? encrypt(text) : null})
+    insert into case_events (order_id, case_id, kind, detail_encrypted)
+    select ${id}, o.case_id, ${kind}, ${text ? encrypt(text) : null}
+      from orders o where o.id = ${id}
   `;
+}
+
+// The case this order belongs to, or null while nobody has signed in. Everything about
+// working with a person hangs off the case; everything about one purchase hangs off the
+// order. An order with no case has nobody to work with yet, which is a state the screens
+// say out loud rather than a gap to paper over.
+async function caseOf(orderId) {
+  const rows = await sql()`select case_id from orders where id = ${orderId}`;
+  if (!rows.length) throw new HttpError(404, 'No order with that number.');
+  return rows[0].case_id === null || rows[0].case_id === undefined
+    ? null
+    : Number(rows[0].case_id);
+}
+
+function needsCase(caseId) {
+  if (caseId) return caseId;
+  throw new HttpError(
+    409,
+    'They have not signed in yet, so there is nobody to work with. This opens once they open '
+      + 'their claim link while signed in to Skills Economy.',
+  );
 }
 
 function readDetail(row) {
@@ -180,14 +202,19 @@ async function funnel(req, res) {
   const rows = await sql()`
     with people as (
       select o.id,
-             coalesce(o.client_account_id, 'order:' || o.id) as who,
+             coalesce('case:' || o.case_id, 'order:' || o.id) as who,
              o.decision,
-             o.first_customer_at,
+             (select k.first_customer_at from cases k where k.id = o.case_id) as first_customer_at,
              exists (select 1 from calls c
                       where c.order_id = o.id and c.transcript_encrypted is not null) as called,
-             exists (select 1 from plans p where p.order_id = o.id and p.in_force) as planned,
+             exists (select 1 from plans p
+                      where p.in_force
+                        and (p.case_id = o.case_id or (o.case_id is null and p.order_id = o.id))
+                    ) as planned,
              exists (select 1 from plans p join milestones m on m.plan_id = p.id
-                      where p.order_id = o.id and m.status = 'worked') as worked
+                      where m.status = 'worked'
+                        and (p.case_id = o.case_id or (o.case_id is null and p.order_id = o.id))
+                    ) as worked
         from orders o
        where o.status = 'confirmed'
     )
@@ -223,13 +250,37 @@ async function person(req, res) {
   const id = orderId(query(req).get('id'));
 
   const rows = await sql()`
-    select id, reference_code, status, decision, decision_at,
-           client_account_id, approved_as_client_at, first_customer_at,
-           recommendations_encrypted, recommendations_written_at
-      from orders where id = ${id}
+    select o.id, o.reference_code, o.status, o.decision, o.decision_at, o.case_id,
+           o.client_account_id, o.approved_as_client_at,
+           k.first_customer_at,
+           o.recommendations_encrypted, o.recommendations_written_at
+      from orders o
+      left join cases k on k.id = o.case_id
+     where o.id = ${id}
   `;
   if (!rows.length) throw new HttpError(404, 'No order with that number.');
   const row = rows[0];
+  const caseId = row.case_id === null || row.case_id === undefined ? null : Number(row.case_id);
+
+  // Every order this person bought, not only the one in the address. Somebody who came back
+  // for a second session is one person with two purchases, and a screen that shows one of
+  // them is hiding the other half of what happened. The sheet stays with its own order,
+  // because it was written from that call.
+  const orders = caseId
+    ? await sql()`
+        select o.id, o.reference_code, o.status, o.decision, o.decision_at,
+               o.recommendations_written_at,
+               (select c.ended_at from calls c
+                 where c.order_id = o.id and c.transcript_encrypted is not null
+                 order by c.ended_at desc nulls last limit 1) as called_at
+          from orders o where o.case_id = ${caseId} order by o.id desc
+      `
+    : [];
+
+  // One decision for the person, taken from the most recent order that carries one. A
+  // decision is made from a call, so it is written on the order it was made from; what a
+  // second copy on the case would buy is a way for the two to disagree.
+  const decided = orders.find((o) => o.decision) || row;
 
   // The thread belongs to the account, not to this order, so somebody who buys a second
   // session carries one conversation rather than starting another.
@@ -270,6 +321,7 @@ async function person(req, res) {
       join orders a on a.id = i.a_order_id
       join orders b on b.id = i.b_order_id
      where i.a_order_id = ${id} or i.b_order_id = ${id}
+        or (${caseId}::bigint is not null and (i.a_case_id = ${caseId} or i.b_case_id = ${caseId}))
      order by i.made_at desc limit 100
   `;
 
@@ -284,10 +336,17 @@ async function person(req, res) {
       `
     : [];
 
-  const [plans, events] = await Promise.all([
-    sql()`select id, path, in_force, created_at from plans where order_id = ${id} order by created_at desc`,
-    sql()`select kind, detail_encrypted, created_at from case_events where order_id = ${id} order by created_at desc limit 100`,
-  ]);
+  const [plans, events] = caseId
+    ? await Promise.all([
+        sql()`select id, path, in_force, created_at from plans where case_id = ${caseId} order by created_at desc`,
+        sql()`select kind, detail_encrypted, created_at from case_events
+               where case_id = ${caseId} order by created_at desc limit 100`,
+      ])
+    : await Promise.all([
+        sql()`select id, path, in_force, created_at from plans where order_id = ${id} order by created_at desc`,
+        sql()`select kind, detail_encrypted, created_at from case_events
+               where order_id = ${id} order by created_at desc limit 100`,
+      ]);
   const inForce = plans.find((p) => p.in_force) || null;
   const steps = inForce
     ? await sql()`
@@ -327,8 +386,17 @@ async function person(req, res) {
     // record to keep and never will, so it is not something anybody is waiting on.
     calledAt: calls.find((c) => c.transcript_encrypted)?.started_at || null,
     recordMissing: calls.some((c) => c.transcript_encrypted && !c.record_kept),
-    decision: row.decision,
-    decidedAt: row.decision_at,
+    decision: decided.decision,
+    decidedAt: decided.decision_at,
+    linkedCase: Boolean(caseId),
+    orders: orders.map((o) => ({
+      id: Number(o.id),
+      reference: o.reference_code,
+      decision: o.decision,
+      calledAt: o.called_at,
+      recommendedAt: o.recommendations_written_at,
+      thisOne: Number(o.id) === id,
+    })),
     linked: Boolean(row.client_account_id),
     approvedAt: row.approved_as_client_at,
     recommendations: row.recommendations_encrypted ? decrypt(row.recommendations_encrypted) : null,
@@ -592,12 +660,16 @@ async function firstCustomer(req, res) {
   const id = orderId(body.id);
   const reached = body.reached !== false;
 
+  const confirmed = await sql()`select 1 from orders where id = ${id} and status = 'confirmed'`;
+  if (!confirmed.length) throw new HttpError(404, 'No confirmed order with that number.');
+  const caseId = needsCase(await caseOf(id));
+
   const done = await sql()`
-    update orders set first_customer_at = case when ${reached} then coalesce(first_customer_at, now()) else null end
-     where id = ${id} and status = 'confirmed'
+    update cases
+       set first_customer_at = case when ${reached} then coalesce(first_customer_at, now()) else null end
+     where id = ${caseId}
      returning first_customer_at
   `;
-  if (!done.length) throw new HttpError(404, 'No confirmed order with that number.');
   await record(id, 'first-customer', reached ? String(body.note || '').trim() : 'Taken back off.');
   send(res, 200, { ok: true, at: done[0].first_customer_at });
 }
@@ -705,14 +777,15 @@ async function setPlan(req, res) {
 
   const exists = await sql()`select 1 from orders where id = ${id} and status = 'confirmed'`;
   if (!exists.length) throw new HttpError(404, 'No confirmed order with that number.');
+  const caseId = needsCase(await caseOf(id));
 
-  const current = await sql()`select path from plans where order_id = ${id} and in_force`;
+  const current = await sql()`select path from plans where case_id = ${caseId} and in_force`;
   if (current[0]?.path === path) {
     throw new HttpError(409, 'That path is already the one in force.');
   }
 
-  await sql()`update plans set in_force = false where order_id = ${id} and in_force`;
-  await sql()`insert into plans (order_id, path) values (${id}, ${path})`;
+  await sql()`update plans set in_force = false where case_id = ${caseId} and in_force`;
+  await sql()`insert into plans (order_id, case_id, path) values (${id}, ${caseId}, ${path})`;
   await record(id, 'plan.set', PLAN_PATHS[path].label);
   send(res, 200, { ok: true, path });
 }
@@ -725,8 +798,9 @@ async function addMilestone(req, res) {
   const title = String(body.title || '').trim().slice(0, 300);
   if (!title) throw new HttpError(400, 'A milestone needs a line saying what it is.');
 
-  const plans = await sql()`select id from plans where order_id = ${id} and in_force`;
-  if (!plans.length) throw new HttpError(409, 'Set a path first — a milestone belongs to one.');
+  const caseId = needsCase(await caseOf(id));
+  const plans = await sql()`select id from plans where case_id = ${caseId} and in_force`;
+  if (!plans.length) throw new HttpError(409, 'Pick a path first — a milestone belongs to one.');
 
   const next = await sql()`
     select coalesce(max(position), 0) + 1 as n from milestones where plan_id = ${plans[0].id}
@@ -898,20 +972,36 @@ async function introduce(req, res) {
   const otherId = Number(them[0].id);
   if (otherId === id) throw new HttpError(400, 'That is the same person.');
 
+  // An introduction is between two people, not two purchases. Two reference codes belonging
+  // to one person are one person, so introducing them to each other is the same mistake as
+  // introducing an order to itself.
+  const [mine, theirs] = await Promise.all([caseOf(id), caseOf(otherId)]);
+  if (mine && theirs && mine === theirs) {
+    throw new HttpError(400, 'That reference belongs to the same person.');
+  }
+
   // The pair is unordered, so check it both ways round before writing a second row for the
-  // same two people.
-  const already = await sql()`
-    select id from introductions
-     where (a_order_id = ${id} and b_order_id = ${otherId})
-        or (a_order_id = ${otherId} and b_order_id = ${id})
-     limit 1
-  `;
+  // same two people -- by case where both have signed in, because two of somebody's reference
+  // codes are not two people to introduce twice.
+  const already = mine && theirs
+    ? await sql()`
+        select id from introductions
+         where (a_case_id = ${mine} and b_case_id = ${theirs})
+            or (a_case_id = ${theirs} and b_case_id = ${mine})
+         limit 1
+      `
+    : await sql()`
+        select id from introductions
+         where (a_order_id = ${id} and b_order_id = ${otherId})
+            or (a_order_id = ${otherId} and b_order_id = ${id})
+         limit 1
+      `;
   if (already.length) throw new HttpError(409, 'These two have already been introduced.');
 
   const reason = String(body.reason || '').trim().slice(0, 2000);
   await sql()`
-    insert into introductions (a_order_id, b_order_id, reason_encrypted)
-    values (${id}, ${otherId}, ${reason ? encrypt(reason) : null})
+    insert into introductions (a_order_id, b_order_id, a_case_id, b_case_id, reason_encrypted)
+    values (${id}, ${otherId}, ${mine}, ${theirs}, ${reason ? encrypt(reason) : null})
   `;
   // On both records, because it happened to both of them.
   await record(id, 'introduction.made', `To ${reference}. ${reason}`.trim());

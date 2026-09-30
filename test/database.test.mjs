@@ -12,6 +12,7 @@
 // that has nothing to do with the code being tested.
 
 import { PGlite } from '@electric-sql/pglite';
+import { Readable } from 'node:stream';
 
 process.env.CARD_ENCRYPTION_KEY ||= 'test-key-that-is-long-enough-to-pass-0123456789';
 
@@ -456,14 +457,15 @@ check('being quoted opens the conversation without a go', conversation[0].open =
 
 console.log('the desk can read what it reads');
 await tagged`
-  select o.id, o.reference_code, o.decision, o.decision_at, o.status,
+  select o.id, o.reference_code, o.decision, o.decision_at, o.status, o.case_id,
          o.recommendations_encrypted, o.recommendations_written_at,
-         o.client_account_id, o.approved_as_client_at, o.first_customer_at,
+         o.client_account_id, o.approved_as_client_at,
+         k.first_customer_at,
          o.session_starts, o.first_started_at,
          exists (select 1 from calls c
                   where c.order_id = o.id and c.record_encrypted is null
                     and c.transcript_encrypted is not null) as record_missing
-    from orders o limit 1`;
+    from orders o left join cases k on k.id = o.case_id limit 1`;
 await tagged`
   select id, call_id, kind, transcript_encrypted, summary_encrypted, started_at, ended_at,
          seconds, record_encrypted, record_taken_at
@@ -654,6 +656,89 @@ replies = await askDesk('replies');
 check('somebody already written back to drops off it',
   !replies.people.some((p) => Number(p.id) === approvedWhoWrote),
   replies.people.map((p) => Number(p.id)));
+
+// ---- a case is a person, an order is interest -----------------------------------------------
+//
+// The rule is one line with no exceptions: a case is created when somebody signs in and links
+// an order. Not on a go, because a quote to a no-go already opens the conversation and a go
+// can be changed, so a case gated on one could stop existing when a judgment did.
+console.log('');
+console.log('a case is a person');
+
+const { caseForAccount } = db;
+
+// An order nobody has signed in against is interest and nothing more.
+const justInterest = await newOrder();
+const [interest] = await tagged`select case_id from orders where id = ${justInterest}`;
+check('an order with no sign-in has no case', interest.case_id === null, interest);
+
+// Two orders, one account, one case.
+const firstBuy = await newOrder();
+const secondBuy = await newOrder();
+const theirCase = await caseForAccount('acct-two-orders');
+await tagged`update orders set client_account_id = 'acct-two-orders', case_id = ${theirCase}
+              where id in (${firstBuy}, ${secondBuy})`;
+const together = await tagged`
+  select count(distinct case_id)::int as cases, count(*)::int as orders
+    from orders where client_account_id = 'acct-two-orders'`;
+check('two orders under one account are one case',
+  together[0].cases === 1 && together[0].orders === 2, together[0]);
+
+// Asking twice returns the same case rather than making a second one.
+check('an account has exactly one case, however often it is asked for',
+  (await caseForAccount('acct-two-orders')) === theirCase);
+
+// The plan belongs to the person, so two orders cannot walk two paths.
+await tagged`insert into plans (order_id, case_id, path) values (${firstBuy}, ${theirCase}, 'reach')`;
+let refused = null;
+try {
+  await tagged`insert into plans (order_id, case_id, path) values (${secondBuy}, ${theirCase}, 'smallest')`;
+} catch (error) { refused = error.message; }
+check('one person cannot be on two paths at once', refused !== null, refused);
+
+// The first paying customer is the end of the method and belongs to the person, not to
+// whichever session they happened to buy first.
+await tagged`update cases set first_customer_at = now() where id = ${theirCase}`;
+const earning = await tagged`
+  select count(distinct o.case_id)::int as people
+    from orders o join cases k on k.id = o.case_id
+   where k.first_customer_at is not null`;
+check('one person with two orders is one person earning', earning[0].people === 1, earning[0]);
+
+// The rule itself, through the endpoint rather than by writing the row here: signing in and
+// linking an order is what creates a case, and it is the only thing that does.
+const { signSession: signAccount } = await import('../lib/crypto.js');
+const { keyedHash: hashToken } = await import('../lib/crypto.js');
+const clientEndpoint = (await import('../api/client.js')).default;
+
+const toLink = await newOrder();
+const claimToken = 'claim-token-for-the-link-test';
+await tagged`update orders set claim_token_hash = ${hashToken(claimToken)} where id = ${toLink}`;
+
+const linkReq = Readable.from([JSON.stringify({ t: claimToken })]);
+linkReq.method = 'POST';
+linkReq.url = '/api/client?action=link';
+linkReq.headers = {
+  'content-type': 'application/json',
+  cookie: `op_session=${signAccount('acct-just-signed-in')}`,
+};
+const linkRes = {
+  statusCode: 200, writableEnded: false,
+  setHeader() {}, getHeader() {}, end() { this.writableEnded = true; },
+};
+await clientEndpoint(linkReq, linkRes);
+
+const linked = await tagged`
+  select o.case_id, k.account_id from orders o left join cases k on k.id = o.case_id
+   where o.id = ${toLink}`;
+check('linking an order while signed in creates the case',
+  linked[0].case_id !== null && linked[0].account_id === 'acct-just-signed-in', linked[0]);
+
+const orderColumns = await tagged`
+  select column_name from information_schema.columns where table_name = 'orders'`;
+check('and the column it moved from is gone',
+  !orderColumns.some((c) => c.column_name === 'first_customer_at'),
+  orderColumns.map((c) => c.column_name).filter((n) => n.includes('customer')));
 
 console.log(failures ? `\n${failures} failed` : '\nall passed');
 process.exit(failures ? 1 : 0);

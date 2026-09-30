@@ -62,6 +62,12 @@
     </div>
 
     <div class="panel">
+      <h2>Sessions bought</h2>
+      <p class="meta" id="ordersnote"></p>
+      <div id="orders" class="rows"></div>
+    </div>
+
+    <div class="panel">
       <h2>Calls</h2>
       <div id="calls"></div>
     </div>
@@ -528,6 +534,14 @@
   function renderPlan(person) {
     const box = document.getElementById('plan');
     box.textContent = '';
+    // A path is about working with somebody, and there is nobody to work with until they
+    // sign in. The endpoint refuses it for the same reason, so the screen says so rather
+    // than offering two buttons that both come back with an error.
+    if (!person.linkedCase) {
+      box.append(el('p', "A path is set once they've signed in. Until then this is an order, "
+        + 'not a person.', 'meta'));
+      return;
+    }
     for (const [value, label, why] of PATHS) {
       const on = Boolean(person.plan && person.plan.path === value);
       const button = el('button', null, on ? 'path on' : 'path');
@@ -628,6 +642,45 @@
   // They are still rows in the database. The starts count against the three-in-a-day limit
   // and the hourly job keeps trying for a record while the voice service still holds one;
   // neither of those is work for a person, so neither is on this screen.
+  // Every order this person bought. An order is one purchase -- a payment, a code, a call and
+  // the sheet written from that call. A case is the person, and it exists from the moment they
+  // sign in. So this panel says which purchases belong to whoever is on screen, and says
+  // plainly when nobody has signed in yet rather than leaving the screen to imply it.
+  function renderOrders(person) {
+    const box = document.getElementById('orders');
+    const note = document.getElementById('ordersnote');
+    box.textContent = '';
+
+    if (!person.linkedCase) {
+      note.textContent = "Nobody has signed in against this order yet, so it's interest and "
+        + 'nothing more. It becomes a person the moment they open their claim link while '
+        + 'signed in to Skills Economy.';
+      return;
+    }
+
+    note.textContent = person.orders.length === 1
+      ? 'One session so far.'
+      : `${person.orders.length} sessions, one person.`;
+
+    for (const order of person.orders) {
+      const row = el('div', null, order.thisOne ? 'row said us' : 'row');
+      row.append(el('div', 'Reference code', 'label'));
+      row.append(el('div', order.reference, 'code'));
+      if (order.calledAt) row.append(el('div', `Called ${when(order.calledAt)}`, 'meta'));
+      else row.append(el('div', 'No call came back', 'meta'));
+      if (order.decision) {
+        row.append(el('div', order.decision === 'go' ? 'Go' : 'No-go',
+          `badge ${order.decision === 'go' ? 'go' : 'nogo'}`));
+      }
+      if (order.recommendedAt) row.append(el('div', `Sheet written ${when(order.recommendedAt)}`, 'meta'));
+      if (!order.thisOne) {
+        const go = link('Open this one', `/desk?id=${order.id}`, 'button quiet-link');
+        row.append(go);
+      }
+      box.append(row);
+    }
+  }
+
   function renderCalls(person) {
     const box = document.getElementById('calls');
     const calls = person.calls.filter((call) => call.transcript);
@@ -1072,6 +1125,12 @@
     const box = document.getElementById('firstcustomer');
     const said = document.getElementById('earned');
     box.textContent = '';
+    if (!person.linkedCase) {
+      said.hidden = true;
+      box.append(el('p', "This is the end of the work, and it belongs to a person. It opens "
+        + "once they've signed in.", 'meta'));
+      return;
+    }
     said.hidden = !person.firstCustomerAt;
     if (person.firstCustomerAt) {
       said.textContent = `Had a paying customer by ${when(person.firstCustomerAt)}.`;
@@ -1122,6 +1181,7 @@
     renderOwed(person);
     renderDecision(person);
     renderRecommendations(person);
+    renderOrders(person);
     renderThread(person);
     renderPlan(person);
     renderSteps(person);
