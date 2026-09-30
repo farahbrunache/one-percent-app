@@ -736,12 +736,14 @@ input.code-field::placeholder {
 
 /* One filled control per screen. The design spends a solid fill on the thing that commits
    something, and everything else is an outline, so the committing one is never guessed at. */
-.inside button.go-on {
+.inside button.go-on,
+.inside a.button.go-on {
   background: #326b57;
   border-color: #326b57;
   color: #e7f4ea;
 }
-.inside button.go-on:hover { background: #3f8068; border-color: #3f8068; }
+.inside button.go-on:hover,
+.inside a.button.go-on:hover { background: #3f8068; border-color: #3f8068; }
 
 /* A path, as the design draws it: the two are the same size and the same shape, and the
    one in force is the one with a border, because neither is the better path. */

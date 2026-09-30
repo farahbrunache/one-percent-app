@@ -22,6 +22,36 @@
 
   <!-- The queue. Which one and which page are both in the address, so a place in a list can
        be returned to and the back button does what it looks like it does. -->
+  <!-- The first screen. Two questions, oldest first, and nothing that answers "is this
+       working" -- that is the funnel, and it belongs on a quieter screen than this one. -->
+  <div id="todayview" hidden>
+    <div class="topbar">
+      <p class="dateline" id="todaydate"></p>
+      <button type="button" class="quiet" id="todayagain">Refresh</button>
+    </div>
+    <h1>Desk</h1>
+
+    <div class="panel">
+      <h2>New calls</h2>
+      <p class="meta" id="callscount"></p>
+      <div id="newcalls" class="rows"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Wrote to you</h2>
+      <p class="meta" id="unreadcount"></p>
+      <div id="newunread" class="rows"></div>
+    </div>
+
+    <div class="actions">
+      <a class="button quiet-link" href="/desk?state=waiting">Everybody</a>
+      <a class="button quiet-link" href="/payments">Payments</a>
+      <button type="button" class="quiet" id="tscript">Export the script</button>
+      <button type="button" class="quiet" id="tlogout">Sign out</button>
+    </div>
+    <div id="tmsg" hidden></div>
+  </div>
+
   <div id="queue" hidden>
     <div class="topbar">
       <p class="dateline" id="today"></p>
@@ -215,6 +245,7 @@
   // Which page of the conversation. Absent means the newest, which the endpoint decides,
   // because only it knows how many there are.
   const mpage = here.searchParams.get('mpage');
+  const askedForQueue = here.searchParams.has('state') || here.searchParams.has('page');
 
   function el(tag, text, className) {
     const node = document.createElement(tag);
@@ -253,20 +284,22 @@
 
   // The script the agent runs lives in the voice service's dashboard and nowhere else. This
   // puts a copy on the clipboard, to be committed where it can be read, reviewed and recovered.
-  document.getElementById('script')?.addEventListener('click', async () => {
-    const button = document.getElementById('script');
-    button.disabled = true;
-    button.textContent = 'Asking…';
-    try {
-      const exported = await get('agent-script');
-      await navigator.clipboard.writeText(JSON.stringify(exported, null, 2));
-      button.textContent = 'Copied — commit it';
-    } catch (error) {
-      button.textContent = 'Export the script';
-      button.disabled = false;
-      msg('qmsg', error.message, 'bad');
-    }
-  });
+  for (const [id, box] of [['script', 'qmsg'], ['tscript', 'tmsg']]) {
+    document.getElementById(id)?.addEventListener('click', async () => {
+      const button = document.getElementById(id);
+      button.disabled = true;
+      button.textContent = 'Asking…';
+      try {
+        const exported = await get('agent-script');
+        await navigator.clipboard.writeText(JSON.stringify(exported, null, 2));
+        button.textContent = 'Copied — commit it';
+      } catch (error) {
+        button.textContent = 'Export the script';
+        button.disabled = false;
+        msg(box, error.message, 'bad');
+      }
+    });
+  }
 
   function post(action, body) {
     return call(`/api/desk?action=${action}`, {
@@ -288,10 +321,14 @@
 
   // The day, said once at the top. A desk is opened, worked and left, and the date is what
   // tells somebody at a glance whether what is on the screen is today's.
-  function renderToday() {
-    document.getElementById('today').textContent = new Date().toLocaleDateString(undefined, {
+  function renderDateline() {
+    const said = new Date().toLocaleDateString(undefined, {
       weekday: 'long', month: 'long', day: 'numeric',
     });
+    for (const id of ['today', 'todaydate']) {
+      const box = document.getElementById(id);
+      if (box) box.textContent = said;
+    }
   }
 
   function renderTabs(active) {
@@ -384,7 +421,7 @@
   }
 
   function renderQueue(data) {
-    renderToday();
+    renderDateline();
     renderTabs(data.state);
     const first = (data.page - 1) * data.perPage + 1;
     const last = first + data.people.length - 1;
@@ -418,6 +455,60 @@
       list.append(row);
     }
     renderPager(data);
+  }
+
+  // The first screen.
+  //
+  // Two lists, oldest first, and the top row of each is the next thing to do. At fifty thousand
+  // people a list somebody scrolls is a list somebody loses, so the count says how many are
+  // behind and the first row is the one to press.
+  //
+  // What shouts is the twenty-four hour line. Forty-eight is what the claim page promised, so
+  // past twenty-four the promise is at risk rather than broken.
+  function hours(n) {
+    if (n === null || n === undefined) return '';
+    if (n < 1) return 'just now';
+    if (n < 72) return `${Math.floor(n)}h waiting`;
+    return `${Math.floor(n / 24)}d waiting`;
+  }
+
+  function renderTodayList(box, rows, target, empty, verb, primary) {
+    box.textContent = '';
+    if (!rows.length) {
+      box.append(el('p', empty, 'meta'));
+      return 0;
+    }
+    let late = 0;
+    rows.forEach((row, i) => {
+      const over = row.hoursWaiting !== null && row.hoursWaiting >= target;
+      if (over) late += 1;
+      const line = el('div', null, i === 0 ? 'row said us' : 'row');
+      line.append(el('div', row.reference, 'code'));
+      line.append(el('div', hours(row.hoursWaiting), over ? 'flag' : 'meta'));
+      if (row.wasBlocked) line.append(el('div', 'Was blocked', 'badge open'));
+      line.append(link(verb, `/desk?id=${row.id}`,
+        primary && i === 0 ? 'button go-on' : 'button quiet-link'));
+      box.append(line);
+    });
+    return late;
+  }
+
+  function renderFirstScreen(data) {
+    renderDateline();
+    const late = renderTodayList(
+      document.getElementById('newcalls'), data.calls, data.targetHours,
+      'None waiting.', 'Read it', true);
+    document.getElementById('callscount').textContent = data.calls.length
+      ? `${data.calls.length} waiting`
+        + (late ? ` · ${late} past ${data.targetHours} hours` : '')
+      : '';
+
+    const stale = renderTodayList(
+      document.getElementById('newunread'), data.unread, data.targetHours,
+      'Nothing unread.', 'Open it', data.calls.length === 0);
+    document.getElementById('unreadcount').textContent = data.unread.length
+      ? `${data.unread.length} unread` + (stale ? ` · ${stale} past ${data.targetHours} hours` : '')
+      : '';
   }
 
   // Where in the conversation this is. Same shape as the queue's pager, and the page number
@@ -1225,7 +1316,7 @@
   // Reloading without reaching for the browser's own button. The desk is a screen somebody
   // leaves open while the work happens elsewhere -- a call lands, a record gets kept -- so
   // the thing it shows goes out of date while nothing on the page has changed.
-  for (const id of ['again', 'againrecord']) {
+  for (const id of ['again', 'againrecord', 'todayagain']) {
     document.getElementById(id).addEventListener('click', () => window.location.reload());
   }
 
@@ -1235,30 +1326,39 @@
   // so the endpoint refused it and the press landed on a page of JSON saying which actions
   // exist. It is POST-only on purpose: anything that can log somebody out by being visited
   // can be triggered by a link somebody else wrote.
-  document.getElementById('logout').addEventListener('click', async () => {
-    try {
-      await call('/api/auth?action=signout', { method: 'POST' });
-    } catch (error) {
-      msg('qmsg', error.message, 'bad');
-      return;
-    }
-    window.location.replace('/desk');
-  });
+  for (const [id, box] of [['logout', 'qmsg'], ['tlogout', 'tmsg']]) {
+    document.getElementById(id)?.addEventListener('click', async () => {
+      try {
+        await call('/api/auth?action=signout', { method: 'POST' });
+      } catch (error) {
+        msg(box, error.message, 'bad');
+        return;
+      }
+      window.location.replace('/desk');
+    });
+  }
 
   async function start() {
+    // No person and no queue asked for means the first screen. The queue is still reachable
+    // and still works; it is just not what the morning opens on.
     const url = personId
       ? `/api/desk?action=person&id=${encodeURIComponent(personId)}`
         + (mpage ? `&mpage=${encodeURIComponent(mpage)}` : '')
-      : `/api/desk?action=queue&state=${encodeURIComponent(state)}&page=${page}`;
+      : askedForQueue
+        ? `/api/desk?action=queue&state=${encodeURIComponent(state)}&page=${page}`
+        : '/api/desk?action=today';
     try {
       const data = await call(url);
       if (personId) {
         document.getElementById('record').hidden = false;
         renderPerson(data);
-      } else {
+      } else if (askedForQueue) {
         document.getElementById('queue').hidden = false;
         renderQueue(data);
         renderFunnel();
+      } else {
+        document.getElementById('todayview').hidden = false;
+        renderFirstScreen(data);
       }
     } catch (error) {
       if (error.status === 401) {
