@@ -347,6 +347,33 @@ await tagged`insert into messages (account_id, author, body_encrypted)
 const already = await tagged`select 1 from messages where account_id = 'acct-go' limit 1`;
 check('a thread with something in it is not opened again', already.length === 1);
 
+// A session is spent by being had.
+//
+// The gate counted minutes, so a call that ran four minutes against a thirty-five minute
+// budget left the claim page saying a session was ready -- including for somebody who had
+// already been told no. The sales page says a call ends when the questions are answered and
+// that a short one is finished rather than cut off, so the screen was contradicting what was
+// sold.
+console.log('a call that came back spends the session');
+
+const { aCallCameBack } = db;
+
+const hadTheirCall = await newOrder();
+await tagged`insert into calls (order_id, call_id, seconds, transcript_encrypted)
+             values (${hadTheirCall}, 'c-four-minutes', 240, 'what was said')`;
+check('four minutes with words in it is a session that happened',
+  (await aCallCameBack(hadTheirCall)) === true);
+
+// The case the restarts exist for: a start that never connected leaves a row with nothing
+// in it, and that must not count as the session.
+const neverConnected = await newOrder();
+await tagged`insert into calls (order_id, call_id) values (${neverConnected}, 'c-never-connected')`;
+check('a start that came back with nothing does not',
+  (await aCallCameBack(neverConnected)) === false);
+
+check('and an order with no calls at all does not',
+  (await aCallCameBack(await newOrder())) === false);
+
 // Answering a quote.
 //
 // The three answers belong to the person it was written for, and each has to land once. Two

@@ -117,15 +117,31 @@
       return;
     }
 
+    // The call has happened. This page said so and stopped, which left somebody who had just
+    // spoken with nothing to do and no idea anything else was coming. What they are waiting
+    // for is the writing, and the only thing they have to do is come back here.
     if (data.status === 'used') {
-      statusLine('Status', 'This session has been used');
-      lede("The session on this order has been used and can't be opened again.");
-      note(['To speak again, pay for another session.']);
-      const again = el('p', null, 'cta');
-      const link = el('a', 'Pay for another session');
-      link.href = '/buy';
-      again.append(link);
+      statusLine('Status', 'Your call is done');
+      lede('Your call happened. A person reads it and writes you what to do next.');
+      note([
+        'Come back to this page in about 48 hours and sign in with a Skills Economy account. '
+          + "What was written for you is there.",
+        'Nothing else is needed from you, and this link keeps working.',
+      ]);
+      const go = el('p', null, 'cta');
+      const link = el('a', 'Sign in and read it');
+      link.href = '/';
+      go.append(link);
+      body.append(go);
+
+      const again = el('p', null, 'cta after');
+      again.textContent = 'Another conversation is another session.';
       body.append(again);
+      const buy = el('p', null, 'cta');
+      const buyLink = el('a', 'Pay for another session');
+      buyLink.href = '/buy';
+      buy.append(buyLink);
+      body.append(buy);
       return;
     }
 
