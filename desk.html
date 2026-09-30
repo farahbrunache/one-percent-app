@@ -162,7 +162,7 @@
       <form class="fields" id="introduce" novalidate>
         <div class="field">
           <label for="otherref">Introduce them to a reference</label>
-          <input id="otherref" type="text" inputmode="latin" autocapitalize="characters"
+          <input class="code-field" id="otherref" type="text" inputmode="latin" autocapitalize="characters"
                  autocomplete="off" placeholder="Their reference">
         </div>
         <div class="field">
@@ -197,6 +197,9 @@
 </main>
 
 <script type="module">
+  import { codeFields } from '/codefield.js';
+  codeFields(['otherref']);
+
   const STATES = [
     ['waiting', 'New calls'],
     ['replies', 'Wrote to you'],

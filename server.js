@@ -22,6 +22,7 @@ const PAGES = {
   '/payments': ['payments.html', 'text/html; charset=utf-8'],
   '/desk': ['desk.html', 'text/html; charset=utf-8'],
   '/style.css': ['style.css', 'text/css; charset=utf-8'],
+  '/codefield.js': ['codefield.js', 'text/javascript; charset=utf-8'],
   '/robots.txt': ['robots.txt', 'text/plain; charset=utf-8'],
 };
 
