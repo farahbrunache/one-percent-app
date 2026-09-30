@@ -60,6 +60,12 @@ export function post(action, body) {
   });
 }
 
+// A date short enough to sit on a shut section's line beside its count. The full one is for
+// inside a section, where there is room for a time of day.
+export function day(value) {
+  return value ? new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+}
+
 export function when(value) {
   return value ? new Date(value).toLocaleString() : 'not yet';
 }

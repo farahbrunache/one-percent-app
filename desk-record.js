@@ -5,8 +5,9 @@
 // they're doing -- the path, the milestones, the quotes, the introductions -- is its own module,
 // imported and rendered in place.
 
-import { el, link, msg, get, post, when, minutes, money, mpage, here } from '/desk-ui.js';
-import { renderPlan, renderSteps, renderQuotes, renderIntroductions } from '/desk-work.js';
+import { el, link, msg, get, post, when, day, minutes, money, mpage, here } from '/desk-ui.js';
+import { renderPlan, renderSteps, renderQuotes, renderIntroductions, pathLabel }
+  from '/desk-work.js';
 
 // Where in the conversation this is. Same shape as the queue's pager, and the page number
 // goes in the address for the same reason: a place in a list has to be linkable and the
@@ -238,13 +239,9 @@ function renderCalls(person) {
 // Written once and edited afterwards, because what somebody should do next is not settled in
 // one sitting and the sheet is theirs to read whenever they come back.
 function renderRecommendations(person) {
-  const at = document.getElementById('recommendedat');
   const input = document.getElementById('recommendbody');
   const form = document.getElementById('recommendform');
 
-  at.textContent = person.recommendations
-    ? `Written ${when(person.recommendedAt)}. They can read it now.`
-    : "Nothing written yet, so there's nothing for them to read.";
   if (person.recommendations) input.value = person.recommendations;
 
   form.addEventListener('submit', async (event) => {
@@ -462,6 +459,58 @@ function renderEvents(person) {
   }
 }
 
+// A record is a dozen sections and one of them is the work in hand. So eleven are shut, and
+// what a shut one says is its own state -- a count, a date, the last thing that happened --
+// which is how the screen gets read without opening anything.
+//
+// Which one is open is decided by the record, never remembered from last time. A section left
+// open by whoever was here yesterday is noise; one left shut is a step somebody stops seeing.
+function sofar(name, text) {
+  document.getElementById(`sofar-${name}`).textContent = text;
+}
+
+function foldLines(person) {
+  const done = person.milestones.filter((step) => step.status === 'worked').length;
+  const openQuotes = person.quotes.filter((quote) => quote.status === 'offered');
+  const last = person.messages[person.messages.length - 1];
+
+  sofar('decide', person.decision
+    ? `${person.decision === 'go' ? 'Go' : 'No-go'} · ${day(person.decidedAt)}`
+    : 'not yet');
+  sofar('sheet', person.recommendedAt ? `written ${day(person.recommendedAt)}` : 'not written');
+  sofar('thread', !person.approvedAt
+    ? (person.decision === 'no-go' ? 'closed' : 'opens on a go')
+    : person.messageCount
+      ? `${person.messageCount} · last from ${last && last.author === 'client' ? 'them' : 'you'}`
+      : 'nothing said yet');
+  sofar('plan', person.plan ? pathLabel(person.plan.path) : 'not set');
+  sofar('steps', person.milestones.length ? `${done} of ${person.milestones.length} done` : 'none');
+  sofar('quotes', person.quotes.length
+    ? `${openQuotes.length} open of ${person.quotes.length}`
+    : 'none');
+  sofar('intros', person.introductions.length ? String(person.introductions.length) : 'none');
+  sofar('calls', person.calls.length ? `${person.calls.length} · ${minutes(person.calls[0].seconds)}` : 'none');
+  sofar('orders', String(person.orders.length));
+  sofar('earned', person.firstCustomerAt ? day(person.firstCustomerAt) : 'not yet');
+  sofar('events', String(person.events.length));
+}
+
+// The next thing, and nothing else. A no-go with its sheet written has nothing waiting, so
+// nothing opens -- which says so more plainly than a section standing open with no work in it.
+//
+// The one pair is the call and the decision. You cannot decide without reading, so a record
+// with no decision on it opens both, in that order, and the buttons are under the words they
+// are about.
+function openWhatIsNext(person) {
+  const next = !person.decision ? ['calls', 'decide']
+    : !person.recommendedAt ? ['sheet']
+    : person.approvedAt ? ['thread']
+      : [];
+  for (const fold of document.querySelectorAll('#record details.fold')) {
+    fold.open = next.includes(fold.id.slice('fold-'.length));
+  }
+}
+
 export function renderPerson(person) {
   const heading = document.getElementById('ref');
   heading.textContent = person.reference || `Order ${person.id}`;
@@ -482,6 +531,8 @@ export function renderPerson(person) {
   renderIntroductions(person);
   renderFirstCustomer(person);
   renderEvents(person);
+  foldLines(person);
+  openWhatIsNext(person);
 
   document.getElementById('addstep').addEventListener('submit', async (event) => {
     event.preventDefault();

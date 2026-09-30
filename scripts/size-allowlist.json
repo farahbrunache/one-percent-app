@@ -3,7 +3,7 @@
   "files": {
     "api/desk.js": {
       "lines": 1211,
-      "note": "Every desk action in one file: the first screen, the queue, the funnel, a person, and fourteen writes. Splits by subject alongside the record screen -- the plan and milestones, the quotes, and the introductions each want their own module. Recorded 2026-09-30."
+      "note": "Every desk action in one file: the first screen, the queue, the funnel, a person, and fourteen writes. The page split first, because that is where the words somebody reads are. This splits by the same subjects: the plan and milestones, the quotes, and the introductions. Recorded 2026-09-30."
     },
     "test/database.test.mjs": {
       "lines": 896,

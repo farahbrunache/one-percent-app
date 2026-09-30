@@ -18,6 +18,12 @@ const PATHS = [
     'One price, one person, one time. A solid step they can actually take.'],
 ];
 
+// What the path is called, for a section that is shut. Read from the same table the buttons
+// are built from, so a rename moves both.
+export function pathLabel(path) {
+  return (PATHS.find(([value]) => value === path) || [])[1] || '';
+}
+
 export function renderPlan(person) {
   const box = document.getElementById('plan');
   box.textContent = '';

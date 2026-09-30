@@ -95,35 +95,23 @@
       <div id="owed" class="rows"></div>
     </div>
 
-    <div class="panel">
-      <h2>Sessions bought</h2>
-      <p class="meta" id="ordersnote"></p>
-      <div id="orders" class="rows"></div>
-    </div>
-
-    <div class="panel">
-      <h2>Calls</h2>
+    <details class="panel fold" id="fold-calls">
+      <summary><h2>Calls</h2><span class="sofar" id="sofar-calls"></span></summary>
       <div id="calls"></div>
-    </div>
+    </details>
 
-    <div class="panel">
-      <h2>Go or no-go</h2>
-      <p class="meta">Read the call first. Nothing here decides on its own, and you can change a decision — both stay on the record.</p>
+    <details class="panel fold" id="fold-decide">
+      <summary><h2>Go or no-go</h2><span class="sofar" id="sofar-decide"></span></summary>
       <p id="decided" class="status-line" hidden></p>
       <div class="actions" id="decide"></div>
-    </div>
+    </details>
 
-    <div class="panel">
-      <h2>What they are told</h2>
-      <p class="meta">Everyone who calls gets this, go or no-go. A no-go isn't a rejection and
-        can't read like one: they keep everything they had, Skills Economy is still there and
-        still free, and the only thing this adds is your time.</p>
-      <p class="meta" id="recommendedat"></p>
+    <details class="panel fold" id="fold-sheet">
+      <summary><h2>Their sheet</h2><span class="sofar" id="sofar-sheet"></span></summary>
       <form class="fields" id="recommendform" novalidate>
         <div class="field">
           <label for="recommendbody">Recommendations</label>
-          <span class="hint">What's worth doing in their situation. They read this word for word, so
-            write it to them, not about them.</span>
+          <span class="hint">They read this word for word.</span>
           <textarea id="recommendbody" rows="8" maxlength="8000"></textarea>
         </div>
         <div class="actions">
@@ -133,16 +121,10 @@
         <p class="meta" id="draftnote"></p>
         <p class="meta" id="models"></p>
       </form>
-    </div>
+    </details>
 
-    <div class="panel">
-      <h2>The path</h2>
-      <p class="meta">Two paths. Neither one is better than the other.</p>
-      <div id="plan"></div>
-    </div>
-
-    <div class="panel">
-      <h2>The conversation</h2>
+    <details class="panel fold" id="fold-thread">
+      <summary><h2>The conversation</h2><span class="sofar" id="sofar-thread"></span></summary>
       <p class="meta" id="threadnote"></p>
       <div id="thread" class="rows"></div>
       <div class="actions" id="threadpager" hidden></div>
@@ -157,11 +139,15 @@
         </div>
         <p class="meta" id="replydraftnote"></p>
       </form>
-    </div>
+    </details>
 
-    <div class="panel">
-      <h2>Milestones</h2>
-      <p class="meta">A stalled step is just something that happened. It's not a verdict on anyone.</p>
+    <details class="panel fold" id="fold-plan">
+      <summary><h2>The path</h2><span class="sofar" id="sofar-plan"></span></summary>
+      <div id="plan"></div>
+    </details>
+
+    <details class="panel fold" id="fold-steps">
+      <summary><h2>Milestones</h2><span class="sofar" id="sofar-steps"></span></summary>
       <div id="steps" class="rows"></div>
       <form class="fields" id="addstep" hidden novalidate>
         <div class="field">
@@ -170,10 +156,10 @@
         </div>
         <div class="actions"><button type="submit" class="quiet">Add</button></div>
       </form>
-    </div>
+    </details>
 
-    <div class="panel">
-      <h2>Quotes</h2>
+    <details class="panel fold" id="fold-quotes">
+      <summary><h2>Quotes</h2><span class="sofar" id="sofar-quotes"></span></summary>
       <p class="meta" id="quotenote"></p>
       <div id="quotes" class="rows"></div>
       <form class="fields" id="writequote" hidden novalidate>
@@ -187,11 +173,10 @@
         </div>
         <div class="actions"><button type="submit" class="quiet">Write the quote</button></div>
       </form>
-    </div>
+    </details>
 
-    <div class="panel">
-      <h2>Introductions</h2>
-      <p class="meta">Who you've introduced them to, and what came of it.</p>
+    <details class="panel fold" id="fold-intros">
+      <summary><h2>Introductions</h2><span class="sofar" id="sofar-intros"></span></summary>
       <div id="intros" class="rows"></div>
       <form class="fields" id="introduce" novalidate>
         <div class="field">
@@ -205,17 +190,22 @@
         </div>
         <div class="actions"><button type="submit" class="quiet">Record the introduction</button></div>
       </form>
-    </div>
+    </details>
 
-    <div class="panel">
-      <h2>Where it ends</h2>
-      <p class="meta">The work ends when someone is paying them, not at a session count.</p>
+    <details class="panel fold" id="fold-orders">
+      <summary><h2>Sessions bought</h2><span class="sofar" id="sofar-orders"></span></summary>
+      <p class="meta" id="ordersnote"></p>
+      <div id="orders" class="rows"></div>
+    </details>
+
+    <details class="panel fold" id="fold-earned">
+      <summary><h2>Where it ends</h2><span class="sofar" id="sofar-earned"></span></summary>
       <p id="earned" class="status-line" hidden></p>
       <div class="actions" id="firstcustomer"></div>
-    </div>
+    </details>
 
-    <div class="panel">
-      <h2>The record</h2>
+    <details class="panel fold" id="fold-events">
+      <summary><h2>The record</h2><span class="sofar" id="sofar-events"></span></summary>
       <form class="fields" id="addnote" novalidate>
         <div class="field">
           <label for="note">Add a note</label>
@@ -224,7 +214,7 @@
         <div class="actions"><button type="submit" class="quiet">Write it down</button></div>
       </form>
       <div id="events" class="rows"></div>
-    </div>
+    </details>
 
   </div>
 
