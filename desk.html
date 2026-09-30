@@ -15,7 +15,7 @@
 
   <div id="signin" hidden>
     <h1>Desk</h1>
-    <p class="lede">Sign in with Skills Economy to read what came back.</p>
+    <p class="lede">Sign in with Skills Economy to read what came in.</p>
     <div class="actions"><a class="button go-on" id="lgo" href="/api/auth?action=start&amp;to=/desk">Sign in with Skills Economy</a></div>
     <div id="lmsg" hidden></div>
   </div>
@@ -23,11 +23,14 @@
   <!-- The queue. Which one and which page are both in the address, so a place in a list can
        be returned to and the back button does what it looks like it does. -->
   <div id="queue" hidden>
-    <p class="dateline" id="today"></p>
+    <div class="topbar">
+      <p class="dateline" id="today"></p>
+      <button type="button" class="quiet" id="again">Refresh</button>
+    </div>
     <h1>Desk</h1>
 
     <h2>How far people get</h2>
-    <p class="meta">Everybody counted once, however many sessions they have bought.</p>
+    <p class="meta">Each person counted once, no matter how many sessions they've bought.</p>
     <div id="funnel" class="funnel"></div>
 
     <nav class="navlist" id="tabs"></nav>
@@ -45,7 +48,10 @@
 
   <!-- One person. Its own address, so it can be linked, bookmarked and come back to. -->
   <div id="record" hidden>
-    <p class="meta"><a href="/desk" id="back">Back to the queue</a></p>
+    <div class="topbar">
+      <a class="back" href="/desk" id="back">&larr; The queue</a>
+      <button type="button" class="quiet" id="againrecord">Refresh</button>
+    </div>
     <h1 id="ref"></h1>
     <p class="meta" id="called"></p>
     <div id="rmsg" hidden></div>
@@ -62,22 +68,22 @@
 
     <div class="panel">
       <h2>Go or no-go</h2>
-      <p class="meta">Read it first. Nothing here decides on its own, and a decision can be changed — both stay on the record.</p>
+      <p class="meta">Read the call first. Nothing here decides on its own, and you can change a decision — both stay on the record.</p>
       <p id="decided" class="status-line" hidden></p>
       <div class="actions" id="decide"></div>
     </div>
 
     <div class="panel">
       <h2>What they are told</h2>
-      <p class="meta">Everybody who calls gets this, whichever way the decision went. A no-go is
-        not a rejection and must not read as one: they keep everything they had, Skills Economy is
-        unchanged and free, and what this adds is your time.</p>
+      <p class="meta">Everyone who calls gets this, go or no-go. A no-go isn't a rejection and
+        can't read like one: they keep everything they had, Skills Economy is still there and
+        still free, and the only thing this adds is your time.</p>
       <p class="meta" id="recommendedat"></p>
       <form class="fields" id="recommendform" novalidate>
         <div class="field">
           <label for="recommendbody">Recommendations</label>
-          <span class="hint">Things worth doing, in their own situation. They read this word for
-            word, so write it to them rather than about them.</span>
+          <span class="hint">What's worth doing in their situation. They read this word for word, so
+            write it to them, not about them.</span>
           <textarea id="recommendbody" rows="8" maxlength="8000"></textarea>
         </div>
         <div class="actions">
@@ -91,7 +97,7 @@
 
     <div class="panel">
       <h2>The path</h2>
-      <p class="meta">Two paths, neither above the other.</p>
+      <p class="meta">Two paths. Neither one is better than the other.</p>
       <div id="plan"></div>
     </div>
 
@@ -114,7 +120,7 @@
 
     <div class="panel">
       <h2>Milestones</h2>
-      <p class="meta">A stalled step is something that happened, not a verdict on anybody.</p>
+      <p class="meta">A stalled step is just something that happened. It's not a verdict on anyone.</p>
       <div id="steps" class="rows"></div>
       <form class="fields" id="addstep" hidden novalidate>
         <div class="field">
@@ -144,7 +150,7 @@
 
     <div class="panel">
       <h2>Introductions</h2>
-      <p class="meta">Who they have been put in touch with, and what came of it.</p>
+      <p class="meta">Who you've introduced them to, and what came of it.</p>
       <div id="intros" class="rows"></div>
       <form class="fields" id="introduce" novalidate>
         <div class="field">
@@ -162,7 +168,7 @@
 
     <div class="panel">
       <h2>Where it ends</h2>
-      <p class="meta">The work ends when they have somebody paying them, not at a session count.</p>
+      <p class="meta">The work ends when someone is paying them, not at a session count.</p>
       <p id="earned" class="status-line" hidden></p>
       <div class="actions" id="firstcustomer"></div>
     </div>
@@ -320,8 +326,8 @@
 
       const top = data.stages[0] ? data.stages[0].count : 0;
       if (!top) {
-        box.append(el('p', 'No call has come back yet, so there is no shape to draw. The '
-          + 'first one fills the top of this.', 'nothing'));
+        box.append(el('p', "No calls yet, so there's nothing to chart. The first one fills "
+          + 'the top.', 'nothing'));
         return;
       }
 
@@ -387,7 +393,7 @@
         row.append(el('div', 'Not read yet', 'badge open'));
       }
       if (person.awaitingReply) {
-        row.append(el('div', 'Wrote to you and is waiting', 'flag'));
+        row.append(el('div', 'Wrote to you and is waiting on a reply', 'flag'));
       }
       for (const item of owed(person)) {
         if (item.yours) row.append(el('div', item.what, 'flag'));
@@ -416,14 +422,15 @@
         && Date.now() - new Date(person.calledAt).getTime() > 24 * 3600 * 1000;
       out.push({
         what: aDayOn
-          ? 'The call record has not been kept, a day on. Open the call and press it by hand.'
-          : 'The call record is not kept yet. The hourly job takes it; nothing to do.',
+          ? "It's been over a day and the call record still isn't saved. Open the call and "
+            + 'save it yourself.'
+          : "The call record isn't saved yet. The hourly job picks it up. Nothing to do.",
         yours: Boolean(aDayOn),
       });
     }
-    if (!person.decision) out.push({ what: 'Go or no-go, once you have read it.', yours: true });
+    if (!person.decision) out.push({ what: "Go or no-go, once you've read the call.", yours: true });
     if (!person.recommendedAt) {
-      out.push({ what: 'Write what they are told. Everybody who called gets this.', yours: true });
+      out.push({ what: 'Write their sheet. Everyone who calls gets one.', yours: true });
     }
     return out;
   }
@@ -435,7 +442,7 @@
     box.textContent = '';
     const items = owed(person);
     if (!items.length) {
-      box.append(el('p', 'Nothing. They have been read, decided, and told.', 'meta'));
+      box.append(el('p', "Nothing. You've read them, decided, and written their sheet.", 'meta'));
       return;
     }
     for (const item of items) {
@@ -481,9 +488,9 @@
   // recommendation, which is the opposite of what two paths neither above the other means.
   const PATHS = [
     ['reach', 'Reaching past the average',
-      'What the work is worth to the person who needs it, rather than what the going rate is.'],
+      'What the work is worth to the person who needs it, not what the going rate is.'],
     ['smallest', 'The smallest number',
-      'One price, one person, once. A sound next step under somebody\'s feet.'],
+      'One price, one person, one time. A solid step they can actually take.'],
   ];
 
   function renderPlan(person) {
@@ -495,7 +502,7 @@
       button.type = 'button';
       button.append(document.createTextNode(label));
       button.append(el('span', why, 'why'));
-      if (on) button.append(el('span', `In force since ${when(person.plan.setAt)}.`, 'why'));
+      if (on) button.append(el('span', `Set on ${when(person.plan.setAt)}.`, 'why'));
       button.disabled = on;
       button.addEventListener('click', async () => {
         button.disabled = true;
@@ -510,7 +517,7 @@
       box.append(button);
     }
     for (const former of person.formerPlans) {
-      box.append(el('p', `Was on ${former.label} from ${when(former.setAt)}.`, 'meta'));
+      box.append(el('p', `Was on ${former.label} starting ${when(former.setAt)}.`, 'meta'));
     }
   }
 
@@ -519,7 +526,7 @@
     list.textContent = '';
     document.getElementById('addstep').hidden = !person.plan;
     if (!person.plan) {
-      list.append(el('p', 'Set a path first. A milestone belongs to one.', 'meta'));
+      list.append(el('p', 'Pick a path first. Every milestone belongs to one.', 'meta'));
       return;
     }
     if (!person.milestones.length) {
@@ -595,8 +602,8 @@
     box.textContent = '';
     if (!calls.length) {
       box.append(el('p', person.calls.length
-        ? 'A session was started and no words came back from it.'
-        : 'No call has been started against this order.', 'meta'));
+        ? 'The session started but nothing was recorded.'
+        : "No call has started on this order.", 'meta'));
       return;
     }
     for (const call of calls) {
@@ -619,7 +626,7 @@
           await navigator.clipboard.writeText(call.transcript);
           copy.textContent = 'Copied';
         } catch {
-          copy.textContent = 'Select it by hand';
+          copy.textContent = 'Select it and copy';
         }
         setTimeout(() => { copy.textContent = 'Copy it'; }, 2000);
       });
@@ -643,7 +650,7 @@
               await navigator.clipboard.writeText(text);
               everything.textContent = 'Copied, and shown below';
             } catch {
-              everything.textContent = 'Shown below — select it by hand';
+              everything.textContent = 'Shown below — copy it from there';
             }
           } catch (error) {
             everything.textContent = 'Everything the voice service has';
@@ -669,7 +676,7 @@
 
     at.textContent = person.recommendations
       ? `Written ${when(person.recommendedAt)}. They can read it now.`
-      : 'Nothing written yet, so there is nothing for them to come back to.';
+      : "Nothing written yet, so there's nothing for them to read.";
     if (person.recommendations) input.value = person.recommendations;
 
     form.addEventListener('submit', async (event) => {
@@ -696,17 +703,17 @@
 
     if (!person.linked) {
       note.textContent =
-        'No account is linked to this order yet, so there is nowhere to send a message. '
+        "No account is linked to this order yet, so there's nowhere to send a message. "
         + 'They link it by opening their claim link while signed in.';
       form.hidden = true;
       return;
     }
     if (!person.approvedAt) {
-      note.textContent = person.assessment === 'no-go'
-        ? 'A no-go, so the conversation is closed. They keep their sheet and everything they '
-          + 'already had. Changing the decision opens it.'
-        : 'Not decided yet, so there is no conversation. A go opens it, and the opening line '
-          + 'goes out once the sheet is written.';
+      note.textContent = person.decision === 'no-go'
+        ? 'No-go, so the conversation is closed. They keep their sheet and everything they '
+          + 'already had. Change the decision and it opens.'
+        : "Not decided yet, so there's no conversation. A go opens it, and the opening line "
+          + 'goes out once you write the sheet.';
       form.hidden = true;
       return;
     }
@@ -715,8 +722,8 @@
     form.hidden = false;
 
     if (!person.messages.length) {
-      list.append(el('p', 'Nothing said yet. The opening line goes out once the sheet is '
-        + 'written.', 'meta'));
+      list.append(el('p', 'Nothing said yet. The opening line goes out once you write the '
+        + 'sheet.', 'meta'));
     }
     for (const message of person.messages) {
       const theirs = message.author === 'client';
@@ -752,7 +759,7 @@
     const note = document.getElementById('replydraftnote');
     if (!drafting.models.length) {
       button.hidden = true;
-      note.textContent = 'No drafting model is configured, so a reply is written by hand.';
+      note.textContent = 'No drafting model is set up, so you write the reply yourself.';
       return;
     }
     button.addEventListener('click', async () => {
@@ -785,7 +792,7 @@
 
     if (!drafting.models.length) {
       button.hidden = true;
-      note.textContent = 'No drafting model is configured, so the sheet is written by hand.';
+      note.textContent = 'No drafting model is set up, so you write the sheet yourself.';
       return;
     }
 
@@ -833,8 +840,12 @@
     });
   }
 
-  const QUOTE_STATUSES = ['offered', 'agreed', 'paid', 'withdrawn'];
   const INTRO_OUTCOMES = ['waiting', 'worked', 'went nowhere'];
+
+  // Three at once. More than that stops being a choice and starts being a catalogue, and a
+  // list of prices arriving unasked is what a sales pitch looks like. The endpoint counts
+  // the same way; this is so the screen says where it stands before somebody types.
+  const MAX_OPEN_QUOTES = 3;
 
   function money(value) {
     return `$${Number(value).toFixed(2)}`;
@@ -850,23 +861,60 @@
 
     if (!person.linked) {
       note.textContent =
-        'No account is linked to this order yet, so there is nobody to quote. They link it by ' +
+        "No account is linked to this order yet, so there's nobody to quote. They link it by " +
         'opening their claim link while signed in.';
       form.hidden = true;
       return;
     }
-    note.textContent = 'Written for them, in dollars, against what the work actually is.';
-    form.hidden = false;
+    // A quote is for paid work, and a no-go said this is not somebody to go on with. The
+    // two are not impossible together -- somebody turned down for the method can still be
+    // the right person for one piece of work -- but it is a thing to notice rather than a
+    // thing to do by reflex, so the screen says so before the form and asks again after it.
+    // Three at once, because three is a choice somebody reads in one go and a fourth makes
+    // it a list. Each one is answered on its own -- saying no to a price for one piece of
+    // work says nothing about the next, so the count is what is waiting rather than what has
+    // ever been written.
+    const open = person.quotes.filter((q) => q.status === 'offered').length;
+    const room = MAX_OPEN_QUOTES - open;
+
+    const lines = [];
+    if (person.decision === 'no-go') {
+      lines.push('This was a no-go. A quote is for paid work, so think it over before you '
+        + 'quote someone you turned down. Nothing stops you.');
+    }
+    lines.push(room > 0
+      ? `In dollars, against what the work actually is. ${open} of ${MAX_OPEN_QUOTES} `
+        + 'waiting on an answer.'
+      : `${MAX_OPEN_QUOTES} are already waiting on an answer. That's as many as anyone can `
+        + 'choose between. Withdraw one, or wait.');
+    note.textContent = lines.join(' ');
+    form.hidden = room <= 0;
 
     if (!person.quotes.length) list.append(el('p', 'Nothing quoted yet.', 'meta'));
     for (const quote of person.quotes) {
       const row = el('div', null, 'row');
       row.append(el('div', money(quote.amount), 'value'));
-      row.append(el('div', `${quote.status} · written ${when(quote.writtenAt)}`, 'meta'));
+      row.append(el('div', `Written ${when(quote.writtenAt)}`, 'meta'));
       row.append(el('div', quote.scope, null));
 
+      // What they said back. A quote answered by the person it was written for is a fact
+      // with a time on it, so it reads as one rather than as a status that moved.
+      if (quote.answeredAt) {
+        const tone = quote.status === 'agreed' ? 'go' : quote.status === 'declined' ? 'nogo' : 'open';
+        row.append(el('div', `They said: ${quote.status}`, `badge ${tone}`));
+        row.append(el('div', `Answered ${when(quote.answeredAt)}`, 'meta'));
+        if (quote.reason) row.append(el('div', quote.reason, 'sheet'));
+      } else if (quote.status === 'offered') {
+        row.append(el('div', 'Waiting on them', 'badge open'));
+      } else {
+        row.append(el('div', `${quote.status} · moved ${when(quote.movedAt)}`, 'meta'));
+      }
+
+      // Only the moves that belong to this end. Agreeing, declining and asking for a change
+      // are the other person's to make, and a control here that does any of them would put
+      // their answer on the record in somebody else's hand.
       const actions = el('div', null, 'actions');
-      for (const status of QUOTE_STATUSES) {
+      for (const status of ['paid', 'withdrawn']) {
         if (status === quote.status) continue;
         const button = el('button', status, 'quiet');
         button.type = 'button';
@@ -888,10 +936,15 @@
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
+      const amount = document.getElementById('amount').value;
+      if (person.decision === 'no-go'
+        && !window.confirm(`This person was a no-go. Write them a quote for $${amount}?`)) {
+        return;
+      }
       try {
         await post('quote', {
           id: person.id,
-          amount: document.getElementById('amount').value,
+          amount,
           scope: document.getElementById('scope').value,
         });
         window.location.reload();
@@ -985,7 +1038,7 @@
     box.textContent = '';
     said.hidden = !person.firstCustomerAt;
     if (person.firstCustomerAt) {
-      said.textContent = `Had somebody paying them by ${when(person.firstCustomerAt)}.`;
+      said.textContent = `Had a paying customer by ${when(person.firstCustomerAt)}.`;
     }
     const reached = !person.firstCustomerAt;
     // The one filled control on the screen. It is the end of the work, and the design
@@ -1062,6 +1115,13 @@
         msg('rmsg', error.message, 'bad');
       }
     });
+  }
+
+  // Reloading without reaching for the browser's own button. The desk is a screen somebody
+  // leaves open while the work happens elsewhere -- a call lands, a record gets kept -- so
+  // the thing it shows goes out of date while nothing on the page has changed.
+  for (const id of ['again', 'againrecord']) {
+    document.getElementById(id).addEventListener('click', () => window.location.reload());
   }
 
   // ---- getting started -------------------------------------------------------------

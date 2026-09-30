@@ -13,10 +13,14 @@
 <body>
 <main class="wrap inside">
 
+  <div class="topbar">
+    <a class="back" href="/desk">&larr; The desk</a>
+    <button type="button" class="quiet" id="refresh">Refresh</button>
+  </div>
   <h1>Payments</h1>
 
   <div id="signin" hidden>
-    <p class="lede">Sign in with Skills Economy to see what is waiting.</p>
+    <p class="lede">Sign in with Skills Economy to see what's waiting.</p>
     <div class="actions"><a class="button go-on" id="lgo" href="/api/auth?action=start&amp;to=/payments">Sign in with Skills Economy</a></div>
     <div id="lmsg" hidden></div>
   </div>
@@ -24,7 +28,6 @@
   <div id="work" hidden>
     <div id="counts" class="stats"></div>
     <div class="actions">
-      <button type="button" class="quiet" id="refresh">Refresh</button>
       <button type="button" class="quiet" id="logout">Sign out</button>
     </div>
     <div id="rows" class="rows" aria-live="polite"></div>
@@ -59,7 +62,7 @@
     short: 'Less than $7 arrived',
     empty: 'Gift card had no balance',
     used: 'Gift card already redeemed',
-    invalid: 'Gift card code did not work',
+    invalid: "Gift card code didn't work",
     duplicate: 'Already submitted here',
   };
 
@@ -126,7 +129,7 @@
           await navigator.clipboard.writeText(text);
           b.textContent = 'Copied';
         } catch {
-          b.textContent = 'Select it by hand';
+          b.textContent = 'Select it and copy';
         }
         setTimeout(() => { b.textContent = label; }, 1500);
       });
@@ -257,7 +260,7 @@
       if (!data.total) {
         counter.textContent = data.searched
           ? `Nothing here with the reference ${data.searched}.`
-          : 'Nothing has been through here yet.';
+          : 'Nothing has come through here yet.';
         pager.hidden = true;
         return;
       }

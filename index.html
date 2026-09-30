@@ -12,27 +12,27 @@
 <body>
 <main class="wrap inside">
 
-  <p class="eyebrow">One Percent</p>
+  <a class="back" href="https://farahbrunache.com">&larr; One Percent</a>
   <h1 id="head">Sign in</h1>
 
   <div id="out" hidden>
     <p class="lede">
-      Sign in with Skills Economy to reach your own sessions. Everything before that — paying,
+      Sign in with Skills Economy to get to your own sessions. Everything before that — paying,
       and the call itself — needs no account at all.
     </p>
     <p class="cta">
       <a class="button go-on" id="go" href="/api/auth?action=start&amp;to=/">Sign in with Skills Economy</a>
     </p>
     <p class="cta after">
-      Signing in does not buy anything and does not get you a session. It is how somebody who
-      has already had their call reaches what came out of it.
+      Signing in doesn't buy anything and doesn't get you a session. It's how someone who has
+      already had their call gets to what came out of it.
     </p>
     <section class="panel">
-      <h3>You have not paid yet</h3>
+      <h3>You haven't paid yet</h3>
       <p>
-        What a session is, what it costs and what happens in it is at
-        <a href="https://farahbrunache.com">farahbrunache.com</a>. You can buy one and have
-        the call without signing in to anything.
+        What a session is, what it costs and what happens in it are all at
+        <a href="https://farahbrunache.com">farahbrunache.com</a>. You can buy one and have the
+        call without signing in to anything.
       </p>
       <p class="cta"><a class="button quiet-link" href="/buy">Pay for a session</a></p>
     </section>
@@ -45,8 +45,9 @@
     <section id="quotes" class="panel" hidden>
       <h3>What has been quoted to you</h3>
       <p class="meta">
-        Each one says what it covers. If you want to go ahead with one, or you want it
-        changed, say so in the conversation — nothing here commits you to anything.
+        Each one says what it covers and what it costs. Answer them one at a time — saying no
+        to one says nothing about the others, and nothing here commits you to anything. Anything
+        longer than an answer goes in the conversation below.
       </p>
       <div id="quotelist" class="rows"></div>
     </section>
@@ -68,8 +69,8 @@
     <section id="linker" class="panel" hidden>
       <h3>Link the session you paid for</h3>
       <p>
-        Paste the link you were given after paying. It is the one thing that links your order
-        to an account.
+        Paste the link you got after paying. It's the only thing that ties your order to an
+        account.
       </p>
       <form class="fields" id="linkform" novalidate>
         <div class="field">
@@ -129,7 +130,7 @@
 
     if (!data.sessions.length) {
       head.textContent = 'Your sessions';
-      state.append(el('p', 'You are signed in, and no session is linked to this account yet.', 'lede'));
+      state.append(el('p', "You're signed in. No session is linked to this account yet.", 'lede'));
       return;
     }
     head.textContent = 'Your sessions';
@@ -138,18 +139,19 @@
     // to appear at once, so the screen said the call was going to be read directly above
     // the thing that came out of reading it.
     const read = data.sessions.some((s) => s.recommendations);
+    approved = Boolean(data.approved);
     if (data.approved) {
-      state.append(el('p', 'You are a client.', 'lede'));
+      state.append(el('p', "You're a client.", 'lede'));
       state.append(el('p',
-        'Your recommendations are below, and so is the conversation. Following them through '
-        + 'is what happens next, and it happens in writing.', 'meta'));
+        'Your recommendations are below, and so is the conversation. Working through them is '
+        + 'what happens next, and it happens in writing.', 'meta'));
     } else if (read) {
       state.append(el('p', 'Your call has been read.', 'lede'));
     } else {
       state.append(el('p', 'Your session is linked to this account.', 'lede'));
       state.append(el('p',
-        'What happens next is that the call gets read. That is a person reading it, not a '
-        + 'queue position, so there is no number to watch here.', 'meta'));
+        "Next, the call gets read. An actual person reads it, so there's no queue number "
+        + 'to watch here.', 'meta'));
     }
 
     for (const s of data.sessions) {
@@ -157,6 +159,10 @@
       row.append(el('div', s.reference, 'code'));
       // Where this session has got to, said as a state rather than as a sentence to parse.
       // The same pill the desk uses, so the two screens describe one session the same way.
+      // A date that is not there is not a date. This printed "Called null." on a real
+      // screen, because the line was built before asking whether there was anything to
+      // put in it.
+      const called = when(s.calledAt);
       if (s.approved) {
         row.append(el('div', 'Approved', 'badge go'));
       } else if (s.recommendations) {
@@ -164,13 +170,13 @@
         // screen forever for somebody the answer was not yes for -- so the one state that
         // must never read as a rejection read instead as being left in a queue.
         row.append(el('div', 'Read', 'badge open'));
-        row.append(el('div', `Called ${when(s.calledAt)}.`, 'meta'));
+        if (called) row.append(el('div', `Called ${called}.`, 'meta'));
       } else if (s.hasTranscript) {
         row.append(el('div', 'Waiting to be read', 'badge open'));
-        row.append(el('div', `Called ${when(s.calledAt)}.`, 'meta'));
+        if (called) row.append(el('div', `Called ${called}.`, 'meta'));
       } else if (s.sessionStarts > 0) {
-        row.append(el('div', 'Nothing came back from it', 'badge open'));
-        row.append(el('div', `Started ${when(s.calledAt)}.`, 'meta'));
+        row.append(el('div', 'Nothing was recorded', 'badge open'));
+        if (called) row.append(el('div', `Started ${called}.`, 'meta'));
       } else {
         row.append(el('div', 'Not started yet', 'badge open'));
         row.append(el('div', 'Paid for.', 'meta'));
@@ -199,10 +205,10 @@
     // being told no. It is never the thing to do next.
     if (read && !data.approved) {
       state.append(el('p',
-        'What came out of your call is above, and it is yours. Acting on it happens in '
-        + 'Skills Economy, which costs you nothing.', 'meta'));
+        "What came out of your call is below, and it's yours. You act on it in Skills Economy, "
+        + 'which costs you nothing.', 'meta'));
       state.append(el('p',
-        'If you work through some of it and want another conversation, there is one here.',
+        'If you work through some of it and want another conversation, you can get one here.',
         'meta'));
       const again = el('p', null, 'cta');
       const link = document.createElement('a');
@@ -212,18 +218,22 @@
       state.append(again);
     }
 
-    // The conversation opens on a go and on nothing else. Somebody waiting on a decision
-    // does not see it, and neither does somebody told no -- in both cases there is nothing
-    // decided to talk about, and a box that invites a message anyway is how one person
-    // becomes reachable by anybody who paid seven dollars.
-    const talk = document.getElementById('talk');
-    talk.hidden = !data.approved;
-    if (data.approved) {
-      document.getElementById('talknote').textContent =
-        'Written, both ways, whenever either of us gets to it.';
-      loadThread();
-    }
+    // A go opens the conversation, and so does being quoted. Somebody waiting on a decision
+    // does not see it, and neither does somebody told no and never quoted -- in both cases
+    // there is nothing decided to talk about, and a box that invites a message anyway is how
+    // one person becomes reachable by anybody who paid seven dollars.
+    //
+    // The server decides the same way. This asked only about the go, so a quoted person was
+    // told to say what needed changing and had nowhere on the page to say it.
     loadQuotes();
+  }
+
+  function openTheConversation() {
+    const talk = document.getElementById('talk');
+    talk.hidden = false;
+    document.getElementById('talknote').textContent =
+      'Both of us write here, whenever either of us gets to it.';
+    loadThread();
   }
 
   function renderThread(messages) {
@@ -279,24 +289,104 @@
     }
   });
 
+  // A quote is answered here rather than talked about somewhere else. Three answers, each
+  // one a moment on the record, so afterwards there is a state and a time rather than a
+  // conversation somebody has to read and interpret.
+  //
+  // Saying no or asking for a change takes a line. Without it the other end is guessing at
+  // which part was wrong -- the number, the scope, the timing -- and a guess produces a
+  // second quote that is wrong the same way.
+  const ANSWERS = [
+    ['agreed', 'Agree to this', false],
+    ['changes asked', 'Ask for a change', true],
+    ['declined', 'No thanks', true],
+  ];
+
+  function renderQuote(quote) {
+    const row = el('div', null, 'row');
+    row.append(el('div', `$${Number(quote.amount).toFixed(2)}`, 'value'));
+    row.append(el('div', `Written ${when(quote.writtenAt)}`, 'meta'));
+    row.append(el('div', quote.scope, null));
+
+    if (quote.status !== 'offered') {
+      row.append(el('div', `${quote.status} · ${when(quote.answeredAt || quote.writtenAt)}`,
+        'badge open'));
+      if (quote.reason) row.append(el('div', quote.reason, 'sheet'));
+      return row;
+    }
+
+    const why = el('div', null, 'field');
+    why.hidden = true;
+    const label = el('label', "In a line, what's wrong with it?");
+    const input = document.createElement('textarea');
+    input.rows = 2;
+    input.maxLength = 2000;
+    label.htmlFor = input.id = `why-${quote.id}`;
+    why.append(label, input);
+
+    const said = el('div', null, 'msg');
+    said.hidden = true;
+
+    const actions = el('div', null, 'actions');
+    for (const [answer, wording, needsReason] of ANSWERS) {
+      const button = el('button', wording, answer === 'agreed' ? 'go-on' : 'quiet');
+      button.type = 'button';
+      button.addEventListener('click', async () => {
+        // The first press on one that needs a reason opens the box rather than sending
+        // nothing, so nobody has to find the field before they know it is wanted.
+        if (needsReason && (why.hidden || !input.value.trim())) {
+          why.hidden = false;
+          input.focus();
+          said.hidden = false;
+          said.className = 'msg';
+          said.textContent = "Say what's wrong with it, then press this again.";
+          return;
+        }
+        button.disabled = true;
+        try {
+          await call('/api/client?action=quote-answer', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ id: quote.id, answer, reason: input.value }),
+          });
+          loadQuotes();
+        } catch (error) {
+          button.disabled = false;
+          said.hidden = false;
+          said.className = 'msg bad';
+          said.textContent = error.message;
+        }
+      });
+      actions.append(button);
+    }
+
+    row.append(why);
+    row.append(actions);
+    row.append(said);
+    return row;
+  }
+
+  // `approved` is remembered from the last render, because whether the conversation opens
+  // depends on the go and on the quotes together, and the two arrive in different requests.
+  let approved = false;
+
   async function loadQuotes() {
     const section = document.getElementById('quotes');
     const list = document.getElementById('quotelist');
     try {
       const data = await call('/api/client?action=quotes');
+      if (approved || data.quotes.length) openTheConversation();
       if (!data.quotes.length) { section.hidden = true; return; }
       section.hidden = false;
       list.textContent = '';
       for (const quote of data.quotes) {
-        const row = el('div', null, 'row');
-        row.append(el('div', `$${Number(quote.amount).toFixed(2)}`, 'value'));
-        row.append(el('div', `${quote.status} · ${when(quote.writtenAt)}`, 'meta'));
-        row.append(el('div', quote.scope, null));
-        list.append(row);
+        list.append(renderQuote(quote));
       }
     } catch {
       // Their sessions are the page. A quote that cannot be read is worth saying nothing
-      // about rather than putting an error where a figure should be.
+      // about rather than putting an error where a figure should be. A go still opens the
+      // conversation, since that does not depend on the quotes coming back.
+      if (approved) openTheConversation();
       section.hidden = true;
     }
   }

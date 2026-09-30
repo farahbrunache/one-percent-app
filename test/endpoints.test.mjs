@@ -324,9 +324,19 @@ check('every stage has a label to render', vocab.FUNNEL_STAGES.every((s) => Bool
 
 // No tiers. A quote is written for one person and turns nothing on, so these are the states it
 // can be in and none of them is a level.
-check('a quote has four states', vocab.QUOTE_STATUSES.length === 4, vocab.QUOTE_STATUSES);
 check('and none of them is a tier',
   !vocab.isQuoteStatus('basic') && !vocab.isQuoteStatus('premium') && !vocab.isQuoteStatus('tier'));
+
+// Three of the states belong to the person it was written for, and they are the only three
+// they can put it in. A control on the other screen that agreed on somebody's behalf would
+// put their answer on the record in somebody else's hand.
+check('a quote is answered three ways',
+  vocab.QUOTE_ANSWERS.join(',') === 'agreed,declined,changes asked', vocab.QUOTE_ANSWERS);
+check('and each answer is a state a quote can be in',
+  vocab.QUOTE_ANSWERS.every((a) => vocab.isQuoteStatus(a)));
+check('paid and withdrawn are not theirs to choose',
+  !vocab.isQuoteAnswer('paid') && !vocab.isQuoteAnswer('withdrawn')
+    && !vocab.isQuoteAnswer('offered'));
 
 // A match that should not happen is never recorded, so there is no declined or unsafe outcome
 // and there must never be one.
