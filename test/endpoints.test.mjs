@@ -479,6 +479,31 @@ check('and it says which way it asked',
   /confidential client/.test(refused?.message || ''), refused?.message);
 delete process.env.AUTH_CLIENT_SECRET;
 
+// Paging a conversation. Every one of these was a way the old unpaged list went wrong, or a
+// way a hand-rolled pager goes wrong: a number past the end showing an empty screen, a number
+// below one, junk in the address, and the question of where somebody lands when they ask for
+// nothing at all.
+console.log('');
+console.log('paging a conversation');
+const { pageOf, MESSAGES_PER_PAGE } = await import('../lib/desk.js');
+
+check('asking for nothing lands on the newest page',
+  pageOf(null, MESSAGES_PER_PAGE * 3).page === 3, pageOf(null, MESSAGES_PER_PAGE * 3));
+check('an empty conversation is still page one',
+  pageOf(null, 0).page === 1 && pageOf(null, 0).last === 1, pageOf(null, 0));
+check('one short of a second page is one page',
+  pageOf(null, MESSAGES_PER_PAGE).last === 1, pageOf(null, MESSAGES_PER_PAGE));
+check('one over fills a second page',
+  pageOf(null, MESSAGES_PER_PAGE + 1).last === 2, pageOf(null, MESSAGES_PER_PAGE + 1));
+check('a page past the end clamps to the last one',
+  pageOf('99', MESSAGES_PER_PAGE * 2).page === 2, pageOf('99', MESSAGES_PER_PAGE * 2));
+check('a page below one clamps to one',
+  pageOf('-4', MESSAGES_PER_PAGE * 2).page === 1, pageOf('-4', MESSAGES_PER_PAGE * 2));
+check('junk in the address is not a page number',
+  pageOf('pear', MESSAGES_PER_PAGE * 2).page === 2, pageOf('pear', MESSAGES_PER_PAGE * 2));
+check('a page in range is the page asked for',
+  pageOf('1', MESSAGES_PER_PAGE * 3).page === 1, pageOf('1', MESSAGES_PER_PAGE * 3));
+
 console.log('');
 if (failures) { console.log(failures + ' FAILED'); process.exit(1); }
 console.log('all passed');

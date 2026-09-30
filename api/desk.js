@@ -33,6 +33,7 @@ import {
   isMilestoneStatus,
   isPlanPath,
   isQueueState,
+  pageOf,
 } from '../lib/desk.js';
 import {
   DRAFTS_PER_ORDER,
@@ -235,11 +236,22 @@ async function person(req, res) {
 
   // The thread belongs to the account, not to this order, so somebody who buys a second
   // session carries one conversation rather than starting another.
+  const [{ count: messageCount }] = row.client_account_id
+    ? await sql()`
+        select count(*)::int as count from messages
+         where account_id = ${row.client_account_id}
+      `
+    : [{ count: 0 }];
+  const messagePage = pageOf(
+    new URL(req.url, 'https://placeholder.invalid').searchParams.get('mpage'),
+    messageCount,
+  );
   const messages = row.client_account_id
     ? await sql()`
         select author, body_encrypted, created_at from messages
          where account_id = ${row.client_account_id}
-         order by created_at asc limit 200
+         order by created_at asc
+         limit ${messagePage.perPage} offset ${(messagePage.page - 1) * messagePage.perPage}
       `
     : [];
 
@@ -328,6 +340,9 @@ async function person(req, res) {
       body: decrypt(m.body_encrypted),
       at: m.created_at,
     })),
+    messagePage: messagePage.page,
+    messagesPerPage: messagePage.perPage,
+    messageCount,
     recommendedAt: row.recommendations_written_at,
     firstCustomerAt: row.first_customer_at,
     plan: inForce

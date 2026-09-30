@@ -19,7 +19,7 @@ import { ensureSchema, findByClaimTokenHash, sql, underLimit } from '../lib/db.j
 import { callerKey, decrypt, encrypt, keyedHash } from '../lib/crypto.js';
 import { requireAccount } from '../lib/auth.js';
 import { describeStatus } from '../lib/orders.js';
-import { isQuoteAnswer } from '../lib/desk.js';
+import { isQuoteAnswer, pageOf } from '../lib/desk.js';
 import { HttpError, handle, readJson, send } from '../lib/http.js';
 
 function shape(rows) {
@@ -92,12 +92,21 @@ async function thread(req, res) {
   const account = requireAccount(req);
   await ensureSchema();
   await requireClient(account);
+  const asked = new URL(req.url, 'https://placeholder.invalid').searchParams.get('page');
+  const [{ count }] = await sql()`
+    select count(*)::int as count from messages where account_id = ${account}
+  `;
+  const { page, perPage } = pageOf(asked, count);
   const rows = await sql()`
     select author, body_encrypted, created_at from messages
      where account_id = ${account}
-     order by created_at asc limit 200
+     order by created_at asc
+     limit ${perPage} offset ${(page - 1) * perPage}
   `;
   send(res, 200, {
+    page,
+    perPage,
+    total: count,
     messages: rows.map((r) => ({
       author: r.author,
       body: decrypt(r.body_encrypted),
@@ -113,12 +122,12 @@ async function sendMessage(req, res) {
   await ensureSchema();
   await requireClient(account);
   if (!(await underLimit('client-send', callerKey(req), 30, 3600))) {
-    throw new HttpError(429, 'That is a lot of messages in an hour. Try again later.');
+    throw new HttpError(429, "That's a lot of messages in an hour. Try again later.");
   }
 
   const body = await readJson(req);
   const text = String(body.body || '').trim().slice(0, 4000);
-  if (!text) throw new HttpError(400, 'An empty message is not a message.');
+  if (!text) throw new HttpError(400, 'Write something first.');
 
   await sql()`
     insert into messages (account_id, author, body_encrypted)
@@ -230,7 +239,7 @@ async function link(req, res) {
   const order = await findByClaimTokenHash(keyedHash(token));
   if (!order) throw new HttpError(404, 'No order matches that link.');
   if (describeStatus(order) === 'rejected') {
-    throw new HttpError(409, 'That order did not check out, so there is nothing to link.');
+    throw new HttpError(409, "That order didn't check out, so there's nothing to link.");
   }
   if (order.client_account_id && order.client_account_id !== account) {
     throw new HttpError(409, 'That link is already held by a different account.');
