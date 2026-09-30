@@ -825,5 +825,71 @@ screen = await askToday();
 check('a blocker that sat too long comes back on its own',
   screen.unread.some((u) => u.caseId === wroteCase));
 
+// ---- demo records, and the refusal that makes them safe -------------------------------------
+//
+// They live on production beside the real ones because there is no second instance. The flag is
+// what makes that safe, and the delete refuses anything without it rather than filtering to the
+// ones that have it. A filter that is wrong once deletes somebody's transcript.
+console.log('');
+console.log('demo records');
+
+const { seedDemo, clearDemo } = await import('../lib/demo.js');
+
+// A real record, made the ordinary way, with everything a demo delete could reach.
+const realOrder = await newOrder();
+const realCase = await caseForAccount('acct-real-person');
+await tagged`update orders set client_account_id = 'acct-real-person', case_id = ${realCase}
+              where id = ${realOrder}`;
+await tagged`insert into messages (account_id, author, body_encrypted)
+             values ('acct-real-person', 'client', 'x')`;
+await tagged`insert into quotes (account_id, amount_cents, scope_encrypted)
+             values ('acct-real-person', 1000, 'x')`;
+await tagged`insert into calls (order_id, call_id, transcript_encrypted)
+             values (${realOrder}, 'c-real-person', 'x')`;
+
+const made = await seedDemo();
+check('seeding makes a row for every path the desk has', made.length >= 7, made.length);
+
+// More orders than scenarios: one of them is a person who bought a second session, which is
+// the point of that scenario.
+const marked = await tagged`select count(*)::int as n from orders where is_demo`;
+check('every seeded order carries the mark', marked[0].n > made.length, marked[0]);
+
+const unmarked = await tagged`
+  select count(*)::int as n from orders where id = ${realOrder} and is_demo = false`;
+check('a real order is not marked', unmarked[0].n === 1);
+
+// The first screen sees them, which is the point of having them at all.
+screen = await askToday();
+check('a seeded call past the target is on the first screen',
+  screen.calls.some((c) => c.hoursWaiting > 24), screen.calls.map((c) => c.hoursWaiting));
+check('and a seeded message is unread on it', screen.unread.length > 0);
+
+const cleared = await clearDemo();
+check('clearing removes every demo order', cleared.orders === marked[0].n, [cleared, marked[0]]);
+
+const leftMarked = await tagged`select count(*)::int as n from orders where is_demo`;
+check('and none are left', leftMarked[0].n === 0, leftMarked[0]);
+
+// The property that matters. Everything real is untouched.
+const realLeft = await tagged`select count(*)::int as n from orders where id = ${realOrder}`;
+check('the real order survives', realLeft[0].n === 1, realLeft[0]);
+const realCaseLeft = await tagged`select count(*)::int as n from cases where id = ${realCase}`;
+check('the real case survives', realCaseLeft[0].n === 1);
+const realSaid = await tagged`
+  select count(*)::int as n from messages where account_id = 'acct-real-person'`;
+check('their messages survive', realSaid[0].n === 1, realSaid[0]);
+const realQuoted = await tagged`
+  select count(*)::int as n from quotes where account_id = 'acct-real-person'`;
+check('their quotes survive', realQuoted[0].n === 1);
+const realCalls = await tagged`
+  select count(*)::int as n from calls where order_id = ${realOrder}`;
+check('their call survives', realCalls[0].n === 1);
+
+// Seeding twice does not collide on a reference or an account.
+const secondRun = await seedDemo();
+check("seeding twice works", secondRun.length === made.length, secondRun.length);
+await clearDemo();
+
 console.log(failures ? `\n${failures} failed` : '\nall passed');
 process.exit(failures ? 1 : 0);

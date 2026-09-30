@@ -640,6 +640,17 @@ input.code-field::placeholder {
 }
 .inside .badge.go { border-color: #356958; background: #1c3e35; color: var(--in-sage-bright); }
 .inside .badge.nogo { border-color: #70413e; background: #3b2929; color: #e6a29a; }
+
+/* Demo records sit on production beside the real ones, so the chip has to be legible without
+   competing with the decision badges next to it. Muted and outlined: it says which kind of row
+   this is, not what state the row is in. */
+.inside .badge.demo {
+  border-color: #4a4f57;
+  background: #23262b;
+  color: #9aa2ad;
+  letter-spacing: 0.12em;
+}
+.inside h1 .badge.demo { margin-left: 0.6rem; vertical-align: middle; }
 .inside .badge.open { border-color: #465b59; background: #283837; color: #a3b9b4; }
 
 /* The decision. Two buttons of equal weight, because the screen must not make either one

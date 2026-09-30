@@ -51,6 +51,7 @@ import Retell from 'retell-sdk';
 
 import { agentScriptExport } from '../lib/voice.js';
 import { normalizeReference, OPENING_LINE } from '../lib/orders.js';
+import { clearDemo, seedDemo } from '../lib/demo.js';
 import { HttpError, handle, readJson, send } from '../lib/http.js';
 
 const PER_PAGE = 25;
@@ -137,7 +138,7 @@ async function queue(req, res) {
              exists (select 1 from calls c2
                       where c2.order_id = o.id and c2.record_encrypted is null
                         and c2.transcript_encrypted is not null) as record_missing,
-             o.decision_at, o.client_account_id is not null as linked,
+             o.decision_at, o.client_account_id is not null as linked, o.is_demo,
              p.path as plan_path,
              (select c.ended_at from calls c
                where c.order_id = o.id and c.transcript_encrypted is not null
@@ -186,6 +187,7 @@ async function queue(req, res) {
       recordMissing: Boolean(r.record_missing),
       linked: r.linked,
       awaitingReply: Boolean(r.awaiting_reply),
+      isDemo: Boolean(r.is_demo),
       planPath: r.plan_path,
       planLabel: r.plan_path ? PLAN_PATHS[r.plan_path]?.label || r.plan_path : null,
     })),
@@ -209,7 +211,7 @@ async function today(req, res) {
   // A call that came back and nobody has decided on. The sheet is a separate debt and shows on
   // the person's own record; this list is about reading what arrived.
   const calls = await sql()`
-    select o.id, o.reference_code,
+    select o.id, o.reference_code, o.is_demo,
            (select c.ended_at from calls c
              where c.order_id = o.id and c.transcript_encrypted is not null
              order by c.ended_at desc nulls last limit 1) as called_at
@@ -225,7 +227,7 @@ async function today(req, res) {
   // answered yet, and showing it again every refresh is how a screen wastes somebody's morning.
   // It comes back on its date, or once it has sat longer than the window.
   const unread = await sql()`
-    select k.id as case_id, o.id as order_id, o.reference_code,
+    select k.id as case_id, o.id as order_id, o.reference_code, o.is_demo,
            m.at as wrote_at,
            k.blocked_at is not null as was_blocked
       from cases k
@@ -234,7 +236,7 @@ async function today(req, res) {
          where account_id = k.account_id and author = 'client'
       ) m on true
       join lateral (
-        select id, reference_code from orders
+        select id, reference_code, is_demo from orders
          where case_id = k.id order by id asc limit 1
       ) o on true
      where m.at is not null
@@ -260,6 +262,7 @@ async function today(req, res) {
       reference: r.reference_code,
       calledAt: r.called_at,
       hoursWaiting: hoursSince(r.called_at),
+      isDemo: Boolean(r.is_demo),
     })),
     unread: unread.map((r) => ({
       id: Number(r.order_id),
@@ -268,6 +271,7 @@ async function today(req, res) {
       wroteAt: r.wrote_at,
       hoursWaiting: hoursSince(r.wrote_at),
       wasBlocked: Boolean(r.was_blocked),
+      isDemo: Boolean(r.is_demo),
     })),
   });
 }
@@ -333,7 +337,7 @@ async function person(req, res) {
   const id = orderId(query(req).get('id'));
 
   const rows = await sql()`
-    select o.id, o.reference_code, o.status, o.decision, o.decision_at, o.case_id,
+    select o.id, o.reference_code, o.status, o.decision, o.decision_at, o.case_id, o.is_demo,
            o.client_account_id, o.approved_as_client_at,
            k.first_customer_at,
            o.recommendations_encrypted, o.recommendations_written_at
@@ -479,6 +483,7 @@ async function person(req, res) {
     decision: decided.decision,
     decidedAt: decided.decision_at,
     linkedCase: Boolean(caseId),
+    isDemo: Boolean(row.is_demo),
     orders: orders.map((o) => ({
       id: Number(o.id),
       reference: o.reference_code,
@@ -1152,6 +1157,21 @@ async function addNote(req, res) {
   send(res, 201, { ok: true });
 }
 
+// Demo records, made and removed from the desk because there is no terminal and no second
+// instance. Both are admin-only, and the delete refuses anything without the mark -- see
+// lib/demo.js for why that is a refusal rather than a filter.
+async function demoSeed(req, res) {
+  requireAdmin(req);
+  await ensureSchema();
+  send(res, 201, { made: await seedDemo() });
+}
+
+async function demoClear(req, res) {
+  requireAdmin(req);
+  await ensureSchema();
+  send(res, 200, await clearDemo());
+}
+
 const ACTIONS = {
   GET: { today, queue, person, funnel, 'call-record': callRecord, 'agent-script': agentScript },
   POST: {
@@ -1169,6 +1189,8 @@ const ACTIONS = {
     'introduction-record': recordIntroduction,
     'first-customer': firstCustomer,
     note: addNote,
+    'demo-seed': demoSeed,
+    'demo-clear': demoClear,
   },
 };
 
