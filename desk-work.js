@@ -139,6 +139,10 @@ export function renderQuotes(person) {
   const list = document.getElementById('quotes');
   const note = document.getElementById('quotenote');
   const form = document.getElementById('writequote');
+  const countering = document.getElementById('countering');
+  // Which quote the form is answering, if any. Null means a new one.
+  let replacing = null;
+  countering.hidden = true;
   list.textContent = '';
 
   if (!person.linked) {
@@ -196,6 +200,24 @@ export function renderQuotes(person) {
     // are the other person's to make, and a control here that does any of them would put
     // their answer on the record in somebody else's hand.
     const actions = el('div', null, 'actions');
+    // Countering, on the one answer that asks for it. They said the price is wrong, and the
+    // moves beside this -- paid, withdrawn -- are not answers to that. This fills the form
+    // below with what was quoted, so the new number is typed against the old one rather than
+    // from memory, and sending it closes this quote in the same action.
+    if (quote.status === 'changes asked') {
+      const counter = el('button', 'Counter it', 'quiet go-on');
+      counter.type = 'button';
+      counter.addEventListener('click', () => {
+        document.getElementById('amount').value = quote.amount;
+        document.getElementById('scope').value = quote.scope;
+        replacing = quote.id;
+        countering.textContent = `Countering ${money(quote.amount)}, written `
+          + `${when(quote.writtenAt)}. Sending closes it.`;
+        countering.hidden = false;
+        document.getElementById('amount').focus();
+      });
+      actions.append(counter);
+    }
     for (const status of ['paid', 'withdrawn']) {
       if (status === quote.status) continue;
       const button = el('button', status, 'quiet');
@@ -228,6 +250,7 @@ export function renderQuotes(person) {
         id: person.id,
         amount,
         scope: document.getElementById('scope').value,
+        replaces: replacing,
       });
       window.location.reload();
     } catch (error) {

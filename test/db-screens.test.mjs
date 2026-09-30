@@ -177,6 +177,84 @@ const secondRun = await seedDemo();
 check("seeding twice works", secondRun.length === made.length, secondRun.length);
 await clearDemo();
 
+// ---- a quote they answered -----------------------------------------------------------------
+//
+// The morning screen asked two questions -- new calls, unread messages -- and an answered quote
+// is neither, so somebody who had agreed to pay sat behind a screen saying nothing was waiting.
+// Reported from production against a real client who asked for a change.
+console.log('');
+console.log('a quote they answered');
+
+const { encrypt: seal } = await import('../lib/crypto.js');
+
+async function quotedOrder(account, status) {
+  const id = await newOrder();
+  await tagged`update orders set decision = 'go', decision_at = now(),
+                                 approved_as_client_at = now(),
+                                 client_account_id = ${account} where id = ${id}`;
+  await tagged`insert into quotes (account_id, amount_cents, scope_encrypted, status, answered_at)
+               values (${account}, 50000, ${seal('Set up a way to be found.')}, ${status},
+                       ${status === 'offered' ? null : new Date().toISOString()})`;
+  return id;
+}
+
+const askedForChange = await quotedOrder('acct-asked-change', 'changes asked');
+const agreedToPay = await quotedOrder('acct-agreed', 'agreed');
+const saidNo = await quotedOrder('acct-declined', 'declined');
+const stillWaiting = await quotedOrder('acct-offered', 'offered');
+
+const clock = await askToday();
+const answered = (clock.answered || []).map((r) => Number(r.id));
+check('a quote they asked to change is waiting on you',
+  answered.includes(askedForChange), answered);
+check('so is one they agreed to', answered.includes(agreedToPay), answered);
+check('one they declined is not', !answered.includes(saidNo), answered);
+check('and neither is one they have not answered', !answered.includes(stillWaiting), answered);
+check('the row says which answer it was',
+  (clock.answered.find((r) => Number(r.id) === askedForChange) || {}).status === 'changes asked');
+check('and what it was for', (clock.answered.find((r) => Number(r.id) === agreedToPay) || {}).amount === 500);
+
+// Countering: the new quote goes out and the old one closes in the same action, so the same
+// piece of work never has two live prices on it.
+const quoteEndpoint = (await import('../api/desk.js')).default;
+async function counter(orderIdValue, replaces) {
+  const req = {
+    method: 'POST', url: '/api/desk?action=quote',
+    headers: { cookie: `op_session=${signSession('admin-1')}`, 'content-type': 'application/json' },
+  };
+  const { Readable } = await import('node:stream');
+  const body = JSON.stringify({ id: orderIdValue, amount: 400, scope: 'Same work, less of it.', replaces });
+  const stream = Readable.from([body]);
+  Object.assign(req, { [Symbol.asyncIterator]: stream[Symbol.asyncIterator].bind(stream) });
+  let payload = null;
+  const res = {
+    statusCode: 200, writableEnded: false, setHeader() {}, getHeader() {},
+    end(text) { this.writableEnded = true; try { payload = JSON.parse(text); } catch { payload = text; } },
+  };
+  await quoteEndpoint(req, res);
+  return { status: res.statusCode, payload };
+}
+
+const theirs = await tagged`select id, status from quotes where account_id = 'acct-asked-change'`;
+const countered = await counter(askedForChange, Number(theirs[0].id));
+check('countering is accepted', countered.status === 201, countered);
+
+const after = await tagged`select id, amount_cents, status from quotes
+                            where account_id = 'acct-asked-change' order by id asc`;
+check('the old quote is closed', after[0].status === 'withdrawn', after.map((r) => r.status));
+check('and the new one is waiting on them',
+  after.length === 2 && after[1].status === 'offered' && Number(after[1].amount_cents) === 40000,
+  after.map((r) => [r.status, Number(r.amount_cents)]));
+
+const afterClock = await askToday();
+check('so it is off the morning screen',
+  !(afterClock.answered || []).map((r) => Number(r.id)).includes(askedForChange));
+
+// An answer that is theirs to give cannot be closed from this end by calling it a counter.
+const agreedRow = await tagged`select id from quotes where account_id = 'acct-agreed'`;
+const refused = await counter(agreedToPay, Number(agreedRow[0].id));
+check('an agreed quote cannot be countered away', refused.status === 409, refused);
+
 const failures = failureCount();
 console.log(failures ? `\n${failures} failed` : '\nall passed');
 process.exit(failures ? 1 : 0);

@@ -28,6 +28,8 @@ import {
   PLAN_PATHS,
   isDecision,
   conversationIsOpen,
+  QUOTE_ANSWERS_WAITING,
+  quoteIsWaitingOnYou,
   isIntroductionOutcome,
   isQuoteStatus,
   MAX_OPEN_QUOTES,
@@ -54,25 +56,14 @@ import { agentScriptExport } from '../lib/voice.js';
 import { normalizeReference, OPENING_LINE } from '../lib/orders.js';
 import { clearDemo, seedDemo } from '../lib/demo.js';
 import { HttpError, handle, readJson, send } from '../lib/http.js';
-import { orderId, record } from '../lib/desk-events.js';
+import { caseOf, orderId, record } from '../lib/desk-events.js';
+import { introduce, recordIntroduction } from '../lib/desk-introductions.js';
 import { moveQuote, writeQuote } from '../lib/desk-quotes.js';
 
 const PER_PAGE = 25;
 
 function query(req) {
   return new URL(req.url, 'https://placeholder.invalid').searchParams;
-}
-
-// The case this order belongs to, or null while nobody has signed in. Everything about
-// working with a person hangs off the case; everything about one purchase hangs off the
-// order. An order with no case has nobody to work with yet, which is a state the screens
-// say out loud rather than a gap to paper over.
-async function caseOf(orderId) {
-  const rows = await sql()`select case_id from orders where id = ${orderId}`;
-  if (!rows.length) throw new HttpError(404, 'No order with that number.');
-  return rows[0].case_id === null || rows[0].case_id === undefined
-    ? null
-    : Number(rows[0].case_id);
 }
 
 function needsCase(caseId) {
@@ -134,6 +125,9 @@ async function queue(req, res) {
                order by c.ended_at desc nulls last limit 1) as seconds,
              (select count(*)::int from calls c
                where c.order_id = o.id and c.transcript_encrypted is not null) as call_count,
+             exists (select 1 from quotes q
+                      where q.account_id = o.client_account_id
+                        and q.status = any(${QUOTE_ANSWERS_WAITING})) as quote_waiting,
              (select m.author from messages m
                where m.account_id = o.client_account_id
                order by m.created_at desc limit 1) = 'client' as awaiting_reply
@@ -173,6 +167,7 @@ async function queue(req, res) {
       recordMissing: Boolean(r.record_missing),
       linked: r.linked,
       awaitingReply: Boolean(r.awaiting_reply),
+      quoteWaiting: Boolean(r.quote_waiting),
       isDemo: Boolean(r.is_demo),
       planPath: r.plan_path,
       planLabel: r.plan_path ? PLAN_PATHS[r.plan_path]?.label || r.plan_path : null,
@@ -237,6 +232,22 @@ async function today(req, res) {
      limit 50
   `;
 
+  // A quote they answered, where the answer put it back on you. Agreeing and asking for a change
+  // both do; declining does not. Neither ends by itself, so each one sits here until you write
+  // the counter or mark it paid.
+  const answered = await sql()`
+    select q.id as quote_id, q.status, q.answered_at, q.amount_cents,
+           o.id as order_id, o.reference_code, o.is_demo
+      from quotes q
+      join lateral (
+        select id, reference_code, is_demo from orders
+         where client_account_id = q.account_id order by id asc limit 1
+      ) o on true
+     where q.status = any(${QUOTE_ANSWERS_WAITING})
+     order by q.answered_at asc nulls last
+     limit 50
+  `;
+
   const now = Date.now();
   const hoursSince = (at) => (at ? (now - new Date(at).getTime()) / 3_600_000 : null);
 
@@ -257,6 +268,15 @@ async function today(req, res) {
       wroteAt: r.wrote_at,
       hoursWaiting: hoursSince(r.wrote_at),
       wasBlocked: Boolean(r.was_blocked),
+      isDemo: Boolean(r.is_demo),
+    })),
+    answered: answered.map((r) => ({
+      id: Number(r.order_id),
+      reference: r.reference_code,
+      status: r.status,
+      amount: r.amount_cents / 100,
+      answeredAt: r.answered_at,
+      hoursWaiting: hoursSince(r.answered_at),
       isDemo: Boolean(r.is_demo),
     })),
   });
@@ -482,6 +502,7 @@ async function person(req, res) {
     approvedAt: row.approved_as_client_at,
     // Not the screen's to work out. It got a different answer from the client area's and the two
     // contradicted each other on the same record.
+    quoteWaiting: quotes.some((q) => quoteIsWaitingOnYou(q.status)),
     conversationOpen: conversationIsOpen({
       approvedAt: row.approved_as_client_at,
       quoteCount: quotes.length,
@@ -967,89 +988,6 @@ async function reply(req, res) {
     values (${account}, 'operator', ${encrypt(text)})
   `;
   send(res, 201, { ok: true });
-}
-
-// Made, not proposed. The row is a record of something done: two people were put in touch.
-// There is no state for a match that was considered and rejected, because that is not a thing
-// that happened to anybody.
-async function introduce(req, res) {
-  requireAdmin(req);
-  await ensureSchema();
-  const body = await readJson(req);
-  const id = orderId(body.id);
-  const reference = normalizeReference(body.reference);
-  if (!reference) throw new HttpError(400, 'Which reference are they introduced to?');
-
-  const them = await sql()`select id from orders where reference_code = ${reference}`;
-  if (!them.length) throw new HttpError(404, `No order here carries the reference ${reference}.`);
-  const otherId = Number(them[0].id);
-  if (otherId === id) throw new HttpError(400, 'That is the same person.');
-
-  // An introduction is between two people, not two purchases. Two reference codes belonging
-  // to one person are one person, so introducing them to each other is the same mistake as
-  // introducing an order to itself.
-  const [mine, theirs] = await Promise.all([caseOf(id), caseOf(otherId)]);
-  if (mine && theirs && mine === theirs) {
-    throw new HttpError(400, 'That reference belongs to the same person.');
-  }
-
-  // The pair is unordered, so check it both ways round before writing a second row for the
-  // same two people -- by case where both have signed in, because two of somebody's reference
-  // codes are not two people to introduce twice.
-  const already = mine && theirs
-    ? await sql()`
-        select id from introductions
-         where (a_case_id = ${mine} and b_case_id = ${theirs})
-            or (a_case_id = ${theirs} and b_case_id = ${mine})
-         limit 1
-      `
-    : await sql()`
-        select id from introductions
-         where (a_order_id = ${id} and b_order_id = ${otherId})
-            or (a_order_id = ${otherId} and b_order_id = ${id})
-         limit 1
-      `;
-  if (already.length) throw new HttpError(409, 'These two have already been introduced.');
-
-  const reason = String(body.reason || '').trim().slice(0, 2000);
-  await sql()`
-    insert into introductions (a_order_id, b_order_id, a_case_id, b_case_id, reason_encrypted)
-    values (${id}, ${otherId}, ${mine}, ${theirs}, ${reason ? encrypt(reason) : null})
-  `;
-  // On both records, because it happened to both of them.
-  await record(id, 'introduction.made', `To ${reference}. ${reason}`.trim());
-  await record(otherId, 'introduction.made', `To ${await referenceOf(id)}. ${reason}`.trim());
-  send(res, 201, { ok: true });
-}
-
-async function referenceOf(id) {
-  const rows = await sql()`select reference_code from orders where id = ${id}`;
-  return rows[0]?.reference_code || `order ${id}`;
-}
-
-async function recordIntroduction(req, res) {
-  requireAdmin(req);
-  await ensureSchema();
-  const body = await readJson(req);
-  const id = orderId(body.id);
-  const introId = orderId(body.introductionId);
-  const outcome = String(body.outcome || '');
-  if (!isIntroductionOutcome(outcome)) {
-    throw new HttpError(400, `Pick one: ${INTRODUCTION_OUTCOMES.join(', ')}.`);
-  }
-  const note = String(body.note || '').trim().slice(0, 2000);
-
-  const done = await sql()`
-    update introductions set
-      outcome = ${outcome},
-      outcome_encrypted = ${note ? encrypt(note) : null},
-      updated_at = now()
-     where id = ${introId} and (a_order_id = ${id} or b_order_id = ${id})
-     returning a_order_id, b_order_id
-  `;
-  if (!done.length) throw new HttpError(404, 'No introduction with that number involving them.');
-  await record(id, 'introduction.recorded', `${outcome}. ${note}`.trim());
-  send(res, 200, { ok: true, outcome });
 }
 
 async function addNote(req, res) {
