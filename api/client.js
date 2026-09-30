@@ -19,7 +19,7 @@ import { caseForAccount, ensureSchema, findByClaimTokenHash, sql, underLimit } f
 import { callerKey, decrypt, encrypt, keyedHash } from '../lib/crypto.js';
 import { requireAccount } from '../lib/auth.js';
 import { describeStatus } from '../lib/orders.js';
-import { isQuoteAnswer, pageOf } from '../lib/desk.js';
+import { conversationIsOpen, isQuoteAnswer, pageOf } from '../lib/desk.js';
 import { HttpError, handle, readJson, send } from '../lib/http.js';
 
 function shape(rows) {
@@ -79,7 +79,7 @@ async function requireClient(account) {
     `,
     sql()`select 1 from quotes where account_id = ${account} limit 1`,
   ]);
-  if (!approved.length && !quoted.length) {
+  if (!conversationIsOpen({ approvedAt: approved.length, quoteCount: quoted.length })) {
     throw new HttpError(
       403,
       'The conversation opens once your call has been read and the answer was yes. Until ' +

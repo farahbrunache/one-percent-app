@@ -2,12 +2,12 @@
   "_comment": "BURN-DOWN list for the size check in checks.mjs: files already over the limit when it was added. The list may only ever shrink. The gate fails three ways: a file over the limit that is not listed here, a listed file that has grown past the number recorded for it, and a listed file that no longer needs to be listed. Never add an entry to make a red check green -- take the smallest thing in the file out into its own file instead. Every entry says what will split it and stays until that happens.",
   "files": {
     "api/desk.js": {
-      "lines": 1211,
-      "note": "Every desk action in one file: the first screen, the queue, the funnel, a person, and fourteen writes. The page split first, because that is where the words somebody reads are. This splits by the same subjects: the plan and milestones, the quotes, and the introductions. Recorded 2026-09-30."
+      "lines": 1120,
+      "note": "Every remaining desk action in one file: the first screen, the queue, the funnel, a person, and twelve writes. The page split first, then the quotes and the write helpers. The plan and its milestones, and the introductions, are the next two subjects out. Recorded 2026-09-30."
     },
     "test/database.test.mjs": {
-      "lines": 896,
-      "note": "Every query test in one file, grouped by subject with a console heading per group. Splits along those headings into test/db/*.test.mjs when the next group is added. Recorded 2026-09-30."
+      "lines": 783,
+      "note": "The query tests, grouped by subject with a console heading per group. The harness and the two endpoint-driven groups are out already (test/harness.mjs, test/db-screens.test.mjs); the rest splits along the same headings as each one grows. Recorded 2026-09-30."
     }
   }
 }

@@ -273,17 +273,19 @@ function renderThread(person) {
     form.hidden = true;
     return;
   }
-  if (!person.approvedAt) {
+  if (!person.conversationOpen) {
     note.textContent = person.decision === 'no-go'
-      ? 'No-go, so the conversation is closed. They keep their sheet and everything they '
-        + 'already had. Change the decision and it opens.'
+      ? 'No-go and nothing quoted, so the conversation is closed. They keep their sheet and '
+        + 'everything they already had. Change the decision, or quote them, and it opens.'
       : "Not decided yet, so there's no conversation. A go opens it, and the opening line "
         + 'goes out once you write the sheet.';
     form.hidden = true;
     return;
   }
-  note.textContent = 'Open since ' + when(person.approvedAt)
-    + '. This is where the work happens after the sheet.';
+  note.textContent = person.approvedAt
+    ? 'Open since ' + when(person.approvedAt) + '. This is where the work happens after the sheet.'
+    : 'Open because you quoted them. Quoting somebody is choosing to work with them, so it opens '
+      + 'the same door a go does.';
   form.hidden = false;
 
   if (!person.messages.length) {
@@ -478,7 +480,7 @@ function foldLines(person) {
     ? `${person.decision === 'go' ? 'Go' : 'No-go'} · ${day(person.decidedAt)}`
     : 'not yet');
   sofar('sheet', person.recommendedAt ? `written ${day(person.recommendedAt)}` : 'not written');
-  sofar('thread', !person.approvedAt
+  sofar('thread', !person.conversationOpen
     ? (person.decision === 'no-go' ? 'closed' : 'opens on a go')
     : person.messageCount
       ? `${person.messageCount} · last from ${last && last.author === 'client' ? 'them' : 'you'}`
@@ -504,7 +506,7 @@ function foldLines(person) {
 function openWhatIsNext(person) {
   const next = !person.decision ? ['calls', 'decide']
     : !person.recommendedAt ? ['sheet']
-    : person.approvedAt ? ['thread']
+    : person.conversationOpen ? ['thread']
       : [];
   for (const fold of document.querySelectorAll('#record details.fold')) {
     fold.open = next.includes(fold.id.slice('fold-'.length));
