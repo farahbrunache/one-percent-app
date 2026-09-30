@@ -208,6 +208,35 @@ blocked, how long it has sat. Not by switches that have to be in the right posit
 This is why the first screen has no tabs, and why there is no open-or-closed filter: a new
 message outranks whether a case was closed.
 
+## Demo records live on production, and the delete refuses real ones
+
+There's one instance and there isn't going to be a second. Two environments means two things to
+deploy, two databases to migrate and two sets of settings to keep in step, for one person. So the
+product gets tested where it runs.
+
+What makes that safe is the mark. A demo record is flagged when it's made and never afterwards,
+every screen shows a DEMO chip on it, and the one thing that deletes records refuses anything
+without the flag. That refusal is the safety property, not a filter — so each delete names the
+flag in its own `where` clause rather than trusting a list of ids gathered a moment earlier.
+
+**Standing rule: when a feature lands, the demo row that exercises it lands with it**, in the same
+change. Otherwise the feature can't be tried on the only instance there is.
+
+The figures are skewed while demo rows are there. That's accepted — the flag makes excluding them
+from a number later one predicate in one query.
+
+Nothing in a demo row resembles a real person. Invented names, invented transcripts, and every
+reference starts `DEMO` so it's recognizable before the chip is read.
+
+**Customers deleting their own accounts is deferred, not decided against.** There are no customers
+yet, so the only thing that needs deleting is demo data, and the risk worth guarding is deleting
+real data by accident. When real people are here they get a way to delete what's theirs.
+
+**When that gets built it's a separate path with its own rules.** Never build it by loosening the
+`is_demo` check on the delete that already exists. That check is the one thing standing between a
+test and the real rows, and widening it to serve a customer would be exactly the accident it was
+written to prevent.
+
 ## Never leave unused code
 
 A change that strands something removes it in the same change: a column, an export, a CSS
