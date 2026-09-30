@@ -72,7 +72,7 @@
       <div class="field">
         <label for="code">The code on the card</label>
         <span class="hint">Dashes and spaces don't matter.</span>
-        <input id="code" name="code" type="text" autocomplete="off" autocapitalize="characters"
+        <input class="code-field" id="code" name="code" type="text" autocomplete="off" autocapitalize="characters"
                spellcheck="false">
       </div>
     </div>
@@ -98,7 +98,7 @@
     <form class="fields" id="recover" novalidate>
       <div class="field">
         <label for="rcode">Your 10-character code, or your gift card claim code</label>
-        <input id="rcode" name="code" type="text" autocomplete="off" autocapitalize="characters"
+        <input class="code-field" id="rcode" name="code" type="text" autocomplete="off" autocapitalize="characters"
                spellcheck="false" required>
       </div>
       <div class="actions">
@@ -124,6 +124,9 @@
 </main>
 
 <script type="module">
+  import { codeFields } from '/codefield.js';
+  codeFields(['code', 'rcode']);
+
   const method = document.getElementById('method');
   const cardFields = document.getElementById('cardfields');
 

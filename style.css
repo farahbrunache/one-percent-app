@@ -340,6 +340,24 @@ button.danger { background: transparent; color: var(--ink-soft); border: 1px sol
   letter-spacing: 0.06em;
 }
 
+/* A field holding a code reads in the same face the code is shown in. A sans face puts I, l
+   and 1 within a pixel of each other, which is the thing that makes somebody type the wrong
+   one; a mono face separates them and a slashed zero separates 0 from O. The value in these
+   is upper-cased as it is typed -- see codefield.js -- and the two go together: upper case in
+   a sans face still leaves I and 1 close. */
+input.code-field {
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums slashed-zero;
+  letter-spacing: 0.08em;
+}
+/* The prompt is a sentence, not a code, so it goes back to the reading face and normal
+   spacing -- "Whole reference, as they typed it" set in spaced mono runs off a phone. */
+input.code-field::placeholder {
+  font-family: "Source Sans 3", ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
 /* Sized for a ten-character reference and its dash on a phone. It was larger when a reference
    was six characters; at that size the longer one runs off the side of the screen. */
 .big-code {
