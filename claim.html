@@ -20,8 +20,8 @@
 
   <footer class="stack gap-s">
     <p>
-      Save this link. It is the only record of your order, and nothing about you was recorded
-      that could find it any other way.
+      Save this link. It's the only record of your order, and nothing about you was saved that
+      could find it any other way.
     </p>
     <p class="actions" style="margin-top:0.3rem;">
       <button type="button" class="quiet" id="copylink">Copy this page's link</button>
@@ -92,7 +92,7 @@
         }
         body.append(wrap);
       } else {
-        lede('Your card is in and has not been checked yet. This is done by hand, so it is not instant.');
+        lede("Your card is in and hasn't been checked yet. A person checks it, so it isn't instant.");
       }
 
       if (data.reference) {
@@ -102,24 +102,24 @@
 
       note([
         'Come back to this page. Once the payment is matched, the button to start your session appears here.',
-        'Nothing is sent to you, because nothing about you was recorded to send it to.',
+        'Nothing gets sent to you, because nothing about you was saved to send it to.',
       ]);
       return;
     }
 
     if (data.status === 'rejected') {
-      statusLine('Status', 'That payment did not check out');
-      lede(data.reason || 'The card did not check out.');
+      statusLine('Status', "That payment didn't check out");
+      lede(data.reason || "The card didn't check out.");
       note([
-        'No session was opened, and nothing was taken for this order.',
-        'If you think this is wrong, start a new order — nothing was taken for this one.',
+        'No session was opened, and nothing was charged for this order.',
+        "If you think that's wrong, start a new order — nothing was charged for this one.",
       ]);
       return;
     }
 
     if (data.status === 'used') {
       statusLine('Status', 'This session has been used');
-      lede('The session on this order has been used and cannot be opened again.');
+      lede("The session on this order has been used and can't be opened again.");
       note(['To speak again, pay for another session.']);
       const again = el('p', null, 'cta');
       const link = el('a', 'Pay for another session');
@@ -132,8 +132,8 @@
     if (data.status === 'confirmed') {
       statusLine('Status', 'Your session is ready');
 
-      lede('This runs in your browser. Your microphone is asked for first, then it counts down '
-        + 'and starts speaking. Up to thirty minutes, and nothing is asked of you beforehand.');
+      lede('This runs in your browser. It asks for your microphone first, then counts down and '
+        + 'starts talking. Up to thirty minutes, and it asks nothing of you beforehand.');
 
       const start = el('p', null, 'cta');
       const button = document.createElement('button');
@@ -149,13 +149,13 @@
       body.append(liveMsg);
 
       note([
-        'It is an automated assistant, not a person. It runs for up to thirty minutes and it '
-          + 'works through what you do, what you would charge, who your first customer is, '
-          + 'and one thing to do next. It ends when those are answered, which is often sooner '
-          + 'than the half hour — a short call is a finished one, not a cut-off one.',
-        'A person reads everything it takes down.',
-        'If it drops, come back to this page and start it again. It opens a few times inside '
-          + 'a day, which covers a call that fails without letting the link be passed around.',
+        "It's an automated assistant, not a person. It runs for up to thirty minutes and it "
+          + "goes through what you do, what you'd charge, who your first customer is, and one "
+          + 'thing to do next. It ends once those are answered, which is often sooner than the '
+          + "half hour — a short call is a finished one, not a cut-off one.",
+        'A person reads everything it writes down.',
+        'If it drops, come back to this page and start it again. It opens a few times in one '
+          + "day, which covers a call that fails without letting the link get passed around.",
       ]);
 
       button.addEventListener('click', () => startSession(button, liveMsg));
@@ -163,7 +163,7 @@
       return;
     }
 
-    lede('This order is in a state this page does not recognize.');
+    lede("This order is in a state this page doesn't recognize.");
   }
 
   // If they are already signed in when they open their link, bind it now. Nothing is shown
@@ -215,8 +215,8 @@
     if (!navigator.mediaDevices?.getUserMedia) {
       callMessage(
         target,
-        'This browser will not let the page use a microphone at all. Open this link in '
-          + 'Safari, Chrome or Firefox and it will work.',
+        "This browser won't let the page use a microphone at all. Open this link in Safari, "
+          + 'Chrome or Firefox and it will work.',
         'bad',
       );
       return false;
@@ -233,7 +233,7 @@
       } else if (name === 'NotReadableError') {
         callMessage(
           target,
-          'Something else on this device is holding the microphone. Close any other call or '
+          'Something else on this device has the microphone. Close any other call or '
             + 'recording and try again.',
           'bad',
         );
@@ -242,7 +242,7 @@
         // ever asking. Say what to change rather than what went wrong.
         callMessage(
           target,
-          'This browser is not letting the page ask for your microphone. Check its privacy '
+          "This browser isn't letting the page ask for your microphone. Check its privacy "
             + 'settings and allow the microphone prompt to appear, then reload this page. On '
             + 'an iPhone, turning off Lockdown Mode for this site is usually what does it.',
           'bad',
@@ -265,7 +265,7 @@
     box.id = 'afterwards';
     box.append(el('h3', 'Seeing this again later'));
     box.append(el('p',
-      'Keep this link — it is how you get back to this page. If you would rather not keep '
+      "Keep this link — it's how you get back to this page. If you'd rather not keep "
       + 'track of a link, sign in at this site with Skills Economy and paste it once, and '
       + 'this session will be on your account from then on.'));
     const go = el('p', null, 'cta');
@@ -274,7 +274,7 @@
     go.append(a);
     box.append(go);
     box.append(el('p',
-      'An account is not needed for anything you have already done, and signing in does not '
+      "You don't need an account for anything you've already done, and signing in doesn't "
       + 'buy or unlock anything.', 'meta'));
     document.querySelector('main').append(box);
   }
@@ -310,7 +310,7 @@
     } catch {
       callMessage(
         target,
-        'Your session opened but this browser could not load the voice client. Try a different '
+        "Your session opened but this browser couldn't load the voice client. Try a different "
           + 'browser — Chrome, Safari or Firefox, kept up to date.',
         'bad',
       );
@@ -329,7 +329,7 @@
       const client = new RetellWebClient();
       client.on('call_started', () => callMessage(target, 'You are connected. Speak when ready.', 'good'));
       client.on('call_ended', () => {
-        callMessage(target, 'The session has ended. A person reads what was taken down.', 'good');
+        callMessage(target, 'The session has ended. A person reads what was written down.', 'good');
         button.disabled = false;
         button.textContent = 'Start again';
         afterwards();

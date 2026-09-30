@@ -347,6 +347,86 @@ await tagged`insert into messages (account_id, author, body_encrypted)
 const already = await tagged`select 1 from messages where account_id = 'acct-go' limit 1`;
 check('a thread with something in it is not opened again', already.length === 1);
 
+// Answering a quote.
+//
+// The three answers belong to the person it was written for, and each has to land once. Two
+// taps, or an answer to somebody else's quote, or a second answer to one already settled,
+// are all the same shape of problem: a row changing state when it should not.
+console.log('answering a quote');
+
+async function answer(quoteId, account, status, reason) {
+  const rows = await tagged`
+    update quotes set status = ${status}, answered_at = now(),
+                      reason_encrypted = ${reason || null}, updated_at = now()
+     where id = ${quoteId} and account_id = ${account} and status = 'offered'
+     returning id`;
+  return rows.length > 0;
+}
+
+const withAQuote = await newOrder();
+await tagged`update orders set client_account_id = 'acct-quoted' where id = ${withAQuote}`;
+const offered = await tagged`
+  insert into quotes (account_id, amount_cents, scope_encrypted)
+  values ('acct-quoted', 50000, 'two sessions and a plan') returning id`;
+const quoteId = Number(offered[0].id);
+
+check('somebody else cannot answer it',
+  (await answer(quoteId, 'acct-somebody-else', 'agreed', null)) === false);
+
+check('the person it was written for can',
+  (await answer(quoteId, 'acct-quoted', 'changes asked', 'the date does not work')) === true);
+
+const answered = await tagged`
+  select status, answered_at, reason_encrypted from quotes where id = ${quoteId}`;
+check('and what they said is kept with when they said it',
+  answered[0].status === 'changes asked'
+    && answered[0].answered_at !== null
+    && answered[0].reason_encrypted === 'the date does not work', answered[0]);
+
+check('a quote already answered cannot be answered again',
+  (await answer(quoteId, 'acct-quoted', 'agreed', null)) === false);
+
+// Three waiting at once, and the insert counts them.
+//
+// Counted in the statement that writes rather than before it, so two taps arriving together
+// cannot both pass a check neither of them updated. What is capped is how many are waiting
+// on an answer: answering one frees the slot.
+async function offerQuote(account, cents) {
+  const rows = await tagged`
+    insert into quotes (account_id, amount_cents, scope_encrypted)
+    select ${account}, ${cents}, 'what it covers'
+     where (select count(*) from quotes where account_id = ${account} and status = 'offered') < 3
+    returning id`;
+  return rows.length > 0;
+}
+
+const choosing = 'acct-three-at-a-time';
+check('a first, second and third all land',
+  (await offerQuote(choosing, 10000)) && (await offerQuote(choosing, 20000))
+    && (await offerQuote(choosing, 30000)));
+check('and a fourth does not', (await offerQuote(choosing, 40000)) === false);
+
+// One answered frees a slot. A no to one price says nothing about the next, so a long
+// relationship carries any number of quotes over time.
+await tagged`update quotes set status = 'declined', answered_at = now()
+              where account_id = ${choosing} and status = 'offered'
+                and id = (select min(id) from quotes
+                           where account_id = ${choosing} and status = 'offered')`;
+check('answering one makes room for another', (await offerQuote(choosing, 50000)) === true);
+
+const still = await tagged`
+  select count(*)::int as n from quotes where account_id = ${choosing} and status = 'offered'`;
+check('and never more than three are waiting', still[0].n === 3, still[0]);
+
+// Being quoted opens the conversation, the same as a go does. Without it a quote asking
+// somebody to say what needs changing had nowhere for them to say it.
+const conversation = await tagged`
+  select exists (
+    select 1 from orders
+     where client_account_id = 'acct-quoted' and approved_as_client_at is not null
+  ) or exists (select 1 from quotes where account_id = 'acct-quoted') as open`;
+check('being quoted opens the conversation without a go', conversation[0].open === true);
+
 console.log('the desk can read what it reads');
 await tagged`
   select o.id, o.reference_code, o.decision, o.decision_at, o.status,
