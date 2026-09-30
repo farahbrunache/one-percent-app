@@ -71,6 +71,69 @@ for (const file of pages) {
   }
 }
 
+// ---- nothing gets too big to throw away ------------------------------------------------------
+//
+// The point of keeping this modular is that a piece can be deleted or replaced without reading
+// the rest of it. A file nobody wants to open is a file nobody deletes, and it turns into the
+// debt.
+//
+// A ceiling rather than a target. Something approaching one is usually several things sharing a
+// file, and the fix is to take the smallest one out. Raising a limit is a decision somebody
+// makes on purpose and says why, in the same change -- never to turn a red check green.
+const SIZE_LIMITS = [
+  { ext: '.html', lines: 900, what: 'a page' },
+  { ext: '.js', lines: 700, what: 'an endpoint or a library' },
+  { ext: '.mjs', lines: 700, what: 'an endpoint or a library' },
+];
+
+// Files already over the limit the day it was added. The list may only ever shrink, so the gate
+// fails three ways: a file over the limit that is not listed, a listed file that has grown past
+// its recorded number, and a listed file that no longer needs listing.
+const allowed = JSON.parse(read(`${ROOT}/scripts/size-allowlist.json`)).files;
+const usedAllowance = new Set();
+
+for (const file of files) {
+  const limit = SIZE_LIMITS.find((l) => file.endsWith(l.ext));
+  if (!limit) continue;
+  const name = file.slice(ROOT.length + 1);
+  const lines = read(file).split('\n').length;
+  const known = allowed[name];
+
+  if (lines <= limit.lines) {
+    if (known) {
+      fail('size', `${name} is ${lines} lines and under the limit now. Remove it from `
+        + 'scripts/size-allowlist.json -- that list only shrinks.');
+    }
+    continue;
+  }
+
+  if (!known) {
+    fail(
+      'size',
+      `${name} is ${lines} lines and the limit for ${limit.what} is ${limit.lines}. `
+        + 'Take the smallest thing in it out into its own file.',
+    );
+    continue;
+  }
+
+  usedAllowance.add(name);
+  if (lines > known.lines) {
+    fail(
+      'size',
+      `${name} is ${lines} lines and scripts/size-allowlist.json allows it ${known.lines}. `
+        + 'It is already over the limit and it is growing. Split it rather than raising the '
+        + 'number.',
+    );
+  }
+}
+
+for (const name of Object.keys(allowed)) {
+  if (!usedAllowance.has(name) && !files.some((f) => f.endsWith(`/${name}`))) {
+    fail('size', `scripts/size-allowlist.json lists ${name} and there is no such file. `
+      + 'Remove the entry.');
+  }
+}
+
 // ---- 2. the settings the code reads are the settings the deploy writes ---------------------
 //
 // Writing the settings onto the service replaces all of them at once, so one name missing from

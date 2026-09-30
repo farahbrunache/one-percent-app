@@ -147,6 +147,96 @@ Colours are tokens on `:root` and nothing is hard-coded in a rule. When renderin
 change, set the browser to dark — headless Chromium defaults to light and will show you a
 page nobody sees.
 
+## No third-party services beyond the voice service (owner decision, 2026-09-30)
+
+No messaging service, no email service, no payment processor, no analytics, nothing. The voice
+service is the single exception.
+
+Two reasons and the second is the real one. Cost. And the owner is a target: Quora erased their
+accounts, and any third party can do the same thing on any afternoon. A gated community threatens
+the people doing the targeting and so does this product. Every dependency is a place somebody can
+be cut off from their own livelihood.
+
+That is why paying is a Wisetag and gift cards rather than a payment processor, why there is no
+email anywhere in the product, and why reaching out to somebody happens by hand somewhere else.
+
+**The app records what was done. It never sends anything.** Somebody is contacted on Quora or
+Signal or wherever, and what comes back is typed in here. Do not reach for an integration to close
+that loop — the loop is open on purpose.
+
+The voice service is the one exposure and half of it is already hedged: the sweep copies every
+call record here because they forget after seven days, so losing them would not lose the history.
+What would stop is taking new calls.
+
+## No groups, communities or memberships (owner decision, 2026-09-30)
+
+Several people wanting the same thing are still several people. Two of them get connected to each
+other and it shows on each case. There is no entity they belong to, no roster, no membership and
+no shared space.
+
+The reason is not technical. Running one would take time, money and interest the owner does not
+have, and it would make them a leader of people. This is not a nation state, and the Skills
+Economy holds the same line.
+
+What people pay for is a warm introduction backed by one person's judgment. The owner stays in it
+as the mutual connection. A group would replace that with a room, which is a different product
+nobody asked for.
+
+## Every screen works with no model configured
+
+This is the condition the product runs under rather than a hedge. When there is no money the app
+is live and helping people, and when there are credits the same work goes faster.
+
+- A model is a button on a step, never the step.
+- No panel is empty until a model fills it.
+- Structured entry over free text, because typed fields are what make assistance possible later,
+  and they are faster to fill now.
+- Two contexts and nothing crosses. The owner's own material works for the owner. A person's
+  material works for that person. Nothing derived from one person is ever sold to the next.
+
+The drafting slots are already the pattern: empty means not configured, the button hides, and
+nothing calls a model that is not there. Extend it rather than inventing a second shape.
+
+## State decides the screen, never a toggle
+
+A filter somebody forgets to set is a filter that hides a person who was waiting, and at the
+volume this is built for that will happen silently.
+
+So what appears on a screen is decided by facts about the row — unread, past the deadline,
+blocked, how long it has sat. Not by switches that have to be in the right position first.
+
+This is why the first screen has no tabs, and why there is no open-or-closed filter: a new
+message outranks whether a case was closed.
+
+## Demo records live on production, and the delete refuses real ones
+
+There's one instance and there isn't going to be a second. Two environments means two things to
+deploy, two databases to migrate and two sets of settings to keep in step, for one person. So the
+product gets tested where it runs.
+
+What makes that safe is the mark. A demo record is flagged when it's made and never afterwards,
+every screen shows a DEMO chip on it, and the one thing that deletes records refuses anything
+without the flag. That refusal is the safety property, not a filter — so each delete names the
+flag in its own `where` clause rather than trusting a list of ids gathered a moment earlier.
+
+**Standing rule: when a feature lands, the demo row that exercises it lands with it**, in the same
+change. Otherwise the feature can't be tried on the only instance there is.
+
+The figures are skewed while demo rows are there. That's accepted — the flag makes excluding them
+from a number later one predicate in one query.
+
+Nothing in a demo row resembles a real person. Invented names, invented transcripts, and every
+reference starts `DEMO` so it's recognizable before the chip is read.
+
+**Customers deleting their own accounts is deferred, not decided against.** There are no customers
+yet, so the only thing that needs deleting is demo data, and the risk worth guarding is deleting
+real data by accident. When real people are here they get a way to delete what's theirs.
+
+**When that gets built it's a separate path with its own rules.** Never build it by loosening the
+`is_demo` check on the delete that already exists. That check is the one thing standing between a
+test and the real rows, and widening it to serve a customer would be exactly the accident it was
+written to prevent.
+
 ## Never leave unused code
 
 A change that strands something removes it in the same change: a column, an export, a CSS
@@ -441,6 +531,24 @@ and what somebody said. This repository is public and a published issue cannot b
 
 The code and its history stay public, and every pull request describes its change in the
 open. That is what being open source promises here. An issue queue is not part of it.
+
+## Nothing gets too big to throw away
+
+The point of keeping this modular is that a piece can be deleted or replaced without reading the
+rest of it. A file nobody wants to open is a file nobody deletes, and it becomes the debt.
+
+So `scripts/checks.mjs` fails when a file passes its limit:
+
+| Kind | Limit |
+|---|---|
+| A page (`.html`) | 900 lines |
+| An endpoint or a library (`.js`, `.mjs`) | 700 lines |
+
+The numbers are a ceiling, not a target. Something approaching one is usually several things
+sharing a file, and the fix is to take the smallest one out rather than to raise the limit.
+
+Raising a limit is a decision somebody makes on purpose and says why, in the same change. It is
+never done to make a red check go green.
 
 ## Branches, pull requests and checks
 
