@@ -27,6 +27,7 @@ import {
   MILESTONE_STATUSES,
   PLAN_PATHS,
   isDecision,
+  conversationIsOpen,
   isIntroductionOutcome,
   isQuoteStatus,
   MAX_OPEN_QUOTES,
@@ -53,28 +54,13 @@ import { agentScriptExport } from '../lib/voice.js';
 import { normalizeReference, OPENING_LINE } from '../lib/orders.js';
 import { clearDemo, seedDemo } from '../lib/demo.js';
 import { HttpError, handle, readJson, send } from '../lib/http.js';
+import { orderId, record } from '../lib/desk-events.js';
+import { moveQuote, writeQuote } from '../lib/desk-quotes.js';
 
 const PER_PAGE = 25;
 
 function query(req) {
   return new URL(req.url, 'https://placeholder.invalid').searchParams;
-}
-
-function orderId(value) {
-  const id = Number(value);
-  if (!Number.isInteger(id) || id <= 0) throw new HttpError(400, 'Which person?');
-  return id;
-}
-
-// Written by whoever acted, read by whoever comes back to this later. The detail is optional
-// and is trimmed to something a phone can show without the line becoming the screen.
-async function record(id, kind, detail) {
-  const text = String(detail || '').trim().slice(0, 2000);
-  await sql()`
-    insert into case_events (order_id, case_id, kind, detail_encrypted)
-    select ${id}, o.case_id, ${kind}, ${text ? encrypt(text) : null}
-      from orders o where o.id = ${id}
-  `;
 }
 
 // The case this order belongs to, or null while nobody has signed in. Everything about
@@ -494,6 +480,12 @@ async function person(req, res) {
     })),
     linked: Boolean(row.client_account_id),
     approvedAt: row.approved_as_client_at,
+    // Not the screen's to work out. It got a different answer from the client area's and the two
+    // contradicted each other on the same record.
+    conversationOpen: conversationIsOpen({
+      approvedAt: row.approved_as_client_at,
+      quoteCount: quotes.length,
+    }),
     recommendations: row.recommendations_encrypted ? decrypt(row.recommendations_encrypted) : null,
     messages: messages.map((m) => ({
       author: m.author,
@@ -975,89 +967,6 @@ async function reply(req, res) {
     values (${account}, 'operator', ${encrypt(text)})
   `;
   send(res, 201, { ok: true });
-}
-
-// Written for one person, against what the work is. No tier is chosen because there are none.
-async function writeQuote(req, res) {
-  requireAdmin(req);
-  await ensureSchema();
-  const body = await readJson(req);
-  const id = orderId(body.id);
-
-  const amount = Number(body.amount);
-  if (!Number.isFinite(amount) || amount <= 0) {
-    throw new HttpError(400, 'A quote needs an amount in dollars.');
-  }
-  // Rounded here rather than trusted, so a fraction of a cent cannot arrive from a form.
-  const cents = Math.round(amount * 100);
-  if (cents > 100_000_00) {
-    throw new HttpError(400, 'That is more than a hundred thousand dollars. Check the figure.');
-  }
-
-  const scope = String(body.scope || '').trim().slice(0, 2000);
-  if (!scope) {
-    throw new HttpError(400, 'Say what the quote covers. A number on its own is unreadable in June.');
-  }
-
-  const rows = await sql()`select client_account_id from orders where id = ${id}`;
-  if (!rows.length) throw new HttpError(404, 'No order with that number.');
-  const account = rows[0].client_account_id;
-  if (!account) {
-    throw new HttpError(
-      409,
-      'Nobody has linked an account to this order yet, so there is no one to quote. They link ' +
-        'it by opening their claim link while signed in.',
-    );
-  }
-
-  // Three at once, and the insert is what counts them, so two taps arriving together cannot
-  // both pass a check made before either wrote. What is capped is how many are waiting on an
-  // answer -- answering one frees the slot, so a long relationship carries any number over
-  // time. Three is a choice somebody reads in one go; a fourth makes it a list, and a list of
-  // prices arriving unasked is what a sales pitch looks like.
-  const written = await sql()`
-    insert into quotes (account_id, amount_cents, scope_encrypted)
-    select ${account}, ${cents}, ${encrypt(scope)}
-     where (
-       select count(*) from quotes
-        where account_id = ${account} and status = 'offered'
-     ) < ${MAX_OPEN_QUOTES}
-    returning id
-  `;
-  if (!written.length) {
-    throw new HttpError(
-      409,
-      `There are already ${MAX_OPEN_QUOTES} quotes waiting on an answer from this person, ` +
-        'which is as many as anybody can choose between. Withdraw one, or wait for an answer.',
-    );
-  }
-  await record(id, 'quote.written', `$${amount.toFixed(2)}. ${scope}`);
-  send(res, 201, { ok: true });
-}
-
-async function moveQuote(req, res) {
-  requireAdmin(req);
-  await ensureSchema();
-  const body = await readJson(req);
-  const id = orderId(body.id);
-  const quoteId = orderId(body.quoteId);
-  const status = String(body.status || '');
-  if (!isQuoteStatus(status)) {
-    throw new HttpError(400, `Pick one: ${QUOTE_STATUSES.join(', ')}.`);
-  }
-
-  const rows = await sql()`select client_account_id from orders where id = ${id}`;
-  const account = rows[0]?.client_account_id;
-  if (!account) throw new HttpError(404, 'No account is linked to that order.');
-
-  const done = await sql()`
-    update quotes set status = ${status}, updated_at = now()
-     where id = ${quoteId} and account_id = ${account}
-     returning amount_cents
-  `;
-  if (!done.length) throw new HttpError(404, 'No quote with that number for this person.');
-  await record(id, 'quote.moved', `${status}. $${(done[0].amount_cents / 100).toFixed(2)}`);
-  send(res, 200, { ok: true, status });
 }
 
 // Made, not proposed. The row is a record of something done: two people were put in touch.
