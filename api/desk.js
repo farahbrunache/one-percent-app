@@ -34,6 +34,9 @@ import {
   isPlanPath,
   isQueueState,
   pageOf,
+  BLOCKER_RETURNS_AFTER_DAYS,
+  REVIEW_TARGET_HOURS,
+  REVIEW_PROMISE_HOURS,
 } from '../lib/desk.js';
 import {
   DRAFTS_PER_ORDER,
@@ -189,6 +192,86 @@ async function queue(req, res) {
   });
 }
 
+// The first screen. Two questions and nothing else.
+//
+// A funnel answers whether the work is working, which is a question for a quiet afternoon. The
+// first thing in the morning is who is waiting, and the promise on the claim page is what makes
+// that a clock rather than a list: forty-eight hours is what somebody was told, twenty-four is
+// the target, so anything past twenty-four is at risk of breaking the promise.
+//
+// Oldest first, both lists. First come, first served -- and at the volume this is built for a
+// queue somebody scrolls is a queue somebody loses, so the screen hands over the next one and
+// says how many are behind it.
+async function today(req, res) {
+  requireAdmin(req);
+  await ensureSchema();
+
+  // A call that came back and nobody has decided on. The sheet is a separate debt and shows on
+  // the person's own record; this list is about reading what arrived.
+  const calls = await sql()`
+    select o.id, o.reference_code,
+           (select c.ended_at from calls c
+             where c.order_id = o.id and c.transcript_encrypted is not null
+             order by c.ended_at desc nulls last limit 1) as called_at
+      from orders o
+     where o.decision is null
+       and exists (select 1 from calls c
+                    where c.order_id = o.id and c.transcript_encrypted is not null)
+     order by called_at asc nulls last
+     limit 50
+  `;
+
+  // Somebody wrote and it has not been opened. Blocked drops off: it was read, it cannot be
+  // answered yet, and showing it again every refresh is how a screen wastes somebody's morning.
+  // It comes back on its date, or once it has sat longer than the window.
+  const unread = await sql()`
+    select k.id as case_id, o.id as order_id, o.reference_code,
+           m.at as wrote_at,
+           k.blocked_at is not null as was_blocked
+      from cases k
+      join lateral (
+        select max(created_at) as at from messages
+         where account_id = k.account_id and author = 'client'
+      ) m on true
+      join lateral (
+        select id, reference_code from orders
+         where case_id = k.id order by id asc limit 1
+      ) o on true
+     where m.at is not null
+       and (k.messages_read_at is null or m.at > k.messages_read_at)
+       and (
+         k.blocked_at is null
+         or (k.blocked_until is not null and k.blocked_until <= now())
+         or (k.blocked_until is null
+             and k.blocked_at < now() - (${BLOCKER_RETURNS_AFTER_DAYS} || ' days')::interval)
+       )
+     order by m.at asc
+     limit 50
+  `;
+
+  const now = Date.now();
+  const hoursSince = (at) => (at ? (now - new Date(at).getTime()) / 3_600_000 : null);
+
+  send(res, 200, {
+    targetHours: REVIEW_TARGET_HOURS,
+    promiseHours: REVIEW_PROMISE_HOURS,
+    calls: calls.map((r) => ({
+      id: Number(r.id),
+      reference: r.reference_code,
+      calledAt: r.called_at,
+      hoursWaiting: hoursSince(r.called_at),
+    })),
+    unread: unread.map((r) => ({
+      id: Number(r.order_id),
+      caseId: Number(r.case_id),
+      reference: r.reference_code,
+      wroteAt: r.wrote_at,
+      hoursWaiting: hoursSince(r.wrote_at),
+      wasBlocked: Boolean(r.was_blocked),
+    })),
+  });
+}
+
 // The funnel, counted rather than entered. Five numbers, each a strict subset of the one above,
 // so the drop between two of them is a real rate and not two unrelated figures side by side.
 //
@@ -276,6 +359,13 @@ async function person(req, res) {
           from orders o where o.case_id = ${caseId} order by o.id desc
       `
     : [];
+
+  // Opening the record is what marks it read. Unread means never opened, so this is the moment
+  // it stops being true -- not sending a reply, because reading something and deciding it needs
+  // research is still having read it. That case comes back through the blocker instead.
+  if (caseId) {
+    await sql()`update cases set messages_read_at = now() where id = ${caseId}`;
+  }
 
   // One decision for the person, taken from the most recent order that carries one. A
   // decision is made from a call, so it is written on the order it was made from; what a
@@ -1063,7 +1153,7 @@ async function addNote(req, res) {
 }
 
 const ACTIONS = {
-  GET: { queue, person, funnel, 'call-record': callRecord, 'agent-script': agentScript },
+  GET: { today, queue, person, funnel, 'call-record': callRecord, 'agent-script': agentScript },
   POST: {
     decide,
     plan: setPlan,

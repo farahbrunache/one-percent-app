@@ -740,5 +740,90 @@ check('and the column it moved from is gone',
   !orderColumns.some((c) => c.column_name === 'first_customer_at'),
   orderColumns.map((c) => c.column_name).filter((n) => n.includes('customer')));
 
+// ---- the first screen -----------------------------------------------------------------------
+//
+// Two questions and nothing else: calls that came back and have not been decided on, and people
+// who wrote and have not been opened. Both oldest first. Blocked comes off and comes back.
+//
+// Run through the endpoint rather than by restating its where clause here, for the same reason
+// the queue tests are: a test holding its own copy of the condition passes while the screen
+// stays wrong.
+console.log('');
+console.log('the first screen');
+
+async function askToday() {
+  const req = { method: 'GET', url: '/api/desk?action=today', headers: {
+    cookie: `op_session=${signSession('admin-1')}`,
+  } };
+  let payload = null;
+  const res = {
+    statusCode: 200, writableEnded: false, setHeader() {}, getHeader() {},
+    end(text) { this.writableEnded = true; try { payload = JSON.parse(text); } catch { payload = text; } },
+  };
+  await deskEndpoint(req, res);
+  return payload;
+}
+
+const waitingCall = await newOrder();
+await tagged`insert into calls (order_id, call_id, transcript_encrypted, ended_at)
+             values (${waitingCall}, ${'c-today-' + waitingCall}, 'x', now() - interval '31 hours')`;
+
+let screen = await askToday();
+check('a call that came back and has no decision is waiting',
+  screen.calls.some((c) => c.id === waitingCall), screen.calls.map((c) => c.id));
+check('and it says how long it has been',
+  screen.calls.find((c) => c.id === waitingCall).hoursWaiting > 30);
+
+await tagged`update orders set decision = 'go', decision_at = now() where id = ${waitingCall}`;
+screen = await askToday();
+check('a decided call drops off',
+  !screen.calls.some((c) => c.id === waitingCall), screen.calls.map((c) => c.id));
+
+// Somebody wrote in. Opening their record is what marks it read.
+const wroteIn = await newOrder();
+const wroteCase = await caseForAccount('acct-wrote-today');
+await tagged`update orders set client_account_id = 'acct-wrote-today', case_id = ${wroteCase},
+                               status = 'confirmed' where id = ${wroteIn}`;
+await tagged`insert into messages (account_id, author, body_encrypted, created_at)
+             values ('acct-wrote-today', 'client', 'x', now() - interval '5 hours')`;
+
+screen = await askToday();
+check('somebody who wrote and has not been opened is unread',
+  screen.unread.some((u) => u.caseId === wroteCase), screen.unread.map((u) => u.caseId));
+
+await tagged`update cases set messages_read_at = now() where id = ${wroteCase}`;
+screen = await askToday();
+check('opening it takes them off',
+  !screen.unread.some((u) => u.caseId === wroteCase), screen.unread.map((u) => u.caseId));
+
+// They write again after being read.
+await tagged`insert into messages (account_id, author, body_encrypted)
+             values ('acct-wrote-today', 'client', 'x')`;
+screen = await askToday();
+check('writing again puts them back', screen.unread.some((u) => u.caseId === wroteCase));
+
+// Blocked comes off the screen.
+await tagged`update cases set blocked_at = now(), blocker_encrypted = 'x' where id = ${wroteCase}`;
+screen = await askToday();
+check('blocked comes off', !screen.unread.some((u) => u.caseId === wroteCase));
+
+// A blocker with a date on it returns when the date passes.
+await tagged`update cases set blocked_until = now() - interval '1 hour' where id = ${wroteCase}`;
+screen = await askToday();
+check('a blocker past its date comes back', screen.unread.some((u) => u.caseId === wroteCase));
+check('and it says it was blocked',
+  screen.unread.find((u) => u.caseId === wroteCase).wasBlocked === true);
+
+// A blocker with no date returns once it has sat longer than the window.
+await tagged`update cases set blocked_until = null, blocked_at = now() - interval '2 days'
+              where id = ${wroteCase}`;
+screen = await askToday();
+check('a blocker inside the window stays off', !screen.unread.some((u) => u.caseId === wroteCase));
+
+await tagged`update cases set blocked_at = now() - interval '30 days' where id = ${wroteCase}`;
+screen = await askToday();
+check('a blocker that sat too long comes back on its own',
+  screen.unread.some((u) => u.caseId === wroteCase));
+
 console.log(failures ? `\n${failures} failed` : '\nall passed');
 process.exit(failures ? 1 : 0);
