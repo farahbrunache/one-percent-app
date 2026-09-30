@@ -95,35 +95,23 @@
       <div id="owed" class="rows"></div>
     </div>
 
-    <div class="panel">
-      <h2>Sessions bought</h2>
-      <p class="meta" id="ordersnote"></p>
-      <div id="orders" class="rows"></div>
-    </div>
-
-    <div class="panel">
-      <h2>Calls</h2>
+    <details class="panel fold" id="fold-calls">
+      <summary><h2>Calls</h2><span class="sofar" id="sofar-calls"></span></summary>
       <div id="calls"></div>
-    </div>
+    </details>
 
-    <div class="panel">
-      <h2>Go or no-go</h2>
-      <p class="meta">Read the call first. Nothing here decides on its own, and you can change a decision — both stay on the record.</p>
+    <details class="panel fold" id="fold-decide">
+      <summary><h2>Go or no-go</h2><span class="sofar" id="sofar-decide"></span></summary>
       <p id="decided" class="status-line" hidden></p>
       <div class="actions" id="decide"></div>
-    </div>
+    </details>
 
-    <div class="panel">
-      <h2>What they are told</h2>
-      <p class="meta">Everyone who calls gets this, go or no-go. A no-go isn't a rejection and
-        can't read like one: they keep everything they had, Skills Economy is still there and
-        still free, and the only thing this adds is your time.</p>
-      <p class="meta" id="recommendedat"></p>
+    <details class="panel fold" id="fold-sheet">
+      <summary><h2>Their sheet</h2><span class="sofar" id="sofar-sheet"></span></summary>
       <form class="fields" id="recommendform" novalidate>
         <div class="field">
           <label for="recommendbody">Recommendations</label>
-          <span class="hint">What's worth doing in their situation. They read this word for word, so
-            write it to them, not about them.</span>
+          <span class="hint">They read this word for word.</span>
           <textarea id="recommendbody" rows="8" maxlength="8000"></textarea>
         </div>
         <div class="actions">
@@ -133,16 +121,10 @@
         <p class="meta" id="draftnote"></p>
         <p class="meta" id="models"></p>
       </form>
-    </div>
+    </details>
 
-    <div class="panel">
-      <h2>The path</h2>
-      <p class="meta">Two paths. Neither one is better than the other.</p>
-      <div id="plan"></div>
-    </div>
-
-    <div class="panel">
-      <h2>The conversation</h2>
+    <details class="panel fold" id="fold-thread">
+      <summary><h2>The conversation</h2><span class="sofar" id="sofar-thread"></span></summary>
       <p class="meta" id="threadnote"></p>
       <div id="thread" class="rows"></div>
       <div class="actions" id="threadpager" hidden></div>
@@ -157,11 +139,15 @@
         </div>
         <p class="meta" id="replydraftnote"></p>
       </form>
-    </div>
+    </details>
 
-    <div class="panel">
-      <h2>Milestones</h2>
-      <p class="meta">A stalled step is just something that happened. It's not a verdict on anyone.</p>
+    <details class="panel fold" id="fold-plan">
+      <summary><h2>The path</h2><span class="sofar" id="sofar-plan"></span></summary>
+      <div id="plan"></div>
+    </details>
+
+    <details class="panel fold" id="fold-steps">
+      <summary><h2>Milestones</h2><span class="sofar" id="sofar-steps"></span></summary>
       <div id="steps" class="rows"></div>
       <form class="fields" id="addstep" hidden novalidate>
         <div class="field">
@@ -170,10 +156,10 @@
         </div>
         <div class="actions"><button type="submit" class="quiet">Add</button></div>
       </form>
-    </div>
+    </details>
 
-    <div class="panel">
-      <h2>Quotes</h2>
+    <details class="panel fold" id="fold-quotes">
+      <summary><h2>Quotes</h2><span class="sofar" id="sofar-quotes"></span></summary>
       <p class="meta" id="quotenote"></p>
       <div id="quotes" class="rows"></div>
       <form class="fields" id="writequote" hidden novalidate>
@@ -187,11 +173,10 @@
         </div>
         <div class="actions"><button type="submit" class="quiet">Write the quote</button></div>
       </form>
-    </div>
+    </details>
 
-    <div class="panel">
-      <h2>Introductions</h2>
-      <p class="meta">Who you've introduced them to, and what came of it.</p>
+    <details class="panel fold" id="fold-intros">
+      <summary><h2>Introductions</h2><span class="sofar" id="sofar-intros"></span></summary>
       <div id="intros" class="rows"></div>
       <form class="fields" id="introduce" novalidate>
         <div class="field">
@@ -205,17 +190,22 @@
         </div>
         <div class="actions"><button type="submit" class="quiet">Record the introduction</button></div>
       </form>
-    </div>
+    </details>
 
-    <div class="panel">
-      <h2>Where it ends</h2>
-      <p class="meta">The work ends when someone is paying them, not at a session count.</p>
+    <details class="panel fold" id="fold-orders">
+      <summary><h2>Sessions bought</h2><span class="sofar" id="sofar-orders"></span></summary>
+      <p class="meta" id="ordersnote"></p>
+      <div id="orders" class="rows"></div>
+    </details>
+
+    <details class="panel fold" id="fold-earned">
+      <summary><h2>Where it ends</h2><span class="sofar" id="sofar-earned"></span></summary>
       <p id="earned" class="status-line" hidden></p>
       <div class="actions" id="firstcustomer"></div>
-    </div>
+    </details>
 
-    <div class="panel">
-      <h2>The record</h2>
+    <details class="panel fold" id="fold-events">
+      <summary><h2>The record</h2><span class="sofar" id="sofar-events"></span></summary>
       <form class="fields" id="addnote" novalidate>
         <div class="field">
           <label for="note">Add a note</label>
@@ -224,7 +214,7 @@
         <div class="actions"><button type="submit" class="quiet">Write it down</button></div>
       </form>
       <div id="events" class="rows"></div>
-    </div>
+    </details>
 
   </div>
 
@@ -232,6 +222,10 @@
 
 <script type="module">
   import { codeFields } from '/codefield.js';
+  import { el, link, msg, call, get, post, when, minutes, demoChip, hours,
+    personId, state, page, mpage, askedForQueue } from '/desk-ui.js';
+  import { renderPerson } from '/desk-record.js';
+
   codeFields(['otherref']);
 
   const STATES = [
@@ -240,51 +234,11 @@
     ['active', 'Working'],
     ['closed', 'Closed'],
   ];
-  const STATUSES = ['planned', 'in progress', 'worked', 'changed direction', 'stalled', 'ghosted'];
 
-  const here = new URL(window.location.href);
-  const personId = here.searchParams.get('id');
-  const state = here.searchParams.get('state') || 'waiting';
-  const page = Math.max(1, Number(here.searchParams.get('page')) || 1);
-  // Which page of the conversation. Absent means the newest, which the endpoint decides,
-  // because only it knows how many there are.
-  const mpage = here.searchParams.get('mpage');
-  const askedForQueue = here.searchParams.has('state') || here.searchParams.has('page');
 
-  function el(tag, text, className) {
-    const node = document.createElement(tag);
-    if (text) node.textContent = text;
-    if (className) node.className = className;
-    return node;
-  }
 
-  function link(text, href, className) {
-    const a = el('a', text, className);
-    a.href = href;
-    return a;
-  }
 
-  function msg(id, text, kind) {
-    const box = document.getElementById(id);
-    box.hidden = false;
-    box.className = 'msg ' + (kind || '');
-    box.textContent = text;
-  }
 
-  async function call(url, options) {
-    const response = await fetch(url, options);
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      const error = new Error(data.error || `The server returned ${response.status}.`);
-      error.status = response.status;
-      throw error;
-    }
-    return data;
-  }
-
-  function get(action) {
-    return call(`/api/desk?action=${action}`);
-  }
 
   // The script the agent runs lives in the voice service's dashboard and nowhere else. This
   // puts a copy on the clipboard, to be committed where it can be read, reviewed and recovered.
@@ -305,21 +259,8 @@
     });
   }
 
-  function post(action, body) {
-    return call(`/api/desk?action=${action}`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-  }
 
-  function when(value) {
-    return value ? new Date(value).toLocaleString() : 'not yet';
-  }
 
-  function minutes(seconds) {
-    return seconds ? `${Math.round(seconds / 60)} min` : 'length not recorded';
-  }
 
   // ---- the queue -------------------------------------------------------------------
 
@@ -470,19 +411,7 @@
   //
   // What shouts is the twenty-four hour line. Forty-eight is what the claim page promised, so
   // past twenty-four the promise is at risk rather than broken.
-  // Demo records sit on production beside the real ones, so every screen that lists a record
-  // says which it is. Four letters rather than a word, because it shares a row with a ten
-  // character reference on a 390 pixel screen.
-  function demoChip(row, into) {
-    if (row.isDemo) into.append(el('div', 'DEMO', 'badge demo'));
-  }
 
-  function hours(n) {
-    if (n === null || n === undefined) return '';
-    if (n < 1) return 'just now';
-    if (n < 72) return `${Math.floor(n)}h waiting`;
-    return `${Math.floor(n / 24)}d waiting`;
-  }
 
   function renderTodayList(box, rows, target, empty, verb, primary) {
     box.textContent = '';
@@ -524,809 +453,28 @@
       : '';
   }
 
-  // Where in the conversation this is. Same shape as the queue's pager, and the page number
-  // goes in the address for the same reason: a place in a list has to be linkable and the
-  // back button has to work. A conversation rendered in full grows without end, which leaves
-  // a keyboard or a screen reader no way past it.
-  function renderThreadPager(person) {
-    const box = document.getElementById('threadpager');
-    box.textContent = '';
-    const total = person.messageCount;
-    const perPage = person.messagesPerPage;
-    const at = person.messagePage;
-    const last = Math.max(1, Math.ceil(total / perPage));
-    box.hidden = total <= perPage;
-    if (box.hidden) return;
 
-    const first = (at - 1) * perPage + 1;
-    const upTo = Math.min(at * perPage, total);
-    const to = (n) => {
-      const url = new URL(window.location.href);
-      url.searchParams.set('mpage', String(n));
-      return url.pathname + url.search;
-    };
-    if (at > 1) box.append(link('Older', to(at - 1), 'button quiet-link'));
-    box.append(el('span', `${first}–${upTo} of ${total} · page ${at} of ${last}`, 'meta'));
-    if (at < last) box.append(link('Newer', to(at + 1), 'button quiet-link'));
-  }
-
-  // What is owed on somebody, in the order it has to happen.
-  //
-  // These are steps in a piece of work, not controls that happen to be on a screen. A control
-  // that is simply there gets pressed when somebody remembers; a step that is named and
-  // counted gets done. Everybody who called is owed a decision and a sheet, and neither is
-  // optional.
-  //
-  // Keeping the call's record is on the list and is usually not work: an hourly job takes it.
-  // So it says so quietly while that job has not caught up, and loudly once a day has passed,
-  // because the voice service forgets a call after seven.
-  function owed(person) {
-    const out = [];
-    // First, because it is a person waiting on an answer rather than a job waiting on you.
-    // Their messages land in the conversation, which is seven panels down a phone screen, so
-    // without this line they wrote and the screen said nothing was owed.
-    if (person.awaitingReply) {
-      out.push({ what: 'They wrote to you and are waiting on a reply.', yours: true });
-    }
-    if (person.recordMissing) {
-      const aDayOn = person.calledAt
-        && Date.now() - new Date(person.calledAt).getTime() > 24 * 3600 * 1000;
-      out.push({
-        what: aDayOn
-          ? "It's been over a day and the call record still isn't saved. Open the call and "
-            + 'save it yourself.'
-          : "The call record isn't saved yet. The hourly job picks it up. Nothing to do.",
-        yours: Boolean(aDayOn),
-      });
-    }
-    if (!person.decision) out.push({ what: "Go or no-go, once you've read the call.", yours: true });
-    if (!person.recommendedAt) {
-      out.push({ what: 'Write their sheet. Everyone who calls gets one.', yours: true });
-    }
-    return out;
-  }
 
   // ---- one person ------------------------------------------------------------------
 
-  function renderOwed(person) {
-    const box = document.getElementById('owed');
-    box.textContent = '';
-    const items = owed(person);
-    if (!items.length) {
-      box.append(el('p', "Nothing. You've read them, decided, and written their sheet.", 'meta'));
-      return;
-    }
-    for (const item of items) {
-      const row = el('div', null, 'row');
-      row.append(el('div', item.what, item.yours ? null : 'meta'));
-      box.append(row);
-    }
-  }
 
-  function renderDecision(person) {
-    const box = document.getElementById('decide');
-    const said = document.getElementById('decided');
-    box.textContent = '';
-    if (person.decision) {
-      said.hidden = false;
-      said.textContent = `${person.decision === 'go' ? 'Go' : 'No-go'}, ${when(person.decidedAt)}.`;
-    } else {
-      said.hidden = true;
-    }
-    // Equal weight, both ways. A no-go is a sheet and a path, not a rejection, so the
-    // screen must not make one of the two the easy press.
-    for (const [value, label, tone] of [['go', 'Go', 'yes'], ['no-go', 'No-go', 'no']]) {
-      const on = value === person.decision;
-      const button = el('button', label, `quiet decide ${tone}${on ? ' on' : ''}`);
-      button.type = 'button';
-      button.style.flex = '1';
-      button.addEventListener('click', async () => {
-        button.disabled = true;
-        try {
-          await post('decide', { id: person.id, decision: value });
-          window.location.reload();
-        } catch (error) {
-          button.disabled = false;
-          msg('rmsg', error.message, 'bad');
-        }
-      });
-      box.append(button);
-    }
-  }
 
-  // Both paths, always both on screen and the same size, with the one in force outlined.
-  // Hiding the path somebody is already on made the screen offer one option and read as a
-  // recommendation, which is the opposite of what two paths neither above the other means.
-  const PATHS = [
-    ['reach', 'Reaching past the average',
-      'What the work is worth to the person who needs it, not what the going rate is.'],
-    ['smallest', 'The smallest number',
-      'One price, one person, one time. A solid step they can actually take.'],
-  ];
 
-  function renderPlan(person) {
-    const box = document.getElementById('plan');
-    box.textContent = '';
-    // A path is about working with somebody, and there is nobody to work with until they
-    // sign in. The endpoint refuses it for the same reason, so the screen says so rather
-    // than offering two buttons that both come back with an error.
-    if (!person.linkedCase) {
-      box.append(el('p', "A path is set once they've signed in. Until then this is an order, "
-        + 'not a person.', 'meta'));
-      return;
-    }
-    for (const [value, label, why] of PATHS) {
-      const on = Boolean(person.plan && person.plan.path === value);
-      const button = el('button', null, on ? 'path on' : 'path');
-      button.type = 'button';
-      button.append(document.createTextNode(label));
-      button.append(el('span', why, 'why'));
-      if (on) button.append(el('span', `Set on ${when(person.plan.setAt)}.`, 'why'));
-      button.disabled = on;
-      button.addEventListener('click', async () => {
-        button.disabled = true;
-        try {
-          await post('plan', { id: person.id, path: value });
-          window.location.reload();
-        } catch (error) {
-          button.disabled = false;
-          msg('rmsg', error.message, 'bad');
-        }
-      });
-      box.append(button);
-    }
-    for (const former of person.formerPlans) {
-      box.append(el('p', `Was on ${former.label} starting ${when(former.setAt)}.`, 'meta'));
-    }
-  }
 
-  function renderSteps(person) {
-    const list = document.getElementById('steps');
-    list.textContent = '';
-    document.getElementById('addstep').hidden = !person.plan;
-    if (!person.plan) {
-      list.append(el('p', 'Pick a path first. Every milestone belongs to one.', 'meta'));
-      return;
-    }
-    if (!person.milestones.length) {
-      list.append(el('p', 'No steps yet.', 'meta'));
-    }
-    for (const step of person.milestones) {
-      const row = el('div', null, 'row');
-      row.append(el('div', `${step.position}. ${step.title}`, null));
-      row.append(el('div', `${step.status} · ${when(step.updatedAt)}`, 'meta'));
-      if (step.outcome) row.append(el('div', step.outcome, 'meta'));
 
-      const form = el('form', null, 'fields');
-      const field = el('div', null, 'field');
-      const label = el('label', 'What happened');
-      const outcome = el('textarea');
-      outcome.rows = 2;
-      outcome.value = step.outcome || '';
-      outcome.id = `outcome-${step.id}`;
-      label.htmlFor = outcome.id;
-      field.append(label, outcome);
 
-      const pickField = el('div', null, 'field');
-      const pickLabel = el('label', 'Status');
-      const pick = el('select');
-      pick.id = `status-${step.id}`;
-      pickLabel.htmlFor = pick.id;
-      for (const status of STATUSES) {
-        const option = el('option', status);
-        option.value = status;
-        if (status === step.status) option.selected = true;
-        pick.append(option);
-      }
-      pickField.append(pickLabel, pick);
 
-      const actions = el('div', null, 'actions');
-      const save = el('button', 'Record it', 'quiet');
-      save.type = 'submit';
-      actions.append(save);
-      form.append(pickField, field, actions);
-      form.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        save.disabled = true;
-        try {
-          await post('milestone-record', {
-            id: person.id,
-            milestoneId: step.id,
-            status: pick.value,
-            outcome: outcome.value,
-          });
-          window.location.reload();
-        } catch (error) {
-          save.disabled = false;
-          msg('rmsg', error.message, 'bad');
-        }
-      });
-      row.append(form);
-      list.append(row);
-    }
-  }
 
-  // Every call against this order, newest first. Two of them means a session dropped and was
-  // restarted, which is worth seeing rather than hiding behind whichever one arrived last.
-  // Only the calls that came back. A start that produced no words is a row with nothing in
-  // it to read, decide on or copy, and a screen that lists three of them is asking somebody
-  // to scroll past the same non-event on the way to the one call that happened.
-  //
-  // They are still rows in the database. The starts count against the three-in-a-day limit
-  // and the hourly job keeps trying for a record while the voice service still holds one;
-  // neither of those is work for a person, so neither is on this screen.
-  // Every order this person bought. An order is one purchase -- a payment, a code, a call and
-  // the sheet written from that call. A case is the person, and it exists from the moment they
-  // sign in. So this panel says which purchases belong to whoever is on screen, and says
-  // plainly when nobody has signed in yet rather than leaving the screen to imply it.
-  function renderOrders(person) {
-    const box = document.getElementById('orders');
-    const note = document.getElementById('ordersnote');
-    box.textContent = '';
 
-    if (!person.linkedCase) {
-      note.textContent = "Nobody has signed in against this order yet, so it's interest and "
-        + 'nothing more. It becomes a person the moment they open their claim link while '
-        + 'signed in to Skills Economy.';
-      return;
-    }
 
-    note.textContent = person.orders.length === 1
-      ? 'One session so far.'
-      : `${person.orders.length} sessions, one person.`;
 
-    for (const order of person.orders) {
-      const row = el('div', null, order.thisOne ? 'row said us' : 'row');
-      row.append(el('div', 'Reference code', 'label'));
-      row.append(el('div', order.reference, 'code'));
-      if (order.calledAt) row.append(el('div', `Called ${when(order.calledAt)}`, 'meta'));
-      else row.append(el('div', 'No call came back', 'meta'));
-      if (order.decision) {
-        row.append(el('div', order.decision === 'go' ? 'Go' : 'No-go',
-          `badge ${order.decision === 'go' ? 'go' : 'nogo'}`));
-      }
-      if (order.recommendedAt) row.append(el('div', `Sheet written ${when(order.recommendedAt)}`, 'meta'));
-      if (!order.thisOne) {
-        const go = link('Open this one', `/desk?id=${order.id}`, 'button quiet-link');
-        row.append(go);
-      }
-      box.append(row);
-    }
-  }
 
-  function renderCalls(person) {
-    const box = document.getElementById('calls');
-    const calls = person.calls.filter((call) => call.transcript);
-    box.textContent = '';
-    if (!calls.length) {
-      box.append(el('p', person.calls.length
-        ? 'The session started but nothing was recorded.'
-        : "No call has started on this order.", 'meta'));
-      return;
-    }
-    for (const call of calls) {
-      const row = el('div', null, 'row');
-      row.append(el('div', call.kind === 'intake' ? 'Intake' : 'Follow-up', 'label'));
-      row.append(el('div', `${when(call.endedAt || call.startedAt)} · ${minutes(call.seconds)}`, 'meta'));
-      const open = el('details');
-      open.append(el('summary', 'Read it'));
-      const wrap = el('div', null, 'transcript');
-      wrap.append(el('pre', call.transcript, null));
-      open.append(wrap);
 
-      // The next conversation gets started somewhere else, so getting the words out as plain
-      // text is the point rather than a convenience.
-      const actions = el('div', null, 'actions');
-      const copy = el('button', 'Copy it', 'quiet');
-      copy.type = 'button';
-      copy.addEventListener('click', async () => {
-        try {
-          await navigator.clipboard.writeText(call.transcript);
-          copy.textContent = 'Copied';
-        } catch {
-          copy.textContent = 'Select it and copy';
-        }
-        setTimeout(() => { copy.textContent = 'Copy it'; }, 2000);
-      });
-      actions.append(copy);
 
-      // The voice service's own record of the call, whole. It is what a test case for a
-      // conversation has to be written from: what actually happened, rather than what this
-      // side remembered of it.
-      if (call.callId) {
-        const everything = el('button', 'Everything the voice service has', 'quiet');
-        everything.type = 'button';
-        everything.addEventListener('click', async () => {
-          everything.disabled = true;
-          everything.textContent = 'Asking…';
-          try {
-            const record = await get(`call-record&call=${encodeURIComponent(call.callId)}`);
-            const text = JSON.stringify(record, null, 2);
-            const shown = el('pre', text, null);
-            wrap.append(shown);
-            try {
-              await navigator.clipboard.writeText(text);
-              everything.textContent = 'Copied, and shown below';
-            } catch {
-              everything.textContent = 'Shown below — copy it from there';
-            }
-          } catch (error) {
-            everything.textContent = 'Everything the voice service has';
-            everything.disabled = false;
-            msg('rmsg', error.message, 'bad');
-          }
-        });
-        actions.append(everything);
-      }
 
-      open.append(actions);
-      row.append(open);
-      box.append(row);
-    }
-  }
 
-  // Written once and edited afterwards, because what somebody should do next is not settled in
-  // one sitting and the sheet is theirs to read whenever they come back.
-  function renderRecommendations(person) {
-    const at = document.getElementById('recommendedat');
-    const input = document.getElementById('recommendbody');
-    const form = document.getElementById('recommendform');
 
-    at.textContent = person.recommendations
-      ? `Written ${when(person.recommendedAt)}. They can read it now.`
-      : "Nothing written yet, so there's nothing for them to read.";
-    if (person.recommendations) input.value = person.recommendations;
 
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      try {
-        await post('recommend', { id: person.id, body: input.value });
-        window.location.reload();
-      } catch (error) {
-        msg('rmsg', error.message, 'bad');
-      }
-    });
-
-    renderDrafting(person);
-  }
-
-  // The conversation, which exists only on a go. Before a decision and after a no-go there
-  // is nothing decided to talk about, and the screen says which of the two it is rather than
-  // showing a form that would be refused.
-  function renderThread(person) {
-    const list = document.getElementById('thread');
-    const note = document.getElementById('threadnote');
-    const form = document.getElementById('reply');
-    list.textContent = '';
-
-    if (!person.linked) {
-      note.textContent =
-        "No account is linked to this order yet, so there's nowhere to send a message. "
-        + 'They link it by opening their claim link while signed in.';
-      form.hidden = true;
-      return;
-    }
-    if (!person.approvedAt) {
-      note.textContent = person.decision === 'no-go'
-        ? 'No-go, so the conversation is closed. They keep their sheet and everything they '
-          + 'already had. Change the decision and it opens.'
-        : "Not decided yet, so there's no conversation. A go opens it, and the opening line "
-          + 'goes out once you write the sheet.';
-      form.hidden = true;
-      return;
-    }
-    note.textContent = 'Open since ' + when(person.approvedAt)
-      + '. This is where the work happens after the sheet.';
-    form.hidden = false;
-
-    if (!person.messages.length) {
-      list.append(el('p', 'Nothing said yet. The opening line goes out once you write the '
-        + 'sheet.', 'meta'));
-    }
-    for (const message of person.messages) {
-      const theirs = message.author === 'client';
-      const scripted = message.author === 'opening';
-      const row = el('div', null,
-        scripted ? 'row' : theirs ? 'row said them' : 'row said us');
-      row.append(el('div',
-        theirs ? 'Them' : message.author === 'opening' ? 'Opening line' : 'You', 'label'));
-      row.append(el('div', message.body, null));
-      row.append(el('div', when(message.at), 'meta'));
-      list.append(row);
-    }
-
-    renderThreadPager(person);
-
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const input = document.getElementById('replybody');
-      try {
-        await post('reply', { id: person.id, body: input.value });
-        const back = new URL(window.location.href);
-        back.searchParams.delete('mpage');
-        window.location.replace(back);
-      } catch (error) {
-        msg('rmsg', error.message, 'bad');
-      }
-    });
-
-    renderReplyDrafting(person);
-  }
-
-  // Drafting, pointed at the reply rather than at the sheet. Same model, same limit, same
-  // rule that nothing it writes is sent until it has been read.
-  function renderReplyDrafting(person) {
-    const drafting = person.drafting || { models: [], chosen: null };
-    const button = document.getElementById('draftreply');
-    const note = document.getElementById('replydraftnote');
-    if (!drafting.models.length) {
-      button.hidden = true;
-      note.textContent = 'No drafting model is set up, so you write the reply yourself.';
-      return;
-    }
-    button.addEventListener('click', async () => {
-      const input = document.getElementById('replybody');
-      button.disabled = true;
-      note.textContent = 'Asking. A worker starting from cold takes up to a minute.';
-      try {
-        const written = await post('draft', { id: person.id, of: 'reply' });
-        input.value = written.content;
-        input.focus();
-        note.textContent = 'Read it before you send it. '
-          + [written.model, written.seconds + 's'].filter(Boolean).join(' · ');
-      } catch (error) {
-        note.textContent = '';
-        msg('rmsg', error.message, 'bad');
-      } finally {
-        button.disabled = false;
-      }
-    });
-  }
-
-  // The draft button writes into the sheet box and stops there. Nothing it produces reaches
-  // the person until it has been read and the operator presses Write it.
-  function renderDrafting(person) {
-    const drafting = person.drafting || { models: [], chosen: null };
-    const button = document.getElementById('draftit');
-    const note = document.getElementById('draftnote');
-    const row = document.getElementById('models');
-    row.textContent = '';
-
-    if (!drafting.models.length) {
-      button.hidden = true;
-      note.textContent = 'No drafting model is set up, so you write the sheet yourself.';
-      return;
-    }
-
-    if (drafting.models.length > 1) {
-      row.append(document.createTextNode('Drafting with: '));
-      for (const model of drafting.models) {
-        const chosen = model.slot === drafting.chosen;
-        const pick = el('button', model.name + (chosen ? ' (in use)' : ''), 'quiet');
-        pick.type = 'button';
-        pick.disabled = chosen;
-        pick.addEventListener('click', async () => {
-          try {
-            await post('model', { slot: model.slot });
-            window.location.reload();
-          } catch (error) {
-            msg('rmsg', error.message, 'bad');
-          }
-        });
-        row.append(pick);
-      }
-    }
-
-    button.addEventListener('click', async () => {
-      const input = document.getElementById('recommendbody');
-      button.disabled = true;
-      note.textContent = 'Asking. A worker starting from cold takes up to a minute.';
-      try {
-        const written = await post('draft', { id: person.id });
-        input.value = written.content;
-        input.focus();
-        const cost = [
-          written.model,
-          written.seconds + 's',
-          written.promptTokens ? written.promptTokens + ' in' : null,
-          written.completionTokens ? written.completionTokens + ' out' : null,
-        ].filter(Boolean).join(' · ');
-        note.textContent = 'Read it before you file it. ' + cost +
-          (written.fellBack ? ' — the chosen model is no longer configured, so this is the one that is.' : '');
-      } catch (error) {
-        note.textContent = '';
-        msg('rmsg', error.message, 'bad');
-      } finally {
-        button.disabled = false;
-      }
-    });
-  }
-
-  const INTRO_OUTCOMES = ['waiting', 'worked', 'went nowhere'];
-
-  // Three at once. More than that stops being a choice and starts being a catalogue, and a
-  // list of prices arriving unasked is what a sales pitch looks like. The endpoint counts
-  // the same way; this is so the screen says where it stands before somebody types.
-  const MAX_OPEN_QUOTES = 3;
-
-  function money(value) {
-    return `$${Number(value).toFixed(2)}`;
-  }
-
-  // Written for the person in front of you, against what the work is. No tier is picked here
-  // because there are none, and a quote turns nothing on — it records what two people agreed.
-  function renderQuotes(person) {
-    const list = document.getElementById('quotes');
-    const note = document.getElementById('quotenote');
-    const form = document.getElementById('writequote');
-    list.textContent = '';
-
-    if (!person.linked) {
-      note.textContent =
-        "No account is linked to this order yet, so there's nobody to quote. They link it by " +
-        'opening their claim link while signed in.';
-      form.hidden = true;
-      return;
-    }
-    // A quote is for paid work, and a no-go said this is not somebody to go on with. The
-    // two are not impossible together -- somebody turned down for the method can still be
-    // the right person for one piece of work -- but it is a thing to notice rather than a
-    // thing to do by reflex, so the screen says so before the form and asks again after it.
-    // Three at once, because three is a choice somebody reads in one go and a fourth makes
-    // it a list. Each one is answered on its own -- saying no to a price for one piece of
-    // work says nothing about the next, so the count is what is waiting rather than what has
-    // ever been written.
-    const open = person.quotes.filter((q) => q.status === 'offered').length;
-    const room = MAX_OPEN_QUOTES - open;
-
-    const lines = [];
-    if (person.decision === 'no-go') {
-      lines.push('This was a no-go. A quote is for paid work, so think it over before you '
-        + 'quote someone you turned down. Nothing stops you.');
-    }
-    lines.push(room > 0
-      ? `In dollars, against what the work actually is. ${open} of ${MAX_OPEN_QUOTES} `
-        + 'waiting on an answer.'
-      : `${MAX_OPEN_QUOTES} are already waiting on an answer. That's as many as anyone can `
-        + 'choose between. Withdraw one, or wait.');
-    note.textContent = lines.join(' ');
-    form.hidden = room <= 0;
-
-    if (!person.quotes.length) list.append(el('p', 'Nothing quoted yet.', 'meta'));
-    for (const quote of person.quotes) {
-      const row = el('div', null, 'row');
-      row.append(el('div', money(quote.amount), 'value'));
-      row.append(el('div', `Written ${when(quote.writtenAt)}`, 'meta'));
-      row.append(el('div', quote.scope, null));
-
-      // What they said back. A quote answered by the person it was written for is a fact
-      // with a time on it, so it reads as one rather than as a status that moved.
-      if (quote.answeredAt) {
-        const tone = quote.status === 'agreed' ? 'go' : quote.status === 'declined' ? 'nogo' : 'open';
-        row.append(el('div', `They said: ${quote.status}`, `badge ${tone}`));
-        row.append(el('div', `Answered ${when(quote.answeredAt)}`, 'meta'));
-        if (quote.reason) row.append(el('div', quote.reason, 'sheet'));
-      } else if (quote.status === 'offered') {
-        row.append(el('div', 'Waiting on them', 'badge open'));
-      } else {
-        row.append(el('div', `${quote.status} · moved ${when(quote.movedAt)}`, 'meta'));
-      }
-
-      // Only the moves that belong to this end. Agreeing, declining and asking for a change
-      // are the other person's to make, and a control here that does any of them would put
-      // their answer on the record in somebody else's hand.
-      const actions = el('div', null, 'actions');
-      for (const status of ['paid', 'withdrawn']) {
-        if (status === quote.status) continue;
-        const button = el('button', status, 'quiet');
-        button.type = 'button';
-        button.addEventListener('click', async () => {
-          button.disabled = true;
-          try {
-            await post('quote-move', { id: person.id, quoteId: quote.id, status });
-            window.location.reload();
-          } catch (error) {
-            button.disabled = false;
-            msg('rmsg', error.message, 'bad');
-          }
-        });
-        actions.append(button);
-      }
-      row.append(actions);
-      list.append(row);
-    }
-
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const amount = document.getElementById('amount').value;
-      if (person.decision === 'no-go'
-        && !window.confirm(`This person was a no-go. Write them a quote for $${amount}?`)) {
-        return;
-      }
-      try {
-        await post('quote', {
-          id: person.id,
-          amount,
-          scope: document.getElementById('scope').value,
-        });
-        window.location.reload();
-      } catch (error) {
-        msg('rmsg', error.message, 'bad');
-      }
-    });
-  }
-
-  // Every row is something that happened. There is no state for a match that was considered and
-  // not made, because that did not happen to anybody and is nobody's record.
-  function renderIntroductions(person) {
-    const list = document.getElementById('intros');
-    list.textContent = '';
-    if (!person.introductions.length) {
-      list.append(el('p', 'Nobody yet.', 'meta'));
-    }
-    for (const intro of person.introductions) {
-      const row = el('div', null, 'row');
-      row.append(link(intro.them.reference || `Order ${intro.them.id}`, `/desk?id=${intro.them.id}`, 'code'));
-      row.append(el('div', `${intro.outcome} · introduced ${when(intro.madeAt)}`, 'meta'));
-      if (intro.reason) row.append(el('div', intro.reason, 'meta'));
-      if (intro.note) row.append(el('div', intro.note, 'meta'));
-
-      const form = el('form', null, 'fields');
-      const pickField = el('div', null, 'field');
-      const pickLabel = el('label', 'What came of it');
-      const pick = el('select');
-      pick.id = `intro-${intro.id}`;
-      pickLabel.htmlFor = pick.id;
-      for (const outcome of INTRO_OUTCOMES) {
-        const option = el('option', outcome);
-        option.value = outcome;
-        if (outcome === intro.outcome) option.selected = true;
-        pick.append(option);
-      }
-      pickField.append(pickLabel, pick);
-
-      const noteField = el('div', null, 'field');
-      const noteLabel = el('label', 'In your words');
-      const note = el('textarea');
-      note.rows = 2;
-      note.id = `intronote-${intro.id}`;
-      note.value = intro.note || '';
-      noteLabel.htmlFor = note.id;
-      noteField.append(noteLabel, note);
-
-      const actions = el('div', null, 'actions');
-      const save = el('button', 'Record it', 'quiet');
-      save.type = 'submit';
-      actions.append(save);
-      form.append(pickField, noteField, actions);
-      form.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        save.disabled = true;
-        try {
-          await post('introduction-record', {
-            id: person.id,
-            introductionId: intro.id,
-            outcome: pick.value,
-            note: note.value,
-          });
-          window.location.reload();
-        } catch (error) {
-          save.disabled = false;
-          msg('rmsg', error.message, 'bad');
-        }
-      });
-      row.append(form);
-      list.append(row);
-    }
-
-    document.getElementById('introduce').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      try {
-        await post('introduce', {
-          id: person.id,
-          reference: document.getElementById('otherref').value,
-          reason: document.getElementById('introreason').value,
-        });
-        window.location.reload();
-      } catch (error) {
-        msg('rmsg', error.message, 'bad');
-      }
-    });
-  }
-
-  function renderFirstCustomer(person) {
-    const box = document.getElementById('firstcustomer');
-    const said = document.getElementById('earned');
-    box.textContent = '';
-    if (!person.linkedCase) {
-      said.hidden = true;
-      box.append(el('p', "This is the end of the work, and it belongs to a person. It opens "
-        + "once they've signed in.", 'meta'));
-      return;
-    }
-    said.hidden = !person.firstCustomerAt;
-    if (person.firstCustomerAt) {
-      said.textContent = `Had a paying customer by ${when(person.firstCustomerAt)}.`;
-    }
-    const reached = !person.firstCustomerAt;
-    // The one filled control on the screen. It is the end of the work, and the design
-    // spends its single solid fill on the thing that finishes something.
-    const button = el('button', reached ? 'They have a paying customer' : 'Take that back',
-      reached ? 'go-on' : 'quiet');
-    button.type = 'button';
-    button.style.flex = '1';
-    button.addEventListener('click', async () => {
-      button.disabled = true;
-      try {
-        await post('first-customer', { id: person.id, reached });
-        window.location.reload();
-      } catch (error) {
-        button.disabled = false;
-        msg('rmsg', error.message, 'bad');
-      }
-    });
-    box.append(button);
-  }
-
-  function renderEvents(person) {
-    const list = document.getElementById('events');
-    list.textContent = '';
-    if (!person.events.length) {
-      list.append(el('p', 'Nothing written down yet.', 'meta'));
-      return;
-    }
-    for (const event of person.events) {
-      const row = el('div', null, 'row');
-      row.append(el('div', event.label, null));
-      row.append(el('div', when(event.at), 'meta'));
-      if (event.detail) row.append(el('div', event.detail, 'meta'));
-      list.append(row);
-    }
-  }
-
-  function renderPerson(person) {
-    const heading = document.getElementById('ref');
-    heading.textContent = person.reference || `Order ${person.id}`;
-    if (person.isDemo) heading.append(el('span', 'DEMO', 'badge demo'));
-    const latest = person.calls[0];
-    document.getElementById('called').textContent =
-      (latest ? `Called ${when(latest.endedAt || latest.startedAt)}` : 'No call yet') +
-      (person.linked ? '' : ' · no account linked yet');
-    renderCalls(person);
-    renderOwed(person);
-    renderDecision(person);
-    renderRecommendations(person);
-    renderOrders(person);
-    renderThread(person);
-    renderPlan(person);
-    renderSteps(person);
-    renderQuotes(person);
-    renderIntroductions(person);
-    renderFirstCustomer(person);
-    renderEvents(person);
-
-    document.getElementById('addstep').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const input = document.getElementById('steptitle');
-      try {
-        await post('milestone-add', { id: person.id, title: input.value });
-        window.location.reload();
-      } catch (error) {
-        msg('rmsg', error.message, 'bad');
-      }
-    });
-
-    document.getElementById('addnote').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const input = document.getElementById('note');
-      try {
-        await post('note', { id: person.id, note: input.value });
-        window.location.reload();
-      } catch (error) {
-        msg('rmsg', error.message, 'bad');
-      }
-    });
-  }
 
   // Reloading without reaching for the browser's own button. The desk is a screen somebody
   // leaves open while the work happens elsewhere -- a call lands, a record gets kept -- so

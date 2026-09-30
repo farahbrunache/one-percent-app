@@ -797,6 +797,39 @@ input.code-field::placeholder {
 
 /* A card's own label sits at the top of it. The section spacing that separates one
    heading from the last one's text is the card gap's job once they are in cards. */
+/* A section that folds. A person's record is a dozen of them and eleven are shut, so the
+   screen opens as a list of labels with their own state beside each one rather than as a page
+   somebody scrolls looking for the part they came for.
+
+   The arrow the browser draws is replaced by a plus and a minus: the default marker sits at a
+   different size in every browser and pushes the label off its column. */
+.inside .panel.fold { padding: 0 1rem; }
+.inside .panel.fold[open] { padding-bottom: 1rem; }
+.inside .panel.fold > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.85rem 0;
+  cursor: pointer;
+  list-style: none;
+}
+.inside .panel.fold > summary::-webkit-details-marker { display: none; }
+.inside .panel.fold > summary::after {
+  content: '+';
+  margin-left: auto;
+  font-size: 0.875rem;
+  line-height: 1;
+  color: var(--in-muted);
+}
+.inside .panel.fold[open] > summary::after { content: '\2013'; }
+.inside .panel.fold > summary > h2 { margin: 0; }
+.inside .panel.fold > summary > .sofar {
+  font-size: 0.6875rem;
+  color: var(--in-soft);
+  letter-spacing: 0.01em;
+}
+.inside .panel.fold > summary:focus-visible { outline: 2px solid var(--in-sage-bright); outline-offset: 2px; }
+
 .inside .panel > h2:first-child { margin-top: 0; }
 .inside .panel > h2 { margin-top: 1.5rem; }
 .inside .panel > .rows:first-of-type { margin-top: 0.5rem; }
