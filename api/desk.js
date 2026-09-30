@@ -95,10 +95,20 @@ async function queue(req, res) {
   const page = Math.max(1, Number(params.get('page')) || 1);
   const offset = (page - 1) * PER_PAGE;
 
-  const [rows, totals] = await Promise.all([
-    sql()`
+  // One query, not two. The count used to be a second query carrying its own copy of the
+  // same `where`, and the two copies are what let the replies queue go wrong: the condition
+  // had to be edited in two places and there was nothing to say when only one of them was.
+  // `count(*) over ()` counts the rows the filter matched, before the limit, so the total
+  // and the page can never describe different sets.
+  //
+  // Writing in is open to somebody approved OR somebody quoted -- writing a quote is
+  // choosing to work with them, which is the same choice a go is. This queue asked only
+  // about approved, so a quoted no-go could write and their message landed nowhere: the
+  // tab that exists to surface a message said there was nothing in it.
+  const rows = await sql()`
       select o.id, o.reference_code, o.decision,
              o.recommendations_written_at,
+             count(*) over () as total,
              exists (select 1 from calls c2
                       where c2.order_id = o.id and c2.record_encrypted is null
                         and c2.transcript_encrypted is not null) as record_missing,
@@ -121,7 +131,9 @@ async function queue(req, res) {
                       where c.order_id = o.id and c.transcript_encrypted is not null)
          and case ${state}
                when 'waiting' then o.decision is null
-               when 'replies' then o.approved_as_client_at is not null
+               when 'replies' then (o.approved_as_client_at is not null
+                                     or exists (select 1 from quotes q
+                                                 where q.account_id = o.client_account_id))
                                    and (select m.author from messages m
                                          where m.account_id = o.client_account_id
                                          order by m.created_at desc limit 1) = 'client'
@@ -130,28 +142,13 @@ async function queue(req, res) {
              end
        order by o.id desc
        limit ${PER_PAGE} offset ${offset}
-    `,
-    sql()`
-      select count(*)::int as n from orders o
-       where exists (select 1 from calls c
-                      where c.order_id = o.id and c.transcript_encrypted is not null)
-         and case ${state}
-               when 'waiting' then o.decision is null
-               when 'replies' then o.approved_as_client_at is not null
-                                   and (select m.author from messages m
-                                         where m.account_id = o.client_account_id
-                                         order by m.created_at desc limit 1) = 'client'
-               when 'active'  then o.decision = 'go'
-               else                o.decision = 'no-go'
-             end
-    `,
-  ]);
+    `;
 
   send(res, 200, {
     state,
     page,
     perPage: PER_PAGE,
-    total: totals[0]?.n || 0,
+    total: Number(rows[0]?.total || 0),
     people: rows.map((r) => ({
       id: r.id,
       reference: r.reference_code,

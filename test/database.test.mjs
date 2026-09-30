@@ -581,5 +581,79 @@ check('no draft text is stored',
   !draftColumns.some((c) => /content|body|text|encrypted/.test(c.column_name)),
   draftColumns.map((c) => c.column_name));
 
+// ---- the queue that surfaces a message ------------------------------------------------------
+//
+// Run through the endpoint rather than by copying its `where` into this file. The bug being
+// covered was two copies of one condition drifting apart, so a test holding a third copy
+// would pass while the screen stayed wrong.
+//
+// Writing in is open to somebody approved OR somebody quoted -- writing a quote is choosing
+// to work with them, which is the same choice a go is. The queue asked only about approved,
+// so a quoted no-go could write and the tab that exists to surface a message said there was
+// nothing in it.
+console.log('');
+console.log('the queue that surfaces a message');
+
+process.env.ADMIN_ACCOUNT_IDS = 'admin-1';
+const { signSession } = await import('../lib/crypto.js');
+const deskEndpoint = (await import('../api/desk.js')).default;
+
+async function askDesk(state) {
+  const req = { method: 'GET', url: `/api/desk?action=queue&state=${state}`, headers: {
+    cookie: `op_session=${signSession('admin-1')}`,
+  } };
+  let payload = null;
+  const res = {
+    statusCode: 200,
+    writableEnded: false,
+    setHeader() {},
+    getHeader() {},
+    end(text) { this.writableEnded = true; try { payload = JSON.parse(text); } catch { payload = text; } },
+  };
+  await deskEndpoint(req, res);
+  return payload;
+}
+
+const quotedNoGo = await newOrder();
+await tagged`insert into calls (order_id, call_id, transcript_encrypted)
+             values (${quotedNoGo}, ${'c-quoted-' + quotedNoGo}, 'x')`;
+await tagged`update orders set decision = 'no-go', decision_at = now(),
+                               client_account_id = 'acct-quoted' where id = ${quotedNoGo}`;
+await tagged`insert into quotes (account_id, amount_cents, scope_encrypted)
+             values ('acct-quoted', 50000, 'x')`;
+await tagged`insert into messages (account_id, author, body_encrypted)
+             values ('acct-quoted', 'client', 'x')`;
+
+let replies = await askDesk('replies');
+check('a quoted no-go who writes in shows in the tab that surfaces a message',
+  replies.people.some((p) => Number(p.id) === quotedNoGo),
+  replies.people.map((p) => Number(p.id)));
+check('and the count matches the rows',
+  replies.total === replies.people.length, [replies.total, replies.people.length]);
+
+// The approved case, which worked before and has to keep working.
+const approvedWhoWrote = await newOrder();
+await tagged`insert into calls (order_id, call_id, transcript_encrypted)
+             values (${approvedWhoWrote}, ${'c-appr-' + approvedWhoWrote}, 'x')`;
+await tagged`update orders set decision = 'go', decision_at = now(),
+                               approved_as_client_at = now(),
+                               client_account_id = 'acct-approved' where id = ${approvedWhoWrote}`;
+await tagged`insert into messages (account_id, author, body_encrypted)
+             values ('acct-approved', 'client', 'x')`;
+
+replies = await askDesk('replies');
+check('an approved person who writes in still shows',
+  replies.people.some((p) => Number(p.id) === approvedWhoWrote),
+  replies.people.map((p) => Number(p.id)));
+
+// Answered, so nothing is waiting. The last word being the owner's is what takes somebody
+// off this queue, and the queue is useless if it keeps them after a reply.
+await tagged`insert into messages (account_id, author, body_encrypted)
+             values ('acct-approved', 'operator', 'x')`;
+replies = await askDesk('replies');
+check('somebody already written back to drops off it',
+  !replies.people.some((p) => Number(p.id) === approvedWhoWrote),
+  replies.people.map((p) => Number(p.id)));
+
 console.log(failures ? `\n${failures} failed` : '\nall passed');
 process.exit(failures ? 1 : 0);
