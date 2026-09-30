@@ -17,20 +17,20 @@
   <h1>Pay for a session</h1>
 
   <p class="lede">
-    Seven dollars. No account, no card number, no email address. You are not asked for your
-    name and you are not asked where you are.
+    Seven dollars. No account, no card number, no email address. Nobody asks for your name and
+    nobody asks where you are.
   </p>
 
   <div class="note stack gap-s">
     <p>
       Two ways to pay. <strong>Wise</strong> if you have a bank account, from anywhere in the
-      world. An <strong>Amazon gift card</strong> if you do not — one can be bought with cash
-      in a shop.
+      world. An <strong>Amazon gift card</strong> if you don't — you can buy one with cash in a
+      store.
     </p>
     <p><strong>Paying by Wise — three steps</strong></p>
     <ol class="how">
       <li>Pick Wise below, then press Start my order.</li>
-      <li>The next screen shows you a code. It is 10 characters, letters and numbers, with a
+      <li>The next screen shows you a code. It's 10 characters, letters and numbers, with a
         dash in the middle. It also shows you the Wise name to send the money to. Copy both.</li>
       <li>Open Wise and send $7 to that name. Wise will ask you for a reference, a note or a
         message before you send — paste the 10-character code in there. That code is the only
@@ -39,16 +39,16 @@
 
     <p><strong>Paying by Amazon gift card — two steps</strong></p>
     <ol class="how">
-      <li>Buy an Amazon gift card for $7 and find its claim code. It is on the card, or in the
+      <li>Buy an Amazon gift card for $7 and find its claim code. It's on the card, or in the
         email if you bought it online.</li>
       <li>Pick Amazon gift card below, paste that claim code in, and press Start my order.
-        There is nothing else to type anywhere — the card code is what tells us the money is
+        There's nothing else to type anywhere — the card code is what tells us the money is
         yours.</li>
     </ol>
 
     <p>
-      Either way, the next screen also gives you a link. Save it. It is the only way back to
-      your order, and it is where you press the button to start your session.
+      Either way, the next screen also gives you a link. Save it. It's the only way back to
+      your order, and it's where you press the button to start your session.
     </p>
   </div>
 
@@ -65,13 +65,13 @@
     <div id="cardfields" hidden>
       <div class="field">
         <label for="amount">What the card is worth</label>
-        <span class="hint">In US dollars. A session is $7. Anything over that is not refunded.</span>
+        <span class="hint">In US dollars. A session is $7. Anything over that isn't refunded.</span>
         <input id="amount" name="amount" type="text" inputmode="decimal" value="7">
       </div>
 
       <div class="field">
         <label for="code">The code on the card</label>
-        <span class="hint">Dashes and spaces do not matter.</span>
+        <span class="hint">Dashes and spaces don't matter.</span>
         <input id="code" name="code" type="text" autocomplete="off" autocapitalize="characters"
                spellcheck="false">
       </div>
@@ -92,8 +92,8 @@
       gets you a new link.
     </p>
     <p style="color:var(--ink-soft);margin-top:0.7rem;">
-      Nothing else can find your order. Your name, your email address and where you are were
-      never asked for, so there is nothing else to look you up by.
+      Nothing else can find your order. Nobody ever asked for your name, your email address or
+      where you are, so there's nothing else to look you up by.
     </p>
     <form class="fields" id="recover" novalidate>
       <div class="field">
@@ -156,7 +156,7 @@
         await navigator.clipboard.writeText(getText());
         b.textContent = 'Copied';
       } catch {
-        b.textContent = 'Copy it by hand';
+        b.textContent = 'Select it and copy';
       }
       setTimeout(() => { b.textContent = label; }, 2500);
     });
@@ -213,9 +213,9 @@
     const node = box(target, 'good');
 
     if (data.needsCode) {
-      node.append(el('p', 'Your card is in. There is nothing else to send and nothing else '
-        + 'to type. Save the link below before you go anywhere — it is the only way back to '
-        + 'your order, and nothing else was recorded about you that could find it.'));
+      node.append(el('p', "Your card is in. There's nothing else to send and nothing else "
+        + "to type. Save the link below before you go anywhere — it's the only way back to "
+        + 'your order, and nothing else about you was saved that could find it.'));
     } else {
       node.append(el('p', `Your order is open. Now open ${data.label} and send $7 to the `
         + `name below. ${data.label} will ask you for a reference, a note or a message `
@@ -235,8 +235,8 @@
     ref.append(el('div', data.reference, 'big-code'));
     node.append(ref);
 
-    node.append(el('p', 'Save this link. Bookmark it, or send it to yourself. It is the only '
-      + 'record of your order, and it is where you press the button to start your session.'));
+    node.append(el('p', "Save this link. Bookmark it, or send it to yourself. It's the only "
+      + "record of your order, and it's where you press the button to start your session."));
     const line = el('p');
     line.style.marginTop = '0.4rem';
     const a = el('a', url, 'mono');

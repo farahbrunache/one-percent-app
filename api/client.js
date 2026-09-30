@@ -19,6 +19,7 @@ import { ensureSchema, findByClaimTokenHash, sql, underLimit } from '../lib/db.j
 import { callerKey, decrypt, encrypt, keyedHash } from '../lib/crypto.js';
 import { requireAccount } from '../lib/auth.js';
 import { describeStatus } from '../lib/orders.js';
+import { isQuoteAnswer } from '../lib/desk.js';
 import { HttpError, handle, readJson, send } from '../lib/http.js';
 
 function shape(rows) {
@@ -63,13 +64,22 @@ async function mine(req, res) {
 // Approved means a go was recorded. Before that there is nothing decided to talk about, and
 // after a no-go there is no work to carry on with -- in both cases the answer is the same
 // sentence rather than an empty box.
+// A go opens the conversation, and so does being quoted.
+//
+// The second was missing and it showed. A quote said to say in the conversation if you
+// wanted it changed, and somebody quoted after a no-go had no conversation to say it in.
+// Writing somebody a quote is choosing to work with them, which is the same choice a go is,
+// so it opens the same door.
 async function requireClient(account) {
-  const rows = await sql()`
-    select 1 from orders
-     where client_account_id = ${account} and approved_as_client_at is not null
-     limit 1
-  `;
-  if (!rows.length) {
+  const [approved, quoted] = await Promise.all([
+    sql()`
+      select 1 from orders
+       where client_account_id = ${account} and approved_as_client_at is not null
+       limit 1
+    `,
+    sql()`select 1 from quotes where account_id = ${account} limit 1`,
+  ]);
+  if (!approved.length && !quoted.length) {
     throw new HttpError(
       403,
       'The conversation opens once your call has been read and the answer was yes. Until ' +
@@ -124,18 +134,83 @@ async function quotes(req, res) {
   const account = requireAccount(req);
   await ensureSchema();
   const rows = await sql()`
-    select amount_cents, scope_encrypted, status, created_at
+    select id, amount_cents, scope_encrypted, status, created_at, answered_at,
+           reason_encrypted
       from quotes where account_id = ${account}
      order by created_at desc limit 50
   `;
   send(res, 200, {
     quotes: rows.map((r) => ({
+      id: r.id,
       amount: r.amount_cents / 100,
       scope: decrypt(r.scope_encrypted),
       status: r.status,
       writtenAt: r.created_at,
+      answeredAt: r.answered_at,
+      reason: r.reason_encrypted ? decrypt(r.reason_encrypted) : null,
     })),
   });
+}
+
+// Answering a quote. Three answers, and each one is a row changing state at a known moment
+// rather than a sentence somebody has to read and interpret later.
+//
+// Agreeing needs nothing said. The other two ask for a line, because a quote that comes back
+// with no reason leaves the operator guessing at a number, a scope or a date -- and guessing
+// produces a second quote that is wrong the same way.
+//
+// Only a quote still on offer can be answered, and only by the account it was written for.
+// Both are checked in the update rather than before it, so two taps cannot both land.
+async function answerQuote(req, res) {
+  const account = requireAccount(req);
+  await ensureSchema();
+  if (!(await underLimit('client-quote', callerKey(req), 40, 3600))) {
+    throw new HttpError(429, 'That is a lot of answers in an hour. Try again later.');
+  }
+
+  const body = await readJson(req);
+  const answer = String(body.answer || '');
+  if (!isQuoteAnswer(answer)) {
+    throw new HttpError(400, 'The answer is either agreed, declined or changes asked.');
+  }
+
+  const reason = String(body.reason || '').trim().slice(0, 2000);
+  if (answer !== 'agreed' && !reason) {
+    throw new HttpError(
+      400,
+      answer === 'declined'
+        ? 'Say in a line why it is a no. Without it there is nothing to write a better one from.'
+        : 'Say in a line what needs changing. Without it there is nothing to change.',
+    );
+  }
+
+  const id = Number(body.id);
+  if (!Number.isInteger(id) || id < 1) throw new HttpError(400, 'Which quote?');
+
+  const done = await sql()`
+    update quotes set
+      status = ${answer},
+      answered_at = now(),
+      reason_encrypted = ${reason ? encrypt(reason) : null},
+      updated_at = now()
+     where id = ${id} and account_id = ${account} and status = 'offered'
+     returning id
+  `;
+  if (!done.length) {
+    throw new HttpError(409, 'That quote is not one of yours, or it has already been answered.');
+  }
+
+  // On the trail beside everything else that happened to this person, so the record reads in
+  // order. A quote follows the account rather than one order, so it is filed against their
+  // most recent one, which is the record somebody is looking at.
+  await sql()`
+    insert into case_events (order_id, kind, detail_encrypted)
+    select id, 'quote.answered', ${encrypt(`${answer}. ${reason}`.trim())}
+      from orders where client_account_id = ${account}
+     order by created_at desc limit 1
+  `;
+
+  return quotes(req, res);
 }
 
 async function link(req, res) {
@@ -174,9 +249,11 @@ export default handle(['GET', 'POST'], async (req, res) => {
   if (req.method === 'GET' && action === 'thread') return thread(req, res);
   if (req.method === 'GET' && action === 'quotes') return quotes(req, res);
   if (req.method === 'POST' && action === 'link') return link(req, res);
+  if (req.method === 'POST' && action === 'quote-answer') return answerQuote(req, res);
   if (req.method === 'POST' && action === 'send') return sendMessage(req, res);
   throw new HttpError(
     400,
-    'Use action=mine, action=thread, action=quotes, action=link or action=send.',
+    'Use action=mine, action=thread, action=quotes, action=link, action=send or ' +
+      'action=quote-answer.',
   );
 });

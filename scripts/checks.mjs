@@ -10,9 +10,10 @@
 //
 // Run with: npm run check
 
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -47,6 +48,26 @@ for (const file of scripts) {
     execFileSync(process.execPath, ['--check', file], { stdio: 'pipe' });
   } catch (error) {
     fail('syntax', `${file.slice(ROOT.length + 1)} does not parse.\n${error.stderr}`);
+  }
+}
+
+// Every page runs a module script inline, and nothing was parsing those. A copy pass put an
+// apostrophe inside a single-quoted string on three pages at once -- "it's how you get back"
+// -- and each one is a page that loads, renders nothing, and reports the error only to a
+// browser console nobody has open on a phone. Node parses the script body on its own, so the
+// body is written out and checked the same way a .js file is.
+const pages = files.filter((f) => f.endsWith('.html'));
+for (const file of pages) {
+  const body = read(file).match(/<script type="module">([\s\S]*?)<\/script>/);
+  if (!body) continue;
+  const scratch = join(tmpdir(), `check-${basename(file)}.mjs`);
+  writeFileSync(scratch, body[1]);
+  try {
+    execFileSync(process.execPath, ['--check', scratch], { stdio: 'pipe' });
+  } catch (error) {
+    fail('syntax', `${file.slice(ROOT.length + 1)} has a script that does not parse.\n${error.stderr}`);
+  } finally {
+    rmSync(scratch, { force: true });
   }
 }
 
@@ -123,6 +144,84 @@ for (const file of files.filter((f) => f.includes('/api/') && f.endsWith('.js'))
   for (const name of names) {
     if (!callers.includes(`'${name}'`) && !callers.includes(`action=${name}`)) {
       fail('unreachable', `${file.slice(ROOT.length + 1)} accepts action "${name}" and nothing calls it.`);
+    }
+  }
+}
+
+// ---- the desk reading a field the desk endpoint does not send -------------------------------
+//
+// The record said "Not decided yet" on a record with a no-go against it, because the page
+// read `person.assessment` and the payload had carried `person.decision` since the rename.
+// Nothing failed. A missing property is `undefined`, the comparison was false, and the page
+// told the owner the opposite of what the row said two panels above.
+//
+// So every `person.<name>` the desk reads has to be a key the person payload sends. The
+// payload is one object literal, and its top-level keys are the contract between the two
+// halves of that screen.
+{
+  const desk = read(`${ROOT}/api/desk.js`);
+
+  // Both payloads, because the page calls a row in the queue `person` too -- one object
+  // per person either way, and a field named in neither is named nowhere.
+  const sent = new Set();
+  for (const name of ['queue', 'person']) {
+    const start = desk.indexOf(`async function ${name}(`);
+    if (start < 0) continue;
+    const next = desk.indexOf('\nasync function', start + 10);
+    const body = desk.slice(start, next < 0 ? undefined : next);
+    for (const m of body.matchAll(/\b([a-zA-Z]\w*):/g)) sent.add(m[1]);
+  }
+
+  if (sent.size < 10) {
+    fail('payload', 'scripts/checks.mjs could not read the desk payloads, so its fields are unchecked.');
+  } else {
+    const page = read(`${ROOT}/desk.html`);
+    const seen = new Set([...page.matchAll(/\bperson\.([a-zA-Z]\w*)/g)].map((m) => m[1]));
+    for (const field of seen) {
+      if (!sent.has(field)) {
+        fail('payload', `desk.html reads person.${field} and the desk endpoint sends no such field.`);
+      }
+    }
+  }
+}
+
+// ---- a page walking into an endpoint that will not answer -----------------------------------
+//
+// Sign out is a POST, and the desk navigated to it. A browser following a link sends GET, so
+// the endpoint refused and the press landed on a page of JSON listing which actions exist.
+// It is POST-only on purpose -- anything that logs somebody out by being visited can be
+// triggered by a link somebody else wrote -- so the page was wrong, not the endpoint.
+//
+// This reads every navigation in the pages: `location.href =`, `location.assign`,
+// `location.replace`, and a plain href in the markup. Anything pointing at `/api/...` with an
+// action has to be an action that file answers on GET.
+{
+  const getActions = new Map();
+  for (const file of files.filter((f) => f.includes('/api/') && f.endsWith('.js'))) {
+    const text = read(file);
+    const name = file.slice(file.lastIndexOf('/') + 1, -3);
+    const allowed = new Set(
+      [...text.matchAll(/req\.method === 'GET' && action === '([a-z][a-z-]*)'/g)].map((m) => m[1]),
+    );
+    // The desk keeps its actions in a map with a key per method.
+    const table = text.match(/GET:\s*\{([^}]*)\}/);
+    if (table) {
+      for (const m of table[1].matchAll(/'?([a-z][a-zA-Z-]*)'?/g)) allowed.add(m[1]);
+    }
+    getActions.set(name, allowed);
+  }
+
+  const navigation = /(?:location\.(?:href\s*=|assign\(|replace\()|href=)\s*['"`]\/api\/([a-z-]+)\?([^'"`]*)['"`]/g;
+  for (const file of files.filter((f) => f.endsWith('.html'))) {
+    for (const m of read(file).matchAll(navigation)) {
+      const endpoint = m[1];
+      const action = (m[2].match(/action=([a-zA-Z-]+)/) || [])[1];
+      if (!action) continue;
+      const allowed = getActions.get(endpoint);
+      if (!allowed) continue;
+      if (!allowed.has(action)) {
+        fail('navigation', `${file.slice(ROOT.length + 1)} navigates to /api/${endpoint}?action=${action}, and that endpoint does not answer ${action} on GET.`);
+      }
     }
   }
 }
@@ -262,4 +361,5 @@ if (problems.length) {
   console.error('');
   process.exit(1);
 }
-console.log(`checked ${scripts.length} files, ${deployKeys.size} settings, and every endpoint action.`);
+console.log(`checked ${scripts.length + pages.length} files, ${deployKeys.size} settings, `
+  + 'and every endpoint action.');

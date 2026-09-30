@@ -101,6 +101,23 @@ afterwards.
 The phone-width and dark-only rules above hold over any of this. Where the reference and one
 of them disagree, the rule wins.
 
+## A way back, and a way to ask again
+
+Every screen reached from another carries a link back to it, and every screen whose figures
+go out of date while it is open carries its own control to bring them up to date. Both sit
+in one row across the top: where it came from on the left, refresh on the right.
+
+Neither is the browser's job. The back button is history rather than structure — it goes
+wherever somebody happened to be, which is not the same as where the screen sits — and a
+person on a phone reaching for the address bar to reload has been failed by the page.
+
+So: payments came from the desk and says so. A person's record came from the queue and says
+so. Paying and the claim page came from the sales page and say so. The desk is the top of
+the operator side and has nothing above it, so it has refresh alone.
+
+The one on the sales side points at the sales page rather than at whichever app screen sent
+somebody there, because that is where those pages sit even when the path in was different.
+
 ## No loading screens
 
 Nothing on any screen says it is checking, reading, or loading. A screen is blank for the
@@ -372,6 +389,30 @@ Say exactly what to do, name the actual thing, and give the actual number.
 
 None of this licenses padding. Saying the same thing twice is not clearer than saying it
 once.
+
+## Write current American English
+
+Copy here kept coming out in a register nobody has written in for decades. Not wrong, just
+old: no contractions anywhere, "by hand" for yourself, "a day on" for a day later, "so there
+is no conversation" where a person would say "so there's no conversation". A reader notices
+the distance before they notice the sentence, and on a paid product that distance reads as
+something other than a person.
+
+So write the way somebody says it out loud, today, in the United States.
+
+- Use contractions. It's, isn't, hasn't, you've, they're, don't, can't, there's. Dropping
+  every one of them is the single loudest tell, and it was dropped on every page.
+- Say yourself, not by hand. Say a day later, not a day on. Say store, not shop.
+- Use the plain verb. Saved, not kept. Started, not opened against. Charged, not taken.
+- Cut the inverted aside. "What the work is worth to the person who needs it, not what the
+  going rate is" beats "rather than what the going rate is".
+- Keep the sentences short enough to say in one breath. A clause that needs a dash to hold
+  itself together usually wants to be two sentences.
+
+Nothing here loosens the voice rule below. Plain is not chatty: no pleasantries, no feelings,
+no filler. This is about the era the words come from, not the warmth.
+
+It applies to commit messages and pull request bodies too, for the same reason.
 
 ## Voice
 
