@@ -13,6 +13,8 @@
 <body>
 <main class="wrap inside">
 
+  <div id="deskmsg" hidden></div>
+
   <div id="signin" hidden>
     <h1>Desk</h1>
     <p class="lede">Sign in with Skills Economy to read what came in.</p>
@@ -222,7 +224,7 @@
 
 <script type="module">
   import { codeFields } from '/codefield.js';
-  import { el, link, msg, call, get, post, when, minutes, demoChip, hours,
+  import { el, link, msg, call, get, post, when, minutes, demoChip, hours, owed,
     personId, state, page, mpage, askedForQueue } from '/desk-ui.js';
   import { renderPerson } from '/desk-record.js';
 
@@ -540,18 +542,20 @@
       : askedForQueue
         ? `/api/desk?action=queue&state=${encodeURIComponent(state)}&page=${page}`
         : '/api/desk?action=today';
+    // Drawn first, shown second. Revealing the block before rendering into it meant a render
+    // that threw left a half-drawn screen on display -- a heading, a count, and no rows.
     try {
       const data = await call(url);
       if (personId) {
-        document.getElementById('record').hidden = false;
         renderPerson(data);
+        document.getElementById('record').hidden = false;
       } else if (askedForQueue) {
-        document.getElementById('queue').hidden = false;
         renderQueue(data);
+        document.getElementById('queue').hidden = false;
         renderFunnel();
       } else {
-        document.getElementById('todayview').hidden = false;
         renderFirstScreen(data);
+        document.getElementById('todayview').hidden = false;
       }
     } catch (error) {
       if (error.status === 401) {
@@ -560,8 +564,10 @@
           `/api/auth?action=start&to=${encodeURIComponent(here.pathname + here.search)}`;
         return;
       }
-      document.getElementById('signin').hidden = false;
-      msg('lmsg', error.message, 'bad');
+      // Anything else is not a sign-in problem, and this used to show the sign-in block for
+      // all of them. Somebody already signed in was told to sign in, which sends them round a
+      // loop that cannot fix what broke and hides what did.
+      msg('deskmsg', error.message, 'bad');
     }
   }
 

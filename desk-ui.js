@@ -7,6 +7,10 @@
 //
 // Where the screen is, is here too. One parse of the address, so two modules can't disagree about
 // which person is open or which page of a conversation is showing.
+//
+// What is owed on somebody is here for the same reason: the queue flags it on every row and the
+// record screen lists it, and those two have to say the same thing about the same person. It was
+// in the record module and the queue could not reach it, which broke the queue.
 
 export const here = new URL(window.location.href);
 export const personId = here.searchParams.get('id');
@@ -90,4 +94,40 @@ export function hours(n) {
 
 export function money(value) {
   return `$${Number(value).toFixed(2)}`;
+}
+
+// What is owed on somebody, in the order it has to happen.
+//
+// These are steps in a piece of work, not controls that happen to be on a screen. A control
+// that is simply there gets pressed when somebody remembers; a step that is named and
+// counted gets done. Everybody who called is owed a decision and a sheet, and neither is
+// optional.
+//
+// Keeping the call's record is on the list and is usually not work: an hourly job takes it.
+// So it says so quietly while that job has not caught up, and loudly once a day has passed,
+// because the voice service forgets a call after seven.
+export function owed(person) {
+  const out = [];
+  // First, because it is a person waiting on an answer rather than a job waiting on you.
+  // Their messages land in the conversation, which is seven panels down a phone screen, so
+  // without this line they wrote and the screen said nothing was owed.
+  if (person.awaitingReply) {
+    out.push({ what: 'They wrote to you and are waiting on a reply.', yours: true });
+  }
+  if (person.recordMissing) {
+    const aDayOn = person.calledAt
+      && Date.now() - new Date(person.calledAt).getTime() > 24 * 3600 * 1000;
+    out.push({
+      what: aDayOn
+        ? "It's been over a day and the call record still isn't saved. Open the call and "
+          + 'save it yourself.'
+        : "The call record isn't saved yet. The hourly job picks it up. Nothing to do.",
+      yours: Boolean(aDayOn),
+    });
+  }
+  if (!person.decision) out.push({ what: "Go or no-go, once you've read the call.", yours: true });
+  if (!person.recommendedAt) {
+    out.push({ what: 'Write their sheet. Everyone who calls gets one.', yours: true });
+  }
+  return out;
 }

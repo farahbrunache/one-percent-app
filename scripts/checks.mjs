@@ -426,6 +426,13 @@ for (const file of files.filter((f) => f.endsWith('.html'))) {
 // Bare calls only -- `foo(` and never `thing.foo(` -- because a method belongs to whatever
 // object it is on and this file knows nothing about that. That narrowness is deliberate: the
 // failure it is for is exactly a bare call to a name that used to be imported.
+//
+// It reads pages as well as modules now, and it should have from the start. Splitting desk.html
+// into modules left the queue calling owed(person) after owed moved into the record module
+// unexported. Nothing caught it: the page parsed, it loaded, and the page has <div id="owed"> --
+// a browser gives every element with an id a global of that name, so the call resolved to the
+// div and threw only when somebody opened the queue. The desk shipped with its main list broken,
+// and this check was already written; it just was not looking at pages.
 const GLOBALS = new Set([
   'require', 'fetch', 'structuredClone', 'setTimeout', 'clearTimeout', 'setInterval',
   'clearInterval', 'queueMicrotask', 'atob', 'btoa', 'encodeURIComponent',
@@ -437,8 +444,24 @@ const GLOBALS = new Set([
   'new', 'delete', 'void', 'in', 'of', 'yield', 'throw', 'case',
 ]);
 
-for (const file of files.filter((f) => /\/(api|lib)\//.test(f) && f.endsWith('.js'))) {
-  const text = read(file);
+const callSites = [
+  ...files
+    .filter((f) => /\/(api|lib)\//.test(f) && f.endsWith('.js'))
+    .map((f) => ({ where: f.slice(ROOT.length + 1), text: read(f) })),
+  // A page's inline script, which is the only script a page has that a module system does not
+  // already fail loudly for. A module calling something it never imported dies at load on every
+  // page that uses it; an inline script calling one dies at the call, on one screen.
+  ...files
+    .filter((f) => f.endsWith('.html'))
+    .map((f) => {
+      const page = read(f);
+      const inline = (page.match(/<script type="module">([\s\S]*?)<\/script>/) || [])[1];
+      return inline ? { where: `${f.slice(ROOT.length + 1)} (its inline script)`, text: inline, page } : null;
+    })
+    .filter(Boolean),
+];
+
+for (const { where, text, page } of callSites) {
 
   const declared = new Set(GLOBALS);
   // import { a, b as c } from '...'  and  import x from '...'
@@ -482,7 +505,11 @@ for (const file of files.filter((f) => /\/(api|lib)\//.test(f) && f.endsWith('.j
   for (const m of withoutStrings.matchAll(/(^|[^.\w$])([a-z_$][\w$]*)\s*\(/g)) {
     const name = m[2];
     if (!declared.has(name)) {
-      fail('missing', `${file.slice(ROOT.length + 1)} calls ${name}() and nothing here declares it.`);
+      fail('missing', `${where} calls ${name}() and nothing here declares it.`
+        + (page && page.includes(`id="${name}"`)
+          ? ` The page has an element with id="${name}", so the call resolves to that element`
+            + ' and throws when the screen runs rather than when the page loads.'
+          : ''));
     }
   }
 }

@@ -5,7 +5,8 @@
 // they're doing -- the path, the milestones, the quotes, the introductions -- is its own module,
 // imported and rendered in place.
 
-import { el, link, msg, get, post, when, day, minutes, money, mpage, here } from '/desk-ui.js';
+import { el, link, msg, get, post, when, day, minutes, money, owed, mpage, here }
+  from '/desk-ui.js';
 import { renderPlan, renderSteps, renderQuotes, renderIntroductions, pathLabel }
   from '/desk-work.js';
 
@@ -35,41 +36,6 @@ function renderThreadPager(person) {
   if (at < last) box.append(link('Newer', to(at + 1), 'button quiet-link'));
 }
 
-// What is owed on somebody, in the order it has to happen.
-//
-// These are steps in a piece of work, not controls that happen to be on a screen. A control
-// that is simply there gets pressed when somebody remembers; a step that is named and
-// counted gets done. Everybody who called is owed a decision and a sheet, and neither is
-// optional.
-//
-// Keeping the call's record is on the list and is usually not work: an hourly job takes it.
-// So it says so quietly while that job has not caught up, and loudly once a day has passed,
-// because the voice service forgets a call after seven.
-function owed(person) {
-  const out = [];
-  // First, because it is a person waiting on an answer rather than a job waiting on you.
-  // Their messages land in the conversation, which is seven panels down a phone screen, so
-  // without this line they wrote and the screen said nothing was owed.
-  if (person.awaitingReply) {
-    out.push({ what: 'They wrote to you and are waiting on a reply.', yours: true });
-  }
-  if (person.recordMissing) {
-    const aDayOn = person.calledAt
-      && Date.now() - new Date(person.calledAt).getTime() > 24 * 3600 * 1000;
-    out.push({
-      what: aDayOn
-        ? "It's been over a day and the call record still isn't saved. Open the call and "
-          + 'save it yourself.'
-        : "The call record isn't saved yet. The hourly job picks it up. Nothing to do.",
-      yours: Boolean(aDayOn),
-    });
-  }
-  if (!person.decision) out.push({ what: "Go or no-go, once you've read the call.", yours: true });
-  if (!person.recommendedAt) {
-    out.push({ what: 'Write their sheet. Everyone who calls gets one.', yours: true });
-  }
-  return out;
-}
 
 function renderOwed(person) {
   const box = document.getElementById('owed');
