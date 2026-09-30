@@ -843,60 +843,40 @@ button.danger { background: transparent; color: var(--ink-soft); border: 1px sol
 .how li + li { margin-top: 0.6rem; }
 
 /* ---- the funnel -----------------------------------------------------------------------
-   Five stages, each a subset of the one above, drawn as a shape that narrows.
-   It was five tiles in a grid, and a grid of numbers is not a funnel: five equal boxes
-   say the five things are the same size, which is the one fact a funnel exists to
-   contradict. Each band's width is its count against the top of the funnel, and each
-   band's sloped sides run from the width above it to its own, so the drop between two
-   steps is the thing the eye lands on.
+   Five stages, each a subset of the one above, drawn the way a funnel is drawn: a shape
+   that narrows, with each stage's words inside its own band.
 
-   The words are beside the shape rather than on it. Laid over the band they crossed the
-   edge between a light fill and a dark panel halfway through a word, which is unreadable
-   whichever colour the text is. So the left of the row is names and the right is the
-   funnel, and the two never overlap.
+   The widths step down evenly rather than tracking the counts. A funnel whose bands are
+   literally proportional collapses -- one person out of twelve is a band nine percent
+   wide, and nothing legible goes in a band nine percent wide. The proportion is what the
+   numbers are for, and they are in the band; the shape is what says there is a drop at
+   every step.
 
-   No chart library. Five trapezoids are five clip-paths.
+   Two earlier attempts are worth not repeating. Five equal tiles in a grid said the five
+   stages were the same size, which is what a funnel exists to contradict. Proportional
+   bands with the words beside them were honest and read as a bar chart with a caption --
+   the words have to be in the shape.
    -------------------------------------------------------------------------------------- */
 .inside .funnel { margin-top: 1rem; }
 
+/* The open top. A funnel is a vessel seen slightly from above, and the ellipse is what
+   says so -- without it the first band is a rectangle and the shape starts as a box. */
+.inside .funnel .rim {
+  height: 0.9rem;
+  margin-bottom: -0.45rem;
+  border-radius: 50% / 100%;
+  background: #7e3f35;
+}
+
 .inside .funnel .stage {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  height: 3rem;
-}
-
-.inside .funnel .words {
-  flex: 0 0 43%;
-  text-align: right;
-  line-height: 1.2;
-}
-.inside .funnel .name {
-  font-size: 0.625rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--in-soft);
-}
-/* How much of the step above survived. Under the name rather than beside it, because it is
-   the figure that says whether a step is working and it should not be hunted for. */
-.inside .funnel .rate {
-  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.625rem;
-  color: var(--in-muted);
-}
-
-/* The shape's own column. The band is centered in it, so the funnel has a middle to
-   narrow toward. */
-.inside .funnel .track {
   position: relative;
-  flex: 1 1 auto;
-  align-self: stretch;
-}
-
-.inside .funnel .band {
-  position: absolute;
-  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding-block: 0.55rem;
+  min-height: 3.75rem;
   background: var(--band);
   clip-path: polygon(
     var(--top-left) 0%, var(--top-right) 0%,
@@ -904,24 +884,30 @@ button.danger { background: transparent; color: var(--ink-soft); border: 1px sol
   );
 }
 
-/* A hairline where one band meets the next, so five stages read as five rather than as one
-   tapering block. */
-.inside .funnel .stage + .stage .band { border-top: 1px solid rgba(21, 25, 24, 0.55); }
+/* The dark line between one band and the next. A gap in the shape rather than a border,
+   so the funnel reads as stacked segments the way a drawn one does. */
+.inside .funnel .stage + .stage { margin-top: 3px; }
 
+/* Dark ink on the band, not light. When every band was coral, cream read well on all five.
+   The bands run coral to sage now, and cream on the sage end is close to unreadable, so the
+   text takes the one colour that works on the whole range -- which is what the shipped
+   funnel already used on its bands. */
 .inside .funnel .count {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 1.25rem;
+  font-size: 1.35rem;
+  line-height: 1.1;
   letter-spacing: -0.03em;
   color: #16201e;
 }
-/* Past a point the band is narrower than its own number, so the number is standing on the
-   panel instead of on the colour and has to be light to be read. */
-.inside .funnel .stage.thin .count { color: var(--in-cream); }
+.inside .funnel .name {
+  font-size: 0.625rem;
+  text-wrap: balance;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgba(22, 32, 30, 0.86);
+  margin-top: 2px;
+}
 
 .inside .funnel .nothing {
   font-size: 0.75rem;
