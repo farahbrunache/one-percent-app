@@ -15,7 +15,7 @@
 // something to talk about. Anyone else asking gets told so plainly rather than being shown a
 // box that would not send.
 
-import { ensureSchema, findByClaimTokenHash, sql, underLimit } from '../lib/db.js';
+import { caseForAccount, ensureSchema, findByClaimTokenHash, sql, underLimit } from '../lib/db.js';
 import { callerKey, decrypt, encrypt, keyedHash } from '../lib/crypto.js';
 import { requireAccount } from '../lib/auth.js';
 import { describeStatus } from '../lib/orders.js';
@@ -245,9 +245,19 @@ async function link(req, res) {
     throw new HttpError(409, 'That link is already held by a different account.');
   }
 
+  // Signing in and linking an order is what creates a case. Before this the order is
+  // interest: a payment, a code, a call and a sheet, and nothing about a person. After it
+  // there is somebody to work with, and the plan, the conversation and the quotes hang off
+  // them rather than off whichever order they happened to buy.
+  const caseId = await caseForAccount(account);
   await sql()`
-    update orders set client_account_id = ${account}
+    update orders set client_account_id = ${account}, case_id = ${caseId}
      where id = ${order.id} and client_account_id is null
+  `;
+  // An order this account already held, from before cases existed, still needs the case.
+  await sql()`
+    update orders set case_id = ${caseId}
+     where client_account_id = ${account} and case_id is null
   `;
   return mine(req, res);
 }
