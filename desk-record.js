@@ -171,7 +171,7 @@ function renderCalls(person) {
     });
     actions.append(copy);
 
-    // The voice service's own record of the call, whole. It is what a test case for a
+    // The voice service's own record of the call, entire. It is what a test case for a
     // conversation has to be written from: what actually happened, rather than what this
     // side remembered of it.
     if (call.callId) {

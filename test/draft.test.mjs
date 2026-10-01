@@ -114,7 +114,7 @@ check('waiting too long gives up and says how long it waited',
 // anything picked it up. The message has to say which, or the only way to find out is to ask
 // somebody who can read the code.
 check('a job nothing ever started says it sat queued',
-  /queued the whole time/.test(waited.message) && /not\s+a billing refusal/.test(waited.message),
+  /queued the entire time/.test(waited.message) && /not\s+a billing refusal/.test(waited.message),
   waited.message);
 
 clock = 0;
@@ -129,7 +129,7 @@ try {
 } catch (error) { slow = error; }
 check('a job a worker took says it started and was slow',
   slow?.status === 504 && /started on it/.test(slow.message)
-  && !/queued the whole time/.test(slow.message), slow?.message);
+  && !/queued the entire time/.test(slow.message), slow?.message);
 
 // ---- the shape a sheet is written in ---------------------------------------------------------
 //

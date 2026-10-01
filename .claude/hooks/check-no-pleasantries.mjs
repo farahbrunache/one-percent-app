@@ -42,6 +42,16 @@ const VOCABULARY = [
   // "console" reads as developer jargon for a screen; say "dashboard". The negative lookahead skips
   // the code identifiers console.log / console.error / console.info so quoting real code never trips.
   { re: /\bconsole\b(?!\.\w)/i, use: 'dashboard' },
+  // The word itself, in every frame, negated forms included. It was banned as a construction
+  // first -- "that is the whole point" -- and each time a noun was named the next reply reached
+  // for a different one in the same frame, then for the same word one frame over ("for the whole
+  // of that chain"). Entire, all of and end to end cover every honest use, and most uses were
+  // carrying nothing.
+  { re: /\bwholly?\b/i, use: 'entire, all of, end to end -- or drop it, which is usually right' },
+  // The sentence that arrives after the facts to tell the reader which of them mattered. It reads
+  // as insistence, and a reader can weigh facts without being told which one to weigh.
+  { re: /\b(?:that|this|which|it) is the point (?:of|here)\b/i,
+    use: 'end on the fact itself -- if a sentence only labels what came before it, delete it' },
 ];
 
 function readStdin() {

@@ -15,6 +15,7 @@ import { execFileSync } from 'node:child_process';
 import { basename, dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { namesResolve } from './checks-names.mjs';
+import { wordsAreAllowed } from './checks-words.mjs';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -55,7 +56,7 @@ for (const file of scripts) {
 // Every page runs a module script inline, and nothing was parsing those. A copy pass put an
 // apostrophe inside a single-quoted string on three pages at once -- "it's how you get back"
 // -- and each one is a page that loads, renders nothing, and reports the error only to a
-// browser console nobody has open on a phone. Node parses the script body on its own, so the
+// browser error log nobody has open on a phone. Node parses the script body on its own, so the
 // body is written out and checked the same way a .js file is.
 const pages = files.filter((f) => f.endsWith('.html'));
 for (const file of pages) {
@@ -423,7 +424,7 @@ namesResolve({ ROOT, files, read, fail });
 //
 // A browser import is an address, not a file path. server.js decides which address serves which
 // file, so a module can exist, parse, be imported correctly and still 404 -- and when it does,
-// the import fails, the whole inline script never runs, and the page renders nothing with no
+// the import fails, the entire inline script never runs, and the page renders nothing with no
 // error anywhere a phone can see.
 //
 // That happened the moment a module was added under lib/ and served at a root address: the local
@@ -444,6 +445,8 @@ for (const file of files.filter((f) => f.endsWith('.html') || /^[^/]*\.js$/.test
     );
   }
 }
+
+wordsAreAllowed({ ROOT, files, read, fail });
 
 // ---- what happened --------------------------------------------------------------------------
 

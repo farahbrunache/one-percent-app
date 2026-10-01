@@ -395,7 +395,7 @@
 
   // Tell the server the session never connected, so the minutes it reserved go back.
   //
-  // A call left open counts as the whole budget, because from the server's side a call it has
+  // A call left open counts as the entire budget, because from the server's side a call it has
   // heard nothing about may still be running. Without this, one failure to join spends the
   // order and there is no way to start another -- which is what happened the first time one
   // failed.
@@ -466,12 +466,12 @@
     const said = parts.join(' · ');
 
     // The client reports a failure to start as a bare sentence and logs the real one to the
-    // browser's own console, so on screen there is nothing else to show and saying where it
+    // browser's own error log, so on screen there is nothing else to show and saying where it
     // went is the only useful thing left.
     const bare = typeof failure === 'string' || (parts.length <= 2 && !failure?.name);
     return `${said}. If the browser asked for the microphone and it was refused, or there is `
       + 'no microphone on this device, that is what this says.'
-      + (bare ? ' The reason itself is in the browser console, under Error starting call.' : '');
+      + (bare ? " The reason itself is in the browser's error log, under Error starting call." : '');
   }
 
   const copy = document.getElementById('copylink');

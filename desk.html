@@ -579,11 +579,12 @@
         + (late ? ` · ${late} past ${data.targetHours} hours` : '')
       : '';
 
-    const stale = renderTodayList(
+    const pastTarget = renderTodayList(
       document.getElementById('newunread'), data.unread, data.targetHours,
       'Nothing unread.', 'Open it', data.calls.length === 0);
     document.getElementById('unreadcount').textContent = data.unread.length
-      ? `${data.unread.length} unread` + (stale ? ` · ${stale} past ${data.targetHours} hours` : '')
+      ? `${data.unread.length} unread`
+        + (pastTarget ? ` · ${pastTarget} past ${data.targetHours} hours` : '')
       : '';
 
     // Third, because the first two are somebody waiting to be read and this is somebody who has
