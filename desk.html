@@ -51,6 +51,12 @@
       <div id="newanswered" class="rows"></div>
     </div>
 
+    <div class="panel">
+      <h2>Due to ask about</h2>
+      <p class="meta" id="duecount"></p>
+      <div id="newdue" class="rows"></div>
+    </div>
+
     <div class="actions">
       <button type="button" class="quiet" id="seeddemo">Add demo data</button>
       <button type="button" class="quiet" id="cleardemo">Delete demo data</button>
@@ -268,7 +274,7 @@
 <script type="module">
   import { codeFields } from '/codefield.js';
   import { el, link, msg, call, get, post, when, minutes, money, demoChip, hours, owed,
-    personId, state, page, mpage, askedForQueue } from '/desk-ui.js';
+    here, personId, state, page, mpage, askedForQueue } from '/desk-ui.js';
   import { renderPerson } from '/desk-record.js';
 
   codeFields(['otherref']);
@@ -478,6 +484,12 @@
       if (row.status) {
         line.append(el('div', `${row.status} · ${money(row.amount)}`, 'badge open'));
       }
+      // What to ask about, and which step it sits under. Without the words the row is a
+      // reference and a date, which is a trip into the record to find out what it means.
+      if (row.title) {
+        line.append(el('div', row.title, 'said'));
+        line.append(el('div', `${row.milestone} · ${row.cadenceLabel}`, 'meta'));
+      }
       line.append(link(verb, `/desk?id=${row.id}`,
         primary && i === 0 ? 'button go-on' : 'button quiet-link'));
       box.append(line);
@@ -511,6 +523,17 @@
     document.getElementById('answeredcount').textContent = answered.length
       ? `${answered.length} waiting on you`
         + (overdue ? ` · ${overdue} past ${data.targetHours} hours` : '')
+      : '';
+
+    // Last, because nobody here is waiting on an answer. Somebody said they would do something
+    // and the date to ask about it has come round. It is the quietest list and the one that
+    // never happens without a screen for it.
+    const due = data.due || [];
+    renderTodayList(
+      document.getElementById('newdue'), due, data.targetHours,
+      'Nothing due.', 'Open it', false);
+    document.getElementById('duecount').textContent = due.length
+      ? `${due.length} to ask about`
       : '';
   }
 

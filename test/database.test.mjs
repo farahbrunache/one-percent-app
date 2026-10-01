@@ -536,14 +536,14 @@ check('a new quote starts as offered', mine.some((q) => q.status === 'offered'),
 console.log('the operator\'s choices');
 // A choice the operator makes from a screen. It replaces rather than accumulating, because
 // there is one model in use and not a history of them.
-await db.writeChoice('draft.model.slot', 'A');
-await db.writeChoice('draft.model.slot', 'B');
-check('a choice replaces the one before it', (await db.readChoice('draft.model.slot')) === 'B');
+const settings = await import('../lib/settings.js');
+await settings.writeChoice('draft.model.slot', 'A');
+await settings.writeChoice('draft.model.slot', 'B');
+check('a choice replaces the one before it', (await settings.readChoice('draft.model.slot')) === 'B');
 check('a choice nobody has made reads as nothing',
-  (await db.readChoice('draft.model.never.set')) === null);
+  (await settings.readChoice('draft.model.never.set')) === null);
 
-console.log('what a draft cost');
-// The text is not kept. What is kept is the arithmetic, because the cost of serving somebody
+console.log('what a draft cost');// The text is not kept. What is kept is the arithmetic, because the cost of serving somebody
 // through a chat is measured rather than read off a pricing page.
 const costedId = await newOrder();
 await tagged`insert into drafts (order_id, slot, model, prompt_tokens, completion_tokens, seconds)

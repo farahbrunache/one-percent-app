@@ -11,7 +11,7 @@
     "retell-sdk": "^6.0.1"
   },
   "scripts": {
-    "test": "node test/endpoints.test.mjs && node test/draft.test.mjs && node test/database.test.mjs && node test/db-screens.test.mjs && node test/spend.test.mjs",
+    "test": "node test/endpoints.test.mjs && node test/draft.test.mjs && node test/database.test.mjs && node test/db-screens.test.mjs && node test/spend.test.mjs && node test/actions.test.mjs",
     "check": "node scripts/checks.mjs",
     "start": "node server.js"
   },

@@ -5,6 +5,7 @@
 // record screen is about the call and the conversation, which is why it lives elsewhere.
 
 import { el, link, msg, post, money, when } from '/desk-ui.js';
+import { renderActions } from '/desk-actions.js';
 
 const STATUSES = ['planned', 'in progress', 'worked', 'changed direction', 'stalled', 'ghosted'];
 
@@ -122,6 +123,9 @@ export function renderSteps(person) {
       }
     });
     row.append(form);
+    // The things to do under this step. Nested rather than a list of their own, because an
+    // action with no milestone over it is a note, and a note is what this screen already has.
+    renderActions(person, step, row);
     list.append(row);
   }
 }

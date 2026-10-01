@@ -6,7 +6,8 @@
 
 import Retell from 'retell-sdk';
 
-import { ensureSchema, findByClaimTokenHash, sql, underLimit } from '../lib/db.js';
+import { ensureSchema, findByClaimTokenHash, sql } from '../lib/db.js';
+import { underLimit } from '../lib/settings.js';
 import { aCallCameBack, abandonCall, reconcileStarts, secondsSpent } from '../lib/calls.js';
 import { callerKey, keyedHash } from '../lib/crypto.js';
 import {

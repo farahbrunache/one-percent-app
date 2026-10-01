@@ -1,7 +1,8 @@
 // Gets a lost claim link back. The only thing that works is the card code itself, which the
 // buyer has on the card or in their own receipt, and which is never stored in readable form.
 
-import { ensureSchema, sql, underLimit } from '../lib/db.js';
+import { ensureSchema, sql } from '../lib/db.js';
+import { underLimit } from '../lib/settings.js';
 import { callerKey, claimToken, keyedHash, normalizeCardCode } from '../lib/crypto.js';
 import { looksLikeReference, normalizeReference } from '../lib/orders.js';
 import { HttpError, handle, readJson, send } from '../lib/http.js';

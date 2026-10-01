@@ -444,6 +444,31 @@ const GLOBALS = new Set([
   'new', 'delete', 'void', 'in', 'of', 'yield', 'throw', 'case',
 ]);
 
+// The code inside every `${...}` of a template literal, and nothing around it. Brace matching
+// rather than a pattern, because an interpolation can hold braces of its own.
+function interpolations(text) {
+  const out = [];
+  for (let i = 0; i < text.length; i += 1) {
+    if (text[i] === '\\') { i += 1; continue; }
+    if (text[i] !== '`') continue;
+    i += 1;
+    for (; i < text.length && text[i] !== '`'; i += 1) {
+      if (text[i] === '\\') { i += 1; continue; }
+      if (text[i] !== '$' || text[i + 1] !== '{') continue;
+      let depth = 1;
+      const from = i + 2;
+      i += 2;
+      while (i < text.length && depth > 0) {
+        if (text[i] === '{') depth += 1;
+        else if (text[i] === '}') depth -= 1;
+        if (depth > 0) i += 1;
+      }
+      out.push(text.slice(from, i));
+    }
+  }
+  return out.join('\n');
+}
+
 const callSites = [
   ...files
     .filter((f) => /\/(api|lib)\//.test(f) && f.endsWith('.js'))
@@ -510,6 +535,40 @@ for (const { where, text, page } of callSites) {
           ? ` The page has an element with id="${name}", so the call resolves to that element`
             + ' and throws when the screen runs rather than when the page loads.'
           : ''));
+    }
+  }
+
+  // The same failure one step over: reading a name rather than calling it.
+  //
+  // The desk's sign-in path read `here.pathname` and the page had never imported `here`. The
+  // check above only looked at calls, so it passed, and the line sat on the one path nothing
+  // else runs -- what the screen does when a session has expired. Somebody signed out got a
+  // page that threw instead of a way back in.
+  //
+  // Narrow on purpose, and the narrowness is what makes it reliable: only names a module this
+  // file already imports from actually exports. A name that is exported next door and read
+  // here, without being on the import line, is the mistake and there is no other reading of it.
+  const reachable = new Map();
+  for (const m of text.matchAll(/from\s+'\/([\w.-]+\.js)'/g)) {
+    const source = files.find((f) => f.slice(ROOT.length + 1) === m[1]);
+    if (!source) continue;
+    for (const e of read(source).matchAll(/export\s+(?:async\s+)?(?:const|let|var|function)\s+(\w+)/g)) {
+      if (!declared.has(e[1])) reachable.set(e[1], m[1]);
+    }
+  }
+  if (reachable.size) {
+    const seenHere = new Set();
+    // Template literals are blanked above, and that is where this bug lived -- the line was
+    // `${encodeURIComponent(here.pathname + here.search)}`. So the code inside every `${...}`
+    // is put back, and only that: the prose around it would match an exported name like `page`
+    // or `money` on nothing but a sentence.
+    const readable = withoutStrings + '\n' + interpolations(text);
+    for (const m of readable.matchAll(/(^|[^.\w$'"])([a-z_$][\w$]*)(?![\w$(:])/g)) {
+      const name = m[2];
+      if (!reachable.has(name) || seenHere.has(name)) continue;
+      seenHere.add(name);
+      fail('missing', `${where} reads ${name} and does not import it, though `
+        + `${reachable.get(name)} exports it. Add it to the import line.`);
     }
   }
 }
