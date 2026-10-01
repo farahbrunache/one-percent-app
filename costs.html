@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>What it costs — One Percent</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700&family=IBM+Plex+Mono:wght@400&display=swap">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main class="wrap inside">
+
+  <div class="topbar">
+    <a class="back" href="/desk">&larr; The desk</a>
+    <button type="button" class="quiet" id="refresh">Refresh</button>
+  </div>
+  <h1>What it costs</h1>
+
+  <div id="signin" hidden>
+    <p class="lede">Sign in with Skills Economy to read the arithmetic.</p>
+    <div class="actions"><a class="button go-on" id="lgo" href="/api/auth?action=start&amp;to=/costs">Sign in with Skills Economy</a></div>
+    <div id="lmsg" hidden></div>
+  </div>
+
+  <div id="msg" hidden></div>
+
+  <div id="work" hidden>
+    <!-- The answer first. Everything under it is the working. -->
+    <div class="panel sage">
+      <h2>Are you underwater</h2>
+      <p id="verdict" class="status-line"></p>
+      <p class="meta" id="verdictwhy"></p>
+    </div>
+
+    <div id="figures" class="stats"></div>
+
+    <div class="panel">
+      <h2>What is not counted</h2>
+      <div id="unknown" class="rows"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Session by session</h2>
+      <p class="meta">Newest first. What came in against what it took to deliver.</p>
+      <div id="orders" class="rows"></div>
+    </div>
+
+    <div class="actions">
+      <a class="button quiet-link" href="/payments">Payments</a>
+      <button type="button" class="quiet" id="logout">Sign out</button>
+    </div>
+  </div>
+
+</main>
+
+<script type="module">
+  import { el, msg, call, money } from '/desk-ui.js';
+
+  // Cents, because a session is seven dollars and a call is under a dollar. Rounding either to
+  // whole dollars would show both as nothing and the answer as a round number it is not.
+  function exact(value) {
+    return `$${Number(value).toFixed(3)}`;
+  }
+
+  function figure(box, label, value, note) {
+    const tile = el('div', null, 'stat');
+    tile.append(el('div', value, 'figure'));
+    tile.append(el('div', label, 'label'));
+    if (note) tile.append(el('div', note, 'meta'));
+    box.append(tile);
+  }
+
+  function render(data) {
+    // The one sentence somebody came for. Per session, because that is the number a price is
+    // set against, and it is stated against the seven rather than on its own.
+    const said = document.getElementById('verdict');
+    const why = document.getElementById('verdictwhy');
+    if (!data.sessions) {
+      said.textContent = 'Nothing sold yet, so there is nothing to be underwater on.';
+      why.textContent = '';
+    } else {
+      const each = data.perSession;
+      const left = data.sessionPrice - each;
+      said.textContent = left >= 0
+        ? `${exact(left)} left over on each session, before what the servers cost.`
+        : `${exact(-left)} short on each session, before what the servers cost.`;
+      why.textContent = `${exact(each)} to deliver against ${money(data.sessionPrice)} taken, `
+        + `across ${data.sessions} session${data.sessions === 1 ? '' : 's'}.`;
+    }
+
+    const figures = document.getElementById('figures');
+    figures.textContent = '';
+    figure(figures, 'Sessions sold', String(data.sessions), money(data.sessionsIn));
+    figure(figures, 'Paid work', String(data.quotes), money(data.quotesIn));
+    figure(figures, 'Came in', money(data.tookIn), null);
+    figure(figures, 'Went out', exact(data.spent), 'calls and drafting');
+    if (data.monthlyFixed !== null) {
+      figure(figures, 'Servers, a month', money(data.monthlyFixed), 'typed in, not measured');
+    }
+
+    // Named rather than folded into a total. A cost screen that treats an unknown as nothing
+    // reports a profit it invented.
+    const unknown = document.getElementById('unknown');
+    unknown.textContent = '';
+    if (!data.unknown.length) {
+      unknown.append(el('p', 'Nothing. Every figure above was measured.', 'meta'));
+    }
+    for (const line of data.unknown) {
+      unknown.append(el('div', line, 'row'));
+    }
+
+    const orders = document.getElementById('orders');
+    orders.textContent = '';
+    if (!data.orders.length) orders.append(el('p', 'No sessions yet.', 'meta'));
+    for (const order of data.orders) {
+      const row = el('div', null, 'row');
+      row.append(el('div', order.reference || `Order ${order.id}`, 'code'));
+      if (order.isDemo) row.append(el('div', 'DEMO', 'badge demo'));
+      if (!order.paid) row.append(el('div', 'Not paid for', 'badge open'));
+      row.append(el('div', `In ${money(order.tookIn)} · out ${exact(order.spent)}`, 'meta'));
+      row.append(el('div', `Call ${exact(order.calls)} · drafting ${exact(order.drafts)}`
+        + (order.draftedSeconds ? ` over ${order.draftedSeconds}s` : ''), 'meta'));
+      // Only where something came in. An order nobody paid for has nothing left over, and a
+      // green badge saying so reads as a session that went well.
+      if (order.paid) {
+        row.append(el('div',
+          order.left >= 0 ? `${exact(order.left)} left` : `${exact(-order.left)} short`,
+          order.left >= 0 ? 'badge go' : 'flag'));
+      }
+      if (order.unknown.length) {
+        row.append(el('div', `Not counted: ${order.unknown.join('; ')}`, 'meta'));
+      }
+      orders.append(row);
+    }
+  }
+
+  document.getElementById('refresh').addEventListener('click', () => window.location.reload());
+  document.getElementById('logout')?.addEventListener('click', async () => {
+    await call('/api/auth?action=signout', { method: 'POST' });
+    window.location.href = '/costs';
+  });
+
+  try {
+    const data = await call('/api/costs?action=now');
+    render(data);
+    document.getElementById('work').hidden = false;
+  } catch (error) {
+    if (error.status === 401) {
+      document.getElementById('signin').hidden = false;
+    } else {
+      msg('msg', error.message, 'bad');
+    }
+  }
+</script>
+</body>
+</html>

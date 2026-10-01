@@ -67,6 +67,11 @@ KEYS=(
 # slot impossible to leave empty, which is the state it is supposed to be in until there is a
 # second model worth comparing.
 OPTIONAL_KEYS=(
+  # What a second of the drafting worker costs, and what the servers cost a month. Nothing
+  # in the database can know either; both are read off a bill. Unset means the cost screen
+  # says so rather than counting them as nothing.
+  COST_DRAFT_PER_SECOND_USD
+  COST_MONTHLY_FIXED_USD
   # Empty on purpose when the sign-in application is a Public one. A public OAuth client has
   # no secret to hold, and proves itself with PKCE instead; requiring a value here forced
   # something to be invented, and an invented secret is refused as an unknown client.

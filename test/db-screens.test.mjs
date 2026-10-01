@@ -265,6 +265,7 @@ console.log('');
 console.log('a draft that was paid for');
 
 const drafts = await import('../lib/desk-drafts.js');
+const { costsNow } = await import('../lib/costs.js');
 
 const drafted = await newOrder();
 await tagged`insert into calls (order_id, call_id, transcript_encrypted)
@@ -330,6 +331,84 @@ check('with the job named, so the next press can tell what it was',
   rows[0].model === 'llama-test', rows[0]);
 check('marked given up rather than finished',
   rows[0].finished_at === null && rows[0].gave_up_at !== null, rows[0]);
+
+// ---- what a session costs to deliver ---------------------------------------------------------
+//
+// Cost never sets the price. This answers one question: underwater or not, and by how much. So
+// what it has to get right is naming the figures it could not work out rather than counting them
+// as nothing -- a screen that treats an unknown as zero reports a profit it invented.
+console.log('');
+console.log('what a session costs');
+
+const costs = await import('../lib/costs.js');
+
+check('a call record with a cost in it is read',
+  costs.callCostOf(JSON.stringify({ call_cost: { combined_cost: 0.581 } })) === 0.581);
+check('a record with no cost in it is unknown, not free',
+  costs.callCostOf(JSON.stringify({ call_cost: {} })) === null);
+check('and so is a record that is not readable',
+  costs.callCostOf('not json') === null && costs.callCostOf(null) === null);
+
+// A draft that was given up on still ran. The job outlives the wait for it, so its time is what
+// it took from submitting to giving up rather than nothing.
+check('a finished draft uses the seconds it reported',
+  costs.draftSeconds({ seconds: 12 }) === 12);
+check('a given-up draft is timed from submit to giving up',
+  costs.draftSeconds({
+    seconds: null,
+    created_at: '2026-10-01T00:00:00Z',
+    gave_up_at: '2026-10-01T00:00:45Z',
+  }) === 45);
+check('a draft with neither is unknown',
+  costs.draftSeconds({ seconds: null, created_at: null, gave_up_at: null }) === null);
+
+const priced = costs.costOfOrder({
+  id: 1, reference: 'X', isDemo: false, paid: true,
+  calls: [{ record: JSON.stringify({ call_cost: { combined_cost: 0.5 } }), hasRecord: true }],
+  drafts: [{ seconds: 10 }],
+}, 0.01);
+check('a session adds its call and its drafting against the seven',
+  priced.calls === 0.5 && priced.drafts === 0.1 && priced.spent === 0.6
+  && priced.tookIn === 7 && Math.abs(priced.left - 6.4) < 1e-9, priced);
+check('and nothing is unknown when both are known', priced.unknown.length === 0, priced.unknown);
+
+const missing = costs.costOfOrder({
+  id: 2, reference: 'Y', isDemo: false, paid: true,
+  calls: [{ record: null, hasRecord: false }],
+  drafts: [{ seconds: 30 }],
+}, null);
+check('a call with no record kept is named, not counted as free',
+  missing.calls === 0 && missing.unknown.some((line) => /no record kept/.test(line)),
+  missing.unknown);
+check('and unpriced drafting says how many seconds went unpriced',
+  missing.drafts === 0 && missing.draftedSeconds === 30
+  && missing.unknown.some((line) => /30 seconds/.test(line)), missing.unknown);
+
+// An order nobody paid for took in nothing, which is not the same as a free session.
+const unpaid = costs.costOfOrder({
+  id: 3, reference: 'Z', isDemo: false, paid: false, calls: [], drafts: [],
+}, 0.01);
+check('an unpaid order took in nothing', unpaid.tookIn === 0 && unpaid.left === 0, unpaid);
+
+// Against the database, so the query and the arithmetic are checked together.
+process.env.COST_DRAFT_PER_SECOND_USD = '0.01';
+delete process.env.COST_MONTHLY_FIXED_USD;
+
+const costed = await newOrder();
+await tagged`insert into calls (order_id, call_id, transcript_encrypted, record_encrypted)
+             values (${costed}, ${'c-cost-' + costed}, ${seal('x')},
+                     ${seal(JSON.stringify({ call_cost: { combined_cost: 0.581 } }))})`;
+await tagged`insert into drafts (order_id, slot, model, job_id, seconds, finished_at)
+             values (${costed}, 'A', 'm', 'j-cost', 20, now())`;
+
+const now = await costsNow();
+const mine = now.orders.find((o) => o.id === costed);
+check('the screen prices a real order from the database',
+  Math.abs(mine.spent - (0.581 + 0.2)) < 1e-9, mine);
+check('it says the monthly figure is missing rather than counting it as nothing',
+  now.monthlyFixed === null
+  && now.unknown.some((line) => /COST_MONTHLY_FIXED_USD/.test(line)), now.unknown);
+check('and the seven dollars is what a session took in', now.sessionPrice === 7);
 
 const failures = failureCount();
 console.log(failures ? `\n${failures} failed` : '\nall passed');
