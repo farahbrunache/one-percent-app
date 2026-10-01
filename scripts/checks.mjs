@@ -446,6 +446,23 @@ for (const file of files.filter((f) => f.endsWith('.html') || /^[^/]*\.js$/.test
   }
 }
 
+// ---- a test nobody runs ----------------------------------------------------------------------
+//
+// `npm test` is a hand-typed chain of filenames, so a test written and never added to it passes
+// forever by never running. That happened: the payments test shipped alongside the screen it
+// covers and was not in the chain, so the screen that records what a quote was paid had no cover
+// at all while looking like it did.
+const chain = JSON.parse(read(join(ROOT, 'package.json'))).scripts.test || '';
+for (const file of files.filter((f) => f.endsWith('.test.mjs'))) {
+  const name = file.slice(ROOT.length + 1);
+  if (chain.includes(name)) continue;
+  fail(
+    'unrun test',
+    `${name} is never run — it is not in the test chain in package.json, so it passes by sitting `
+      + 'there. Add it.',
+  );
+}
+
 wordsAreAllowed({ ROOT, files, read, fail });
 
 // ---- what happened --------------------------------------------------------------------------
