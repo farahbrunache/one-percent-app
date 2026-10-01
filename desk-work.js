@@ -6,6 +6,7 @@
 
 import { el, link, msg, post, money, when } from '/desk-ui.js';
 import { renderActions } from '/desk-actions.js';
+import { renderQuotePayment } from '/desk-payments.js';
 
 const STATUSES = ['planned', 'in progress', 'worked', 'changed direction', 'stalled', 'ghosted'];
 
@@ -243,6 +244,10 @@ export function renderQuotes(person) {
     } else {
       row.append(el('div', `${quote.status} · moved ${when(quote.movedAt)}`, 'meta'));
     }
+
+    // What was actually paid, when it is due, and why it differs. Drawn before the controls
+    // because it is the state of the quote rather than something to do about it.
+    renderQuotePayment(person, quote, row);
 
     // Only the moves that belong to this end. Agreeing, declining and asking for a change
     // are the other person's to make, and a control here that does any of them would put
