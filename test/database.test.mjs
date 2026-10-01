@@ -29,7 +29,8 @@ try {
 }
 check('and running it a second time changes nothing', twice === null, twice);
 
-const { abandonCall, keepRecord, reconcileStarts, secondsSpent } = db;
+const { abandonCall, aCallCameBack, keepRecord, reconcileStarts, secondsSpent } =
+  await import('../lib/calls.js');
 const sql = () => tagged;
 
 async function newOrder(overrides = {}) {
@@ -334,7 +335,6 @@ check('a thread with something in it is not opened again', already.length === 1)
 // sold.
 console.log('a call that came back spends the session');
 
-const { aCallCameBack } = db;
 
 const hadTheirCall = await newOrder();
 await tagged`insert into calls (order_id, call_id, seconds, transcript_encrypted)

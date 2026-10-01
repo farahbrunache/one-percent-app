@@ -6,16 +6,8 @@
 
 import Retell from 'retell-sdk';
 
-import {
-  abandonCall,
-  ensureSchema,
-  reconcileStarts,
-  findByClaimTokenHash,
-  aCallCameBack,
-  secondsSpent,
-  sql,
-  underLimit,
-} from '../lib/db.js';
+import { ensureSchema, findByClaimTokenHash, sql, underLimit } from '../lib/db.js';
+import { aCallCameBack, abandonCall, reconcileStarts, secondsSpent } from '../lib/calls.js';
 import { callerKey, keyedHash } from '../lib/crypto.js';
 import {
   ABANDON_WITHIN_SECONDS,

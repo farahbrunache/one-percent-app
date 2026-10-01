@@ -9,14 +9,8 @@
 // be returned to — never one scroll holding the list and the detail together, which has no
 // way back to where somebody was.
 
-import {
-  ensureSchema,
-  keepRecord,
-  readChoice,
-  sql,
-  underLimit,
-  writeChoice,
-} from '../lib/db.js';
+import { ensureSchema, readChoice, sql, underLimit, writeChoice } from '../lib/db.js';
+import { keepRecord } from '../lib/calls.js';
 import { decrypt, encrypt } from '../lib/crypto.js';
 import { requireAdmin } from '../lib/auth.js';
 import {
@@ -58,6 +52,7 @@ import { clearDemo, seedDemo } from '../lib/demo.js';
 import { HttpError, handle, readJson, send } from '../lib/http.js';
 import { caseOf, orderId, record } from '../lib/desk-events.js';
 import { introduce, recordIntroduction } from '../lib/desk-introductions.js';
+import { chooseModel, writeDraft } from '../lib/desk-drafts.js';
 import { moveQuote, writeQuote } from '../lib/desk-quotes.js';
 
 const PER_PAGE = 25;
@@ -654,115 +649,6 @@ async function callRecord(req, res) {
     }
     throw new HttpError(502, `Could not reach the voice service: ${error.message}`);
   }
-}
-
-async function chooseModel(req, res) {
-  requireAdmin(req);
-  await ensureSchema();
-  const body = await readJson(req);
-  const slot = String(body.slot || '').toUpperCase();
-  if (!SLOTS.includes(slot)) {
-    throw new HttpError(400, `The slots are ${SLOTS.join(' and ')}. That was ${slot || 'empty'}.`);
-  }
-  const offered = models().map((m) => m.slot);
-  if (!offered.includes(slot)) {
-    throw new HttpError(
-      409,
-      `Slot ${slot} has no address or no key set, so there is nothing to switch to. A slot is ` +
-        'configured in the secrets store, not here.',
-    );
-  }
-  await writeChoice(MODEL_CHOICE, slot);
-  send(res, 200, { ok: true, chosen: slot });
-}
-
-// Writes a first pass at the sheet into the operator's box. It files nothing. What comes back
-// is read, rewritten or thrown away, and the operator presses Write it themselves.
-//
-// The call is the input, because the sheet is what the call produced. A draft written from
-// anything else would be a guess about somebody the model has not heard.
-async function writeDraft(req, res) {
-  requireAdmin(req);
-  await ensureSchema();
-  const body = await readJson(req);
-  const id = orderId(body.id);
-
-  // A draft costs money and the button is one press.
-  if (!(await underLimit('draft', String(id), DRAFTS_PER_ORDER, DRAFT_WINDOW_SECONDS))) {
-    throw new HttpError(
-      429,
-      `That is ${DRAFTS_PER_ORDER} drafts against this order today, which is the limit. Write ` +
-        'this one, or come back tomorrow.',
-    );
-  }
-
-  const rows = await sql()`select id, client_account_id from orders where id = ${id}`;
-  if (!rows.length) throw new HttpError(404, 'No order with that number.');
-
-  // Two things the operator writes, so the button says which one it is drafting. A reply
-  // is drafted from the conversation; a sheet is drafted from the call.
-  if (String(body.of || '') === 'reply') {
-    const account = rows[0].client_account_id;
-    if (!account) {
-      throw new HttpError(409, 'Nobody has linked an account to this order, so there is no ' +
-        'conversation to answer.');
-    }
-    const thread = await sql()`
-      select author, body_encrypted from messages
-        where account_id = ${account}
-        order by created_at desc
-        limit 20
-    `;
-    if (!thread.length) {
-      throw new HttpError(409, 'The conversation has nothing in it yet, so there is nothing ' +
-        'to answer.');
-    }
-    const said = [
-      { role: 'system', content: REPLY_PROMPT },
-      ...thread.reverse().map((m) => ({
-        role: m.author === 'client' ? 'user' : 'assistant',
-        content: decrypt(m.body_encrypted),
-      })),
-    ];
-    const answer = await askForDraft(said, await readChoice(MODEL_CHOICE));
-    await sql()`
-      insert into drafts (order_id, slot, model, prompt_tokens, completion_tokens, seconds)
-      values (${id}, ${answer.slot}, ${answer.model}, ${answer.promptTokens},
-              ${answer.completionTokens}, ${answer.seconds})
-    `;
-    return send(res, 200, answer);
-  }
-
-  const called = await sql()`
-    select transcript_encrypted from calls
-     where order_id = ${id} and transcript_encrypted is not null
-     order by ended_at desc nulls last
-     limit 3
-  `;
-  if (!called.length) {
-    throw new HttpError(
-      409,
-      'No call against this order has a transcript yet, so there is nothing to write a sheet ' +
-        'from. Keep the call record first, or wait for the hourly job to take it.',
-    );
-  }
-
-  const messages = [
-    { role: 'system', content: SYSTEM_PROMPT },
-    ...called
-      .reverse()
-      .map((c) => ({ role: 'user', content: decrypt(c.transcript_encrypted) })),
-  ];
-
-  const written = await askForDraft(messages, await readChoice(MODEL_CHOICE));
-
-  await sql()`
-    insert into drafts (order_id, slot, model, prompt_tokens, completion_tokens, seconds)
-    values (${id}, ${written.slot}, ${written.model}, ${written.promptTokens},
-            ${written.completionTokens}, ${written.seconds})
-  `;
-
-  send(res, 200, written);
 }
 
 // The end of the method. METHOD.md ends the relationship here rather than at a session count,
