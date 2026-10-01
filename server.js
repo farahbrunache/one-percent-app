@@ -31,6 +31,8 @@ const PAGES = {
   '/desk-actions.js': ['desk-actions.js', 'text/javascript; charset=utf-8'],
   '/desk-contacts.js': ['desk-contacts.js', 'text/javascript; charset=utf-8'],
   '/desk-payments.js': ['desk-payments.js', 'text/javascript; charset=utf-8'],
+  '/desk-projects.js': ['desk-projects.js', 'text/javascript; charset=utf-8'],
+  '/desk-folds.js': ['desk-folds.js', 'text/javascript; charset=utf-8'],
   '/robots.txt': ['robots.txt', 'text/plain; charset=utf-8'],
 };
 
