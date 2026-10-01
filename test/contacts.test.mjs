@@ -180,6 +180,41 @@ check('adding, reaching out and moving are all lines on the record',
     other.contacts.map((c) => c.name));
 }
 
+// ---- the funnel's two new rows -------------------------------------------------------------
+//
+// They exist because of this feature, so they are checked here rather than left to a query that
+// nobody runs. Each is counted through the endpoint, so the subset rule is checked too.
+{
+  const { signSession: sign, encrypt: seal } = await import('../lib/crypto.js');
+  // The rows above have to be true before the two new ones can be, because every row is a subset
+  // of the one above it.
+  await tagged`insert into calls (order_id, call_id, transcript_encrypted)
+               values (${order}, ${'c-funnel-' + order}, ${seal('Agent: Hello.')})`;
+  const [plan] = await tagged`
+    insert into plans (order_id, case_id, path)
+    values (${order}, ${await db.caseForAccount('acct-contacts-1')}, 'smallest')
+    returning id`;
+  check('the person under test is on a path', Number(plan.id) > 0);
+
+  const req = {
+    method: 'GET',
+    url: '/api/desk?action=funnel',
+    headers: { cookie: `op_session=${sign('admin-1')}` },
+  };
+  const res = fakeRes();
+  await deskEndpoint(req, res);
+  const stages = JSON.parse(res.body).stages;
+  const by = Object.fromEntries(stages.map((s) => [s.key, s.count]));
+
+  check('the funnel has six rows', stages.length === 6, stages.map((s) => s.key));
+  check('somebody with a list is counted as having one', by.listed >= 1, by);
+  check('and somebody who approached them is counted again', by.approached >= 1, by);
+  // The rate between two rows only means something when the lower is inside the higher.
+  check('every row is a subset of the one above it',
+    stages.every((s, i) => i === 0 || s.count <= stages[i - 1].count),
+    stages.map((s) => [s.key, s.count]));
+}
+
 const failures = failureCount();
 console.log(failures ? `\n${failures} failed` : '\nall passed');
 process.exit(failures ? 1 : 0);

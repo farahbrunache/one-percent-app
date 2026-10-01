@@ -321,6 +321,14 @@ check('the funnel starts at a call that came back', vocab.FUNNEL_STAGES[0].key =
 check('and ends at somebody paying them',
   vocab.FUNNEL_STAGES[vocab.FUNNEL_STAGES.length - 1].key === 'earning');
 check('every stage has a label to render', vocab.FUNNEL_STAGES.every((s) => Boolean(s.label)));
+// Six, and the two in the middle are the method rather than the bookkeeping: a list of people to
+// approach, and that list being acted on. Both are facts about the person; "something worked"
+// was a mark the operator made, which measured the desk instead.
+check('the funnel is six rows', vocab.FUNNEL_STAGES.length === 6, vocab.FUNNEL_STAGES.length);
+check('and approaching people is two of them',
+  vocab.FUNNEL_STAGES.map((s) => s.key).join(',')
+    === 'called,go,planned,listed,approached,earning',
+  vocab.FUNNEL_STAGES.map((s) => s.key));
 
 // No tiers. A quote is written for one person and turns nothing on, so these are the states it
 // can be in and none of them is a level.
