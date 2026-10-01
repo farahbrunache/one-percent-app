@@ -10,6 +10,7 @@
 import { ensureSchema, sql } from '../lib/db.js';
 import { requireAdmin } from '../lib/auth.js';
 import { costsNow, isCostUnit } from '../lib/costs.js';
+import { normalizeReference } from '../lib/orders.js';
 import { HttpError, handle, readJson, send } from '../lib/http.js';
 
 async function now(req, res) {
@@ -55,10 +56,31 @@ async function addLine(req, res) {
     }
   }
 
+  // Whose cost it is. Nothing means the product: hosting, a tool, time spent on the thing
+  // itself. A reference means time or money spent on that one person.
+  let orderId = null;
+  const reference = normalizeReference(body.reference || '');
+  if (reference) {
+    const [found] = await sql()`
+      select id, is_demo from orders where reference_code = ${reference} limit 1
+    `;
+    if (!found) throw new HttpError(404, `No session with the reference ${reference}.`);
+    // What a demo row costs is real and it is the project's, because nobody paid seven dollars
+    // for it. Hanging a cost on one would invent a client who was never served.
+    if (found.is_demo) {
+      throw new HttpError(
+        409,
+        'That is a demo session. What testing costs is real, and it belongs to the project '
+          + 'rather than to a client nobody served. Leave the reference empty for that.',
+      );
+    }
+    orderId = Number(found.id);
+  }
+
   await sql()`
-    insert into cost_lines (name, amount_cents, share_percent, every, note)
+    insert into cost_lines (name, amount_cents, share_percent, every, note, order_id)
     values (${name}, ${cents}, ${Math.round(share)}, ${every},
-            ${String(body.note || '').trim().slice(0, 300) || null})
+            ${String(body.note || '').trim().slice(0, 300) || null}, ${orderId})
   `;
   send(res, 201, { ok: true });
 }

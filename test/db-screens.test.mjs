@@ -430,9 +430,33 @@ await tagged`insert into cost_lines (name, amount_cents, share_percent, every)
 const withLines = await costsNow();
 check('the monthly total adds the shares rather than the full prices',
   Math.abs(withLines.monthlyFixed - (25 + 33)) < 1e-9, withLines.monthlyFixed);
-check('and the month says whether it pays for itself',
-  typeof withLines.thisMonth.left === 'number'
-  && withLines.thisMonth.fixed === withLines.monthlyFixed, withLines.thisMonth);
+// Seven days back from now rather than a calendar month, which is mostly empty on the fourth
+// and mostly over on the twenty-eighth.
+check('the window is seven days wide',
+  withLines.lastSeven.days === 7 && typeof withLines.lastSeven.left === 'number',
+  withLines.lastSeven);
+check('a monthly bill is spread across those seven days rather than landed whole',
+  Math.abs(withLines.lastSeven.fixedShare - (withLines.monthlyFixed * 7) / 30) < 1e-9,
+  [withLines.lastSeven.fixedShare, withLines.monthlyFixed]);
+
+// A demo row costs real money and brings in none. Pressing draft bills the worker whoever the
+// row belongs to; nobody paid seven dollars for a row the owner made to test with.
+const demoOrder = await newOrder();
+await tagged`update orders set is_demo = true where id = ${demoOrder}`;
+await tagged`insert into calls (order_id, call_id, transcript_encrypted, record_encrypted)
+             values (${demoOrder}, ${'c-demo-' + demoOrder}, ${seal('x')},
+                     ${seal(JSON.stringify({ call_cost: { combined_cost: 0.4 } }))})`;
+
+const withDemo = await costsNow();
+const demoRow = withDemo.orders.find((o) => o.id === demoOrder);
+check('a demo session takes in nothing, whatever its status says',
+  demoRow.tookIn === 0, demoRow);
+check('and what it cost is counted against the project',
+  Math.abs(withDemo.demoSpent - 0.4) < 1e-9 && withDemo.demoSessions === 1,
+  { demoSpent: withDemo.demoSpent, demoSessions: withDemo.demoSessions });
+check('it is not in what serving clients cost',
+  Math.abs(withDemo.spent - withLines.spent) < 1e-9,
+  [withDemo.spent, withLines.spent]);
 check('and the seven dollars is what a session took in', now.sessionPrice === 7);
 
 const failures = failureCount();
