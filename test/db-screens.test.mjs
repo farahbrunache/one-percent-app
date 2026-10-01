@@ -449,8 +449,20 @@ await tagged`insert into calls (order_id, call_id, transcript_encrypted, record_
 
 const withDemo = await costsNow();
 const demoRow = withDemo.orders.find((o) => o.id === demoOrder);
-check('a demo session takes in nothing, whatever its status says',
-  demoRow.tookIn === 0, demoRow);
+// The row shows its seven, because the screen has to look like a session to be worth testing
+// against. What it counts is nothing, because nobody sent that seven.
+check('a demo session shows its seven and counts none of it',
+  demoRow.tookIn === 7 && demoRow.counted === 0, demoRow);
+
+// A seeded record's figures were made up. Counting one would put money on the screen that was
+// never spent, which is the same failure as counting an unknown as zero, pointing the other way.
+check('an invented call cost is not a cost',
+  costs.callCostOf(JSON.stringify({ demo: true, call_cost: { combined_cost: 0.58 } })) === null);
+check('and a real one still is',
+  costs.callCostOf(JSON.stringify({ call_cost: { combined_cost: 0.58 } })) === 0.58);
+check('an invented record is known to be one',
+  costs.isSeededRecord(JSON.stringify({ demo: true })) === true
+  && costs.isSeededRecord(JSON.stringify({ call_cost: {} })) === false);
 check('and what it cost is counted against the project',
   Math.abs(withDemo.demoSpent - 0.4) < 1e-9 && withDemo.demoSessions === 1,
   { demoSpent: withDemo.demoSpent, demoSessions: withDemo.demoSessions });
@@ -472,6 +484,54 @@ check('it is not in what serving clients cost',
   Math.abs(withDemo.spent - withLines.spent) < 1e-9,
   [withDemo.spent, withLines.spent]);
 check('and the seven dollars is what a session took in', now.sessionPrice === 7);
+
+// Marking a session as the owner's own, in a block of its own: this file has a lot of
+// top-level names by now and a new group should not have to know all of them.
+{
+  // Marking a session as the owner's own. A seeded row is invented end to end; one the owner
+  // buys and calls through bills the voice service for real, and that bill is the project's.
+  const bought = await newOrder();
+  await tagged`insert into calls (order_id, call_id, transcript_encrypted, record_encrypted)
+               values (${bought}, ${'c-mine-' + bought}, ${seal('x')},
+                       ${seal(JSON.stringify({ call_cost: { combined_cost: 0.9 } }))})`;
+
+  async function pressMine(orderIdValue) {
+    const { Readable } = await import('node:stream');
+    const stream = Readable.from([JSON.stringify({ id: orderIdValue })]);
+    const req = {
+      method: 'POST', url: '/api/desk?action=mine',
+      headers: { cookie: `op_session=${signSession('admin-1')}`, 'content-type': 'application/json' },
+    };
+    Object.assign(req, { [Symbol.asyncIterator]: stream[Symbol.asyncIterator].bind(stream) });
+    const res = {
+      statusCode: 200, writableEnded: false, setHeader() {}, getHeader() {},
+      end() { this.writableEnded = true; },
+    };
+    try {
+      await deskEndpoint(req, res);
+      return res.statusCode;
+    } catch (error) {
+      return error.status;
+    }
+  }
+
+  const before = (await costsNow()).orders.find((o) => o.id === bought);
+  check('before marking, a real session counts its seven',
+    before.counted === 7 && before.isDemo === false, before);
+
+  check('marking it is accepted', (await pressMine(bought)) === 200);
+
+  const nowMine = await costsNow();
+  const marked = nowMine.orders.find((o) => o.id === bought);
+  check('after marking, the seven shows and counts nothing',
+    marked.tookIn === 7 && marked.counted === 0 && marked.isDemo === true, marked);
+  check('and the real call it made still costs what it cost',
+    Math.abs(marked.calls - 0.9) < 1e-9, marked.calls);
+  check('counted against the project rather than against a client',
+    nowMine.demoSpent >= 0.9, nowMine.demoSpent);
+
+  check('marking it twice is refused', (await pressMine(bought)) === 409);
+}
 
 const failures = failureCount();
 console.log(failures ? `\n${failures} failed` : '\nall passed');
