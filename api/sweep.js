@@ -11,7 +11,8 @@
 
 import Retell from 'retell-sdk';
 
-import { ensureSchema, keepRecord, sql } from '../lib/db.js';
+import { ensureSchema, sql } from '../lib/db.js';
+import { keepRecord } from '../lib/calls.js';
 import { encrypt } from '../lib/crypto.js';
 import { HttpError, handle, send } from '../lib/http.js';
 import { agentScriptExport } from '../lib/voice.js';

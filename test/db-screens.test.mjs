@@ -255,6 +255,82 @@ const agreedRow = await tagged`select id from quotes where account_id = 'acct-ag
 const refused = await counter(agreedToPay, Number(agreedRow[0].id));
 check('an agreed quote cannot be countered away', refused.status === 409, refused);
 
+// ---- a draft that cost money and came back with nothing --------------------------------------
+//
+// A job outlives the wait for it. The budget runs out on this end; the worker keeps going on
+// RunPod's, and the worker is what is billed. The only draft never written down was the one
+// that cost money and produced nothing, and a second press paid for a second job while the
+// first was still running.
+console.log('');
+console.log('a draft that was paid for');
+
+const drafts = await import('../lib/desk-drafts.js');
+
+const drafted = await newOrder();
+await tagged`insert into calls (order_id, call_id, transcript_encrypted)
+             values (${drafted}, ${'c-draft-' + drafted}, ${seal('Caller: I drive.')})`;
+
+// A model that takes the job and then fails it. The job was accepted, so it was paid for, and
+// it came back with nothing -- which is the draft that was never written down.
+//
+// Failing rather than timing out on purpose: the timeout path waits the full budget, and what
+// is being checked is the record, not the clock.
+let submitted = 0;
+let polled = null;
+globalThis.fetch = async (url) => {
+  const path = String(url);
+  let body;
+  if (path.endsWith('/run')) {
+    submitted += 1;
+    body = { id: `job-${submitted}` };
+  } else {
+    polled = path.split('/status/')[1];
+    body = { status: 'FAILED' };
+  }
+  return { ok: true, status: 200, text: async () => JSON.stringify(body) };
+};
+
+process.env.DRAFT_MODEL_A_URL = 'https://runpod.invalid/v2/fake';
+process.env.DRAFT_MODEL_A_KEY = 'not-a-real-key';
+process.env.DRAFT_MODEL_A_NAME = 'llama-test';
+
+async function pressDraft() {
+  const { Readable } = await import('node:stream');
+  const payload = JSON.stringify({ id: drafted });
+  const stream = Readable.from([payload]);
+  const req = {
+    method: 'POST', url: '/api/desk?action=draft',
+    headers: { cookie: `op_session=${signSession('admin-1')}`, 'content-type': 'application/json' },
+  };
+  Object.assign(req, { [Symbol.asyncIterator]: stream[Symbol.asyncIterator].bind(stream) });
+  let out = null;
+  const res = {
+    statusCode: 200, writableEnded: false, setHeader() {}, getHeader() {},
+    end(text) { this.writableEnded = true; try { out = JSON.parse(text); } catch { out = text; } },
+  };
+  try {
+    await drafts.writeDraft(req, res);
+  } catch (error) {
+    return { thrown: error };
+  }
+  return { out };
+}
+
+const first = await pressDraft();
+check('a draft the model fails comes back as a failure', Boolean(first.thrown),
+  String(first.thrown?.message || JSON.stringify(first.out)));
+check('the job was submitted once', submitted === 1, submitted);
+check('and the job polled is the job submitted', polled === 'job-1', polled);
+
+const rows = await tagged`select job_id, model, finished_at, gave_up_at from drafts
+                           where order_id = ${drafted}`;
+check('it is written down anyway, because it cost money',
+  rows.length === 1 && rows[0].job_id === 'job-1', rows);
+check('with the job named, so the next press can tell what it was',
+  rows[0].model === 'llama-test', rows[0]);
+check('marked given up rather than finished',
+  rows[0].finished_at === null && rows[0].gave_up_at !== null, rows[0]);
+
 const failures = failureCount();
 console.log(failures ? `\n${failures} failed` : '\nall passed');
 process.exit(failures ? 1 : 0);
