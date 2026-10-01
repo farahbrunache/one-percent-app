@@ -60,6 +60,7 @@ import { chooseModel, writeDraft } from '../lib/desk-drafts.js';
 import { addMilestone, recordMilestone, setPlan } from '../lib/desk-plan.js';
 import { addAction, pushAction, recordAction } from '../lib/desk-actions.js';
 import { addContact, moveContact, reachOut } from '../lib/desk-contacts.js';
+import { recordPayment, setQuoteDue } from '../lib/desk-payments.js';
 import { today } from '../lib/desk-today.js';
 import { person } from '../lib/desk-person.js';
 import { funnel } from '../lib/desk-funnel.js';
@@ -337,6 +338,8 @@ const ACTIONS = {
     'action-add': addAction,
     'action-record': recordAction,
     'action-push': pushAction,
+    'quote-due': setQuoteDue,
+    'quote-paid': recordPayment,
     'contact-add': addContact,
     'contact-reach': reachOut,
     'contact-move': moveContact,
