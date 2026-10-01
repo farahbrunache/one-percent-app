@@ -133,6 +133,12 @@ async function sendMessage(req, res) {
     insert into messages (account_id, author, body_encrypted)
     values (${account}, 'client', ${encrypt(text)})
   `;
+
+  // Somebody writing in is the case being open again, whatever was marked. Closing is a view
+  // the owner keeps for themselves, and a view that hides a person who just wrote is the one
+  // thing it must never do.
+  await sql()`update cases set closed_at = null where account_id = ${account}`;
+
   return thread(req, res);
 }
 

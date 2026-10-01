@@ -574,6 +574,76 @@ function renderWhoseSession(person) {
   actions.append(button);
 }
 
+// Where this stands: blocked, closed, or neither. Both are the owner's own bookkeeping and
+// neither reaches the client, which the panel says out loud -- a control that might be visible
+// to somebody else is a control nobody presses.
+function renderWhereItStands(person) {
+  const why = document.getElementById('statewhy');
+  const actions = document.getElementById('stateactions');
+  const form = document.getElementById('blockform');
+  actions.textContent = '';
+  form.hidden = true;
+
+  const press = (label, action, body, ask) => {
+    const button = el('button', label, 'quiet');
+    button.type = 'button';
+    button.addEventListener('click', async () => {
+      if (ask && !window.confirm(ask)) return;
+      button.disabled = true;
+      try {
+        await post(action, { id: person.id, ...body });
+        window.location.reload();
+      } catch (error) {
+        button.disabled = false;
+        msg('rmsg', error.message, 'bad');
+      }
+    });
+    actions.append(button);
+  };
+
+  const lines = [];
+  if (person.blocker) {
+    // Their words, with one full stop rather than two when they ended on one.
+    lines.push(`Blocked on: ${person.blocker.replace(/[.\s]+$/, '')}.`);
+    lines.push(person.blockedUntil
+      ? `It comes back on ${day(person.blockedUntil)}.`
+      : 'It comes back on its own after a week off the morning screen.');
+    press('Unblock it', 'unblock', {});
+  } else {
+    lines.push('Nothing is blocking it.');
+    const start = el('button', 'Block it', 'quiet');
+    start.type = 'button';
+    start.addEventListener('click', () => {
+      form.hidden = false;
+      document.getElementById('blockreason').focus();
+    });
+    actions.append(start);
+  }
+
+  lines.push(person.closedAt
+    ? `Closed ${day(person.closedAt)}. They see no difference and the conversation is still `
+      + 'open. A message from them opens it again.'
+    : 'Open. Closing it only shortens your own list.');
+  press(person.closedAt ? 'Open it again' : 'Close it', 'close', {});
+
+  why.textContent = lines.join(' ');
+  sofar('state', person.blocker ? 'blocked' : person.closedAt ? 'closed' : 'open');
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    try {
+      await post('block', {
+        id: person.id,
+        reason: document.getElementById('blockreason').value,
+        until: document.getElementById('blockuntil').value || null,
+      });
+      window.location.reload();
+    } catch (error) {
+      msg('rmsg', error.message, 'bad');
+    }
+  });
+}
+
 export function renderPerson(person) {
   const heading = document.getElementById('ref');
   heading.textContent = person.reference || `Order ${person.id}`;
@@ -593,6 +663,7 @@ export function renderPerson(person) {
   renderQuotes(person);
   renderIntroductions(person);
   renderFirstCustomer(person);
+  renderWhereItStands(person);
   renderWhoseSession(person);
   renderEvents(person);
   foldLines(person);

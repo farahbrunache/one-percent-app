@@ -224,6 +224,25 @@
       <div class="actions" id="firstcustomer"></div>
     </details>
 
+    <details class="panel fold" id="fold-state">
+      <summary><h2>Where this stands</h2><span class="sofar" id="sofar-state"></span></summary>
+      <p class="meta" id="statewhy"></p>
+      <div class="actions" id="stateactions"></div>
+      <form class="fields" id="blockform" hidden novalidate>
+        <div class="field">
+          <label for="blockreason">What is it waiting on</label>
+          <span class="hint">Whatever this needs from somebody else. It never reaches them.</span>
+          <input id="blockreason" type="text" autocomplete="off" maxlength="500">
+        </div>
+        <div class="field">
+          <label for="blockuntil">Until, if there is a date</label>
+          <span class="hint">Leave it empty and it comes back on its own.</span>
+          <input id="blockuntil" type="date">
+        </div>
+        <div class="actions"><button type="submit" class="quiet">Block it</button></div>
+      </form>
+    </details>
+
     <details class="panel fold" id="fold-mine">
       <summary><h2>Whose session is this</h2><span class="sofar" id="sofar-mine"></span></summary>
       <p class="meta" id="minewhy"></p>

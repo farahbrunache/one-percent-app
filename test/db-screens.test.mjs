@@ -573,6 +573,116 @@ check('and the seven dollars is what a session took in', now.sessionPrice === 7)
     real.monthlyKnown === true, real);
 }
 
+// ---- blocked, and closed ---------------------------------------------------------------------
+//
+// Two marks that decide which screen a case is on, and neither reaches the client. A blocker is
+// "not now" and comes back on its own. Closing is a view: the conversation stays open and a
+// message from them clears it, because somebody writing in is the case being open again.
+console.log('');
+console.log('blocked, and closed');
+{
+  const state = await import('../lib/desk-state.js');
+
+  async function press(action, body) {
+    const { Readable } = await import('node:stream');
+    const stream = Readable.from([JSON.stringify(body)]);
+    const req = {
+      method: 'POST', url: `/api/desk?action=${action}`,
+      headers: { cookie: `op_session=${signSession('admin-1')}`, 'content-type': 'application/json' },
+    };
+    Object.assign(req, { [Symbol.asyncIterator]: stream[Symbol.asyncIterator].bind(stream) });
+    let out = null;
+    const res = {
+      statusCode: 200, writableEnded: false, setHeader() {}, getHeader() {},
+      end(text) { this.writableEnded = true; try { out = JSON.parse(text); } catch { out = text; } },
+    };
+    try {
+      await state[action](req, res);
+      return { status: res.statusCode, out };
+    } catch (error) {
+      return { status: error.status, message: error.message };
+    }
+  }
+
+  const held = await newOrder();
+  // The queue only lists orders whose call came back, so this one needs one to be in a tab.
+  await tagged`insert into calls (order_id, call_id, transcript_encrypted)
+               values (${held}, ${'c-held-' + held}, ${seal('x')})`;
+  const heldCase = await db.caseForAccount('acct-held');
+  await tagged`update orders set client_account_id = 'acct-held', case_id = ${heldCase},
+                                 decision = 'go', approved_as_client_at = now()
+                where id = ${held}`;
+
+  check('a blocker needs a reason', (await press('block', { id: held })).status === 400);
+  check('and a date that has passed is refused',
+    (await press('block', { id: held, reason: 'x', until: '2020-01-01' })).status === 400);
+
+  check('blocking it is accepted',
+    (await press('block', { id: held, reason: 'The licensing board answering.' })).status === 200);
+  let row = (await tagged`select blocked_at, blocked_until, blocker_encrypted, closed_at
+                            from cases where id = ${heldCase}`)[0];
+  check('it is marked, with no date, and the reason is kept',
+    row.blocked_at !== null && row.blocked_until === null
+    && row.blocker_encrypted !== null, row);
+
+  check('unblocking it is accepted', (await press('unblock', { id: held })).status === 200);
+  row = (await tagged`select blocked_at, blocker_encrypted from cases where id = ${heldCase}`)[0];
+  check('and nothing is left behind',
+    row.blocked_at === null && row.blocker_encrypted === null, row);
+  check('unblocking twice is refused', (await press('unblock', { id: held })).status === 409);
+
+  // Closing is a view. Nothing about the client's side changes.
+  check('closing it is accepted', (await press('close', { id: held })).out.closed === true);
+  row = (await tagged`select closed_at from cases where id = ${heldCase}`)[0];
+  check('it is marked closed', row.closed_at !== null, row);
+
+  // Through the endpoint, because what matters is what the screen is handed.
+  async function ask(url) {
+    const req = { method: 'GET', url, headers: { cookie: `op_session=${signSession('admin-1')}` } };
+    let out = null;
+    const res = {
+      statusCode: 200, writableEnded: false, setHeader() {}, getHeader() {},
+      end(text) { this.writableEnded = true; try { out = JSON.parse(text); } catch { out = text; } },
+    };
+    await deskEndpoint(req, res);
+    return out;
+  }
+
+  const stillOpen = await ask(`/api/desk?action=person&id=${held}`);
+  check('the conversation is still open on a closed case',
+    stillOpen.conversationOpen === true && stillOpen.closedAt !== null, stillOpen.closedAt);
+
+  // Somebody writing in is the case being open again, whatever was marked.
+  const client = (await import('../api/client.js')).default;
+  const { Readable } = await import('node:stream');
+  const wrote = Readable.from([JSON.stringify({ body: 'One more thing.' })]);
+  const req = {
+    method: 'POST', url: '/api/client?action=send',
+    headers: { cookie: `op_session=${signSession('acct-held')}`, 'content-type': 'application/json' },
+  };
+  Object.assign(req, { [Symbol.asyncIterator]: wrote[Symbol.asyncIterator].bind(wrote) });
+  let said = null;
+  const res = {
+    statusCode: 200, writableEnded: false, setHeader() {}, getHeader() {},
+    end(text) { this.writableEnded = true; said = text; },
+  };
+  await client(req, res);
+  check('they could write in', res.statusCode === 200, [res.statusCode, String(said).slice(0, 160)]);
+  row = (await tagged`select closed_at from cases where id = ${heldCase}`)[0];
+  check('a message from them opens it again', row.closed_at === null, row);
+
+  // The closed tab means closed now, not no-go. A no-go is a decision; closing is a view.
+  check('reopening it by hand works too', (await press('close', { id: held })).out.closed === true);
+  const closedTab = await ask('/api/desk?action=queue&state=closed&page=1');
+  check('the closed tab shows what was closed',
+    closedTab.people.some((person) => Number(person.id) === held),
+    closedTab.people.map((p) => Number(p.id)));
+  const working = await ask('/api/desk?action=queue&state=active&page=1');
+  check('and it is off the working tab',
+    !working.people.some((person) => Number(person.id) === held),
+    working.people.map((p) => Number(p.id)));
+}
+
 const failures = failureCount();
 console.log(failures ? `\n${failures} failed` : '\nall passed');
 process.exit(failures ? 1 : 0);
