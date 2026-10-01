@@ -145,5 +145,35 @@ check('one left behind is counted',
 check('nothing at all counts as nothing',
   sheet.unfilledSlots(null) === 0 && sheet.unfilledSlots('') === 0);
 
+// Addresses in a sheet, split for the screen that renders them. Typing one by hand is a dead
+// link waiting to happen, so the operator presses a chip and the reader taps what lands.
+check('an address becomes a link and keeps its words',
+  JSON.stringify(sheet.linkParts('Go to https://app.chargingthefuture.com/apps/directory'))
+  === JSON.stringify([
+    { text: 'Go to ' },
+    { text: 'https://app.chargingthefuture.com/apps/directory',
+      href: 'https://app.chargingthefuture.com/apps/directory' },
+  ]), sheet.linkParts('Go to https://app.chargingthefuture.com/apps/directory'));
+
+// The period belongs to the sentence. A link carrying one lands on a page that is not there.
+const ended = sheet.linkParts('Post it at https://app.chargingthefuture.com/apps/skills-hunt.');
+check('a sentence ending on an address keeps its period out of the link',
+  ended[1].href === 'https://app.chargingthefuture.com/apps/skills-hunt' && ended[2].text === '.',
+  ended);
+
+check('two addresses in one line both come back',
+  sheet.linkParts('a https://x.test/one and https://y.test/two b')
+    .filter((part) => part.href).length === 2);
+check('text with no address is one part',
+  sheet.linkParts('nothing to tap here').length === 1);
+check('nothing at all is no parts',
+  sheet.linkParts('').length === 0 && sheet.linkParts(null).length === 0);
+
+// Every chip writes an address that is in the list the rules point at, so a chip and a rule
+// cannot name different places.
+check('every chip carries a full address',
+  sheet.SHEET_LINKS.every(([, href]) => sheet.linkParts(href).some((part) => part.href === href)),
+  sheet.SHEET_LINKS);
+
 console.log(failures ? `\n${failures} failed` : '\nall passed');
 process.exit(failures ? 1 : 0);

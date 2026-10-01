@@ -220,8 +220,30 @@ function renderRecommendations(person) {
   const rules = document.getElementById('sheetrules');
   rules.textContent = '';
   for (const rule of SHEET_RULES) rules.append(el('li', rule, null));
-  document.getElementById('sheetlinks').textContent =
-    'Addresses worth naming: ' + SHEET_LINKS.map(([name, href]) => `${name} ${href}`).join(' · ');
+  // An address typed by hand is a dead link waiting to happen, and these are long. Pressing
+  // one writes it where the caret is, as plain text, which is what the person reading the sheet
+  // sees and taps.
+  const chips = document.getElementById('sheetlinks');
+  chips.textContent = '';
+  for (const [name, href] of SHEET_LINKS) {
+    const chip = el('button', name, 'chip');
+    chip.type = 'button';
+    chip.title = href;
+    chip.addEventListener('click', () => {
+      const at = input.selectionStart ?? input.value.length;
+      const to = input.selectionEnd ?? at;
+      const before = input.value.slice(0, at);
+      const after = input.value.slice(to);
+      // A space in front unless the line is empty or already ends in one, so an address never
+      // runs into the word before it.
+      const lead = before && !/\s$/.test(before) ? ' ' : '';
+      input.value = before + lead + href + after;
+      const caret = at + lead.length + href.length;
+      input.focus();
+      input.setSelectionRange(caret, caret);
+    });
+    chips.append(chip);
+  }
 
   const template = document.getElementById('usetemplate');
   template.addEventListener('click', () => {
