@@ -609,12 +609,20 @@
 
     // Money agreed and not arrived. The quietest thing on this screen and the easiest to let
     // slide, because nobody chases it and the client is not waiting on an answer.
+    //
+    // This list and the one below it are different questions, and they used to answer in almost
+    // the same words -- "Nothing owed." above "Nothing owed by you." -- which read as the same
+    // list twice. One is money somebody owes; the other is work you owe. Each says which.
+    //
+    // Both are late-only: a quote agreed and not yet due is not here, so "nothing owed" was also
+    // claiming more than the query asks.
     const owing = data.late || [];
     renderTodayList(
       document.getElementById('newlate'), owing, data.targetHours,
-      'Nothing owed.', 'Open it', false);
+      'No money is late.', 'Open it', false);
     document.getElementById('latecount').textContent = owing.length
-      ? `${owing.length} past its date`
+      ? `${owing.length} quote${owing.length === 1 ? '' : 's'} past `
+        + `${owing.length === 1 ? 'its' : 'their'} date`
       : '';
 
     // Work taken on and not handed over. The other direction from the list above: that one is
@@ -622,9 +630,9 @@
     const owedByYou = data.owing || [];
     renderTodayList(
       document.getElementById('newowing'), owedByYou, data.targetHours,
-      'Nothing owed by you.', 'Open it', false);
+      'No work is late.', 'Open it', false);
     document.getElementById('owingcount').textContent = owedByYou.length
-      ? `${owedByYou.length} past its date`
+      ? `${owedByYou.length} past ${owedByYou.length === 1 ? 'its' : 'their'} date`
       : '';
 
     // Last, because nobody here is waiting on an answer. Somebody said they would do something
