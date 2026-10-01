@@ -33,7 +33,7 @@ check('nothing configured is no endpoints rather than an error',
   endpointIds({}).length === 0);
 
 const window = windowFor(7);
-check('the window is whole days and ends after today',
+check('the window is complete days and ends after today',
   window.start.endsWith('T00:00:00.000Z') && window.end.endsWith('T00:00:00.000Z')
   && new Date(window.end) > new Date(), window);
 
