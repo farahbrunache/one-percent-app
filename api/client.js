@@ -15,7 +15,8 @@
 // something to talk about. Anyone else asking gets told so plainly rather than being shown a
 // box that would not send.
 
-import { caseForAccount, ensureSchema, findByClaimTokenHash, sql, underLimit } from '../lib/db.js';
+import { caseForAccount, ensureSchema, findByClaimTokenHash, sql } from '../lib/db.js';
+import { underLimit } from '../lib/settings.js';
 import { callerKey, decrypt, encrypt, keyedHash } from '../lib/crypto.js';
 import { requireAccount } from '../lib/auth.js';
 import { describeStatus } from '../lib/orders.js';

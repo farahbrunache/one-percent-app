@@ -13,7 +13,8 @@ import {
   signInUrl,
 } from '../lib/auth.js';
 import { callerKey, randomToken, sha256Base64Url, signSession } from '../lib/crypto.js';
-import { ensureSchema, underLimit } from '../lib/db.js';
+import { ensureSchema } from '../lib/db.js';
+import { underLimit } from '../lib/settings.js';
 import { HttpError, handle, readCookie, redirect, send, setCookie } from '../lib/http.js';
 
 const HANDSHAKE_COOKIE = 'op_signin';

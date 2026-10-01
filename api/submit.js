@@ -5,7 +5,8 @@
 // instead, which is destroyed the moment a decision is recorded.
 
 import crypto from 'node:crypto';
-import { ensureSchema, sql, underLimit } from '../lib/db.js';
+import { ensureSchema, sql } from '../lib/db.js';
+import { underLimit } from '../lib/settings.js';
 import { callerKey, claimToken, encrypt, keyedHash, normalizeCardCode } from '../lib/crypto.js';
 import {
   PAYMENT_METHODS,

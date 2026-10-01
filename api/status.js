@@ -1,6 +1,7 @@
 // What a claim link shows. The phone number and the access code appear here and nowhere else.
 
-import { ensureSchema, findByClaimTokenHash, underLimit } from '../lib/db.js';
+import { ensureSchema, findByClaimTokenHash } from '../lib/db.js';
+import { underLimit } from '../lib/settings.js';
 import { aCallCameBack, reconcileStarts, secondsSpent } from '../lib/calls.js';
 import { callerKey, keyedHash } from '../lib/crypto.js';
 import {

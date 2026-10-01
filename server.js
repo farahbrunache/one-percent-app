@@ -28,6 +28,7 @@ const PAGES = {
   '/sheet.js': ['lib/sheet.js', 'text/javascript; charset=utf-8'],
   '/desk-record.js': ['desk-record.js', 'text/javascript; charset=utf-8'],
   '/desk-work.js': ['desk-work.js', 'text/javascript; charset=utf-8'],
+  '/desk-actions.js': ['desk-actions.js', 'text/javascript; charset=utf-8'],
   '/robots.txt': ['robots.txt', 'text/plain; charset=utf-8'],
 };
 
