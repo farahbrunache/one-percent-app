@@ -9,6 +9,7 @@ import { el, link, msg, get, post, when, day, minutes, money, owed, mpage, here 
   from '/desk-ui.js';
 import { renderPlan, renderSteps, renderQuotes, renderIntroductions, pathLabel }
   from '/desk-work.js';
+import { SHEET_LINKS, SHEET_RULES, SHEET_TEMPLATE, unfilledSlots } from '/sheet.js';
 
 // Where in the conversation this is. Same shape as the queue's pager, and the page number
 // goes in the address for the same reason: a place in a list has to be linkable and the
@@ -204,14 +205,44 @@ function renderCalls(person) {
 
 // Written once and edited afterwards, because what somebody should do next is not settled in
 // one sitting and the sheet is theirs to read whenever they come back.
+// The sheet, and the shape it is written in.
+//
+// The template is a button rather than the box's starting contents. A box that fills itself
+// produces sheets with a bracket left in them, because the structure was there before anybody
+// decided to use it. Pressing for it is a decision, and the guard below catches the rest.
 function renderRecommendations(person) {
   const input = document.getElementById('recommendbody');
   const form = document.getElementById('recommendform');
 
   if (person.recommendations) input.value = person.recommendations;
 
+  // The same rules the model is given, where the person typing can read them.
+  const rules = document.getElementById('sheetrules');
+  rules.textContent = '';
+  for (const rule of SHEET_RULES) rules.append(el('li', rule, null));
+  document.getElementById('sheetlinks').textContent =
+    'Addresses worth naming: ' + SHEET_LINKS.map(([name, href]) => `${name} ${href}`).join(' · ');
+
+  const template = document.getElementById('usetemplate');
+  template.addEventListener('click', () => {
+    if (input.value.trim() && !window.confirm('Replace what is in the box with the template?')) {
+      return;
+    }
+    input.value = SHEET_TEMPLATE;
+    input.focus();
+    input.setSelectionRange(0, 0);
+  });
+
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
+    // A bracket left in is the template showing through. They read this word for word, so it
+    // is caught here rather than in the sheet somebody opens tomorrow.
+    const left = unfilledSlots(input.value);
+    if (left && !window.confirm(
+      `${left} part${left === 1 ? ' is' : 's are'} still in square brackets. Send it anyway?`,
+    )) {
+      return;
+    }
     try {
       await post('recommend', { id: person.id, body: input.value });
       window.location.reload();

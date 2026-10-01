@@ -514,6 +514,32 @@ for (const { where, text, page } of callSites) {
   }
 }
 
+// ---- every module a page asks for is one the server hands out ---------------------------------
+//
+// A browser import is an address, not a file path. server.js decides which address serves which
+// file, so a module can exist, parse, be imported correctly and still 404 -- and when it does,
+// the import fails, the whole inline script never runs, and the page renders nothing with no
+// error anywhere a phone can see.
+//
+// That happened the moment a module was added under lib/ and served at a root address: the local
+// check was reading files off disk, so it passed, and only the real routing table says what a
+// browser can actually fetch.
+const served = new Set(
+  [...read(join(ROOT, 'server.js')).matchAll(/'(\/[\w.-]*)':\s*\[/g)].map((m) => m[1]),
+);
+
+for (const file of files.filter((f) => f.endsWith('.html') || /^[^/]*\.js$/.test(f.slice(ROOT.length + 1)))) {
+  const text = read(file);
+  for (const m of text.matchAll(/from\s+'(\/[\w.-]+\.js)'/g)) {
+    if (served.has(m[1])) continue;
+    fail(
+      'unserved',
+      `${file.slice(ROOT.length + 1)} imports ${m[1]} and server.js does not serve that address. `
+        + 'The import 404s, the script never runs, and the page renders nothing.',
+    );
+  }
+}
+
 // ---- what happened --------------------------------------------------------------------------
 
 if (problems.length) {

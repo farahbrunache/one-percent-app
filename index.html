@@ -25,7 +25,7 @@
     </p>
     <p class="cta after">
       Signing in doesn't buy anything and doesn't get you a session. It's how someone who has
-      already had their call gets to what came out of it.
+      already had their call gets to their next steps.
     </p>
     <section class="panel">
       <h3>You haven't paid yet</h3>
@@ -190,7 +190,7 @@
       // What was written after the call, whichever way the decision went. It is the same kind
       // of thing both ways: things worth doing, in the reader's own situation.
       if (s.recommendations) {
-        row.append(el('div', `What came out of it · ${when(s.recommendedAt)}`, 'label'));
+        row.append(el('div', `Your next steps · ${when(s.recommendedAt)}`, 'label'));
         row.append(el('div', s.recommendations, 'sheet'));
       }
       rows.append(row);
@@ -210,7 +210,7 @@
     // being told no. It is never the thing to do next.
     if (read && !data.approved) {
       state.append(el('p',
-        "What came out of your call is below, and it's yours. You act on it in Skills Economy, "
+        "Your next steps are below, and they're yours. You act on them in Skills Economy, "
         + 'which costs you nothing.', 'meta'));
       state.append(el('p',
         'If you work through some of it and want another conversation, you can get one here.',

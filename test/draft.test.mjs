@@ -109,5 +109,41 @@ try {
 check('waiting too long gives up and says how long it waited',
   waited?.status === 504 && /seconds/.test(waited.message), waited?.message);
 
+// ---- the shape a sheet is written in ---------------------------------------------------------
+//
+// One list of rules, two readers: the template the operator starts from and the prompt a model
+// is given. They were about to be written twice, which is how a drafted sheet and a typed one
+// end up reading like different people.
+console.log('');
+console.log('the shape a sheet is written in');
+
+const sheet = await import('../lib/sheet.js');
+
+check('the drafting prompt carries the rules the template is built from',
+  sheet.SHEET_RULES.every((rule) => draft.SYSTEM_PROMPT.includes(rule)),
+  sheet.SHEET_RULES.filter((rule) => !draft.SYSTEM_PROMPT.includes(rule)));
+
+check('the template has three numbered things',
+  /^1\./m.test(sheet.SHEET_TEMPLATE) && /^2\./m.test(sheet.SHEET_TEMPLATE)
+  && /^3\./m.test(sheet.SHEET_TEMPLATE) && !/^4\./m.test(sheet.SHEET_TEMPLATE));
+
+check('and it names an address rather than describing one',
+  /https:\/\/app\.chargingthefuture\.com\//.test(sheet.SHEET_TEMPLATE));
+
+check('every link in the list is an address', sheet.SHEET_LINKS.every(
+  ([name, href]) => name && /^https:\/\/app\.chargingthefuture\.com\/\S+$/.test(href)),
+  sheet.SHEET_LINKS);
+
+// The guard on sending. A bracket left in is the template showing through to somebody who
+// reads this word for word.
+check('an untouched template is all unfilled',
+  sheet.unfilledSlots(sheet.SHEET_TEMPLATE) > 0, sheet.unfilledSlots(sheet.SHEET_TEMPLATE));
+check('a finished sheet has none',
+  sheet.unfilledSlots('Here is what I would do.\n\n1. Ask for a rate per job.') === 0);
+check('one left behind is counted',
+  sheet.unfilledSlots('1. Ask for a rate per job.\n2. [The second thing.]') === 1);
+check('nothing at all counts as nothing',
+  sheet.unfilledSlots(null) === 0 && sheet.unfilledSlots('') === 0);
+
 console.log(failures ? `\n${failures} failed` : '\nall passed');
 process.exit(failures ? 1 : 0);
