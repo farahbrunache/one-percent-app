@@ -20,6 +20,7 @@ const PAGES = {
   '/buy': ['buy.html', 'text/html; charset=utf-8'],
   '/claim': ['claim.html', 'text/html; charset=utf-8'],
   '/payments': ['payments.html', 'text/html; charset=utf-8'],
+  '/costs': ['costs.html', 'text/html; charset=utf-8'],
   '/desk': ['desk.html', 'text/html; charset=utf-8'],
   '/style.css': ['style.css', 'text/css; charset=utf-8'],
   '/codefield.js': ['codefield.js', 'text/javascript; charset=utf-8'],
@@ -32,6 +33,7 @@ const PAGES = {
 
 const ENDPOINTS = {
   '/api/submit': () => import('./api/submit.js'),
+  '/api/costs': () => import('./api/costs.js'),
   '/api/status': () => import('./api/status.js'),
   '/api/recover': () => import('./api/recover.js'),
   '/api/call': () => import('./api/call.js'),
