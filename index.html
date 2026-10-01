@@ -92,12 +92,37 @@
 </main>
 
 <script type="module">
+  import { linkParts } from '/sheet.js';
+
   const out = document.getElementById('out');
   const inside = document.getElementById('in');
   const rows = document.getElementById('rows');
   const state = document.getElementById('state');
   const linker = document.getElementById('linker');
   const head = document.getElementById('head');
+
+  // The sheet, with its addresses tappable.
+  //
+  // A sheet names where the work happens, and the address is written out so it reads the same
+  // in a paste, a screenshot and a reading aloud. On a phone an address that is only text is an
+  // address somebody has to retype into another app, so it is also a link.
+  //
+  // Built from nodes rather than from markup. Nothing here is ever assembled as HTML, so a
+  // sheet cannot carry anything but words and the addresses in it.
+  function sheetText(body) {
+    const box = el('div', null, 'sheet');
+    for (const part of linkParts(body)) {
+      if (!part.href) {
+        box.append(document.createTextNode(part.text));
+        continue;
+      }
+      const a = el('a', part.text, null);
+      a.href = part.href;
+      a.rel = 'noopener noreferrer';
+      box.append(a);
+    }
+    return box;
+  }
 
   function el(tag, text, className) {
     const node = document.createElement(tag);
@@ -191,7 +216,7 @@
       // of thing both ways: things worth doing, in the reader's own situation.
       if (s.recommendations) {
         row.append(el('div', `Your next steps · ${when(s.recommendedAt)}`, 'label'));
-        row.append(el('div', s.recommendations, 'sheet'));
+        row.append(sheetText(s.recommendations));
       }
       rows.append(row);
     }
