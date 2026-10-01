@@ -24,6 +24,7 @@ const PAGES = {
   '/style.css': ['style.css', 'text/css; charset=utf-8'],
   '/codefield.js': ['codefield.js', 'text/javascript; charset=utf-8'],
   '/desk-ui.js': ['desk-ui.js', 'text/javascript; charset=utf-8'],
+  '/sheet.js': ['lib/sheet.js', 'text/javascript; charset=utf-8'],
   '/desk-record.js': ['desk-record.js', 'text/javascript; charset=utf-8'],
   '/desk-work.js': ['desk-work.js', 'text/javascript; charset=utf-8'],
   '/robots.txt': ['robots.txt', 'text/plain; charset=utf-8'],

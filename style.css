@@ -795,6 +795,28 @@ input.code-field::placeholder {
    at a time, which turned a list of ordinary work into a screen of warnings. */
 .inside .flag { color: var(--in-gold-soft); font-weight: 600; letter-spacing: normal; }
 
+/* The rules a sheet is written to, shut by default. They are the same lines the model is
+   given, and they are here so the person typing can read them -- but they are reference, not
+   the work, so they do not sit open above the box. */
+.inside details.rules { margin-top: 0.75rem; }
+.inside details.rules > summary {
+  cursor: pointer;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--in-muted);
+}
+.inside details.rules ul {
+  margin: 0.6rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.75rem;
+  color: var(--in-soft);
+  line-height: 1.5;
+}
+.inside details.rules li { margin-bottom: 0.35rem; }
+.inside details.rules .meta { word-break: break-word; }
+
 /* A card's own label sits at the top of it. The section spacing that separates one
    heading from the last one's text is the card gap's job once they are in cards. */
 /* A section that folds. A person's record is a dozen of them and eleven are shut, so the
