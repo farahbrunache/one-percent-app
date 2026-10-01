@@ -35,6 +35,13 @@
       <p class="meta" id="verdict30why"></p>
     </div>
 
+    <div class="panel" id="gappanel" hidden>
+      <h2>What would close it</h2>
+      <p class="meta">Three units, not three recommendations. A quote is written against what the
+        work is worth to the person who needs it; this is only the size of the hole.</p>
+      <div id="gap" class="rows"></div>
+    </div>
+
     <div class="panel">
       <h2>Week by week</h2>
       <p id="pattern" class="meta"></p>
@@ -239,6 +246,33 @@
 
     // One week says where this week landed. Eight say whether that is this week or every week,
     // and those two call for different things.
+    // The hole, in the three units it could be filled in. Which one is available is the
+    // owner's to know; this says only how big it is.
+    const gapPanel = document.getElementById('gappanel');
+    const gap = document.getElementById('gap');
+    gap.textContent = '';
+    gapPanel.hidden = !data.closes;
+    if (data.closes) {
+      const c = data.closes;
+      const say = (what, how) => {
+        const row = el('div', null, 'row');
+        row.append(el('div', what, 'value'));
+        row.append(el('div', how, 'meta'));
+        gap.append(row);
+      };
+      if (c.sessions !== null) {
+        say(`${c.sessions} more session${c.sessions === 1 ? '' : 's'}`,
+          `At ${money(c.perSessionLeft)} left over each, across the same ${v.days} days.`);
+      }
+      say(`One piece of paid work at ${money(c.oneQuote)}`,
+        'Covering the whole of it on its own. What it is actually worth to them is a different '
+        + 'question, and it is the one that sets the price.');
+      if (c.perMonth !== null) {
+        say(`${money(c.perMonth)} a month less going out`,
+          'Spending less rather than earning more.');
+      }
+    }
+
     const weeks = data.weeks || [];
     const short = weeks.filter((week) => week.left < 0).length;
     const pattern = document.getElementById('pattern');

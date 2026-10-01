@@ -176,6 +176,50 @@ export function renderQuotes(person) {
   note.textContent = lines.join(' ');
   form.hidden = room <= 0;
 
+  // The floor under a price, before a number is typed. Arithmetic, so it is here whether or not
+  // a model is configured.
+  const floor = document.getElementById('breakeven');
+  const b = person.breakEven;
+  floor.textContent = !b
+    ? ''
+    : b.breakEven > 0
+      ? `Break-even on this person is ${money(b.breakEven)}. ${money(b.theirs)} spent on them`
+        + `${b.share ? `, plus ${money(b.share)} of what running the project costs` : ''}`
+        + `, less the ${money(b.coveredBySession)} their session brought in.`
+      : `Their session already covered what they have cost. Anything quoted is above the floor.`;
+  if (b && !b.monthlyKnown) {
+    floor.textContent += ' Nothing is listed as a monthly cost, so the project\'s share is not '
+      + 'in that.';
+  }
+
+  // The other half, and it is not arithmetic. What a piece of work is worth depends on what
+  // they said they do and what reaching one more customer would mean for them, so it is a
+  // reading rather than a sum. A button, never a step: the form below works the same without it.
+  const worth = document.getElementById('worth');
+  const worthSaid = document.getElementById('worthsaid');
+  worth.textContent = '';
+  worthSaid.textContent = '';
+  if ((person.drafting?.models || []).length && person.calls.some((call) => call.transcript)) {
+    const ask = el('button', 'What is this worth to them?', 'quiet');
+    ask.type = 'button';
+    ask.addEventListener('click', async () => {
+      ask.disabled = true;
+      ask.textContent = 'Reading the call…';
+      try {
+        const answer = await post('quote-worth', { id: person.id });
+        worthSaid.textContent = answer.content;
+        ask.textContent = 'Read it again';
+      } catch (error) {
+        worthSaid.textContent = '';
+        msg('rmsg', error.message, 'bad');
+      } finally {
+        ask.disabled = false;
+        if (ask.textContent === 'Reading the call…') ask.textContent = 'What is this worth to them?';
+      }
+    });
+    worth.append(ask);
+  }
+
   if (!person.quotes.length) list.append(el('p', 'Nothing quoted yet.', 'meta'));
   for (const quote of person.quotes) {
     const row = el('div', null, 'row');
