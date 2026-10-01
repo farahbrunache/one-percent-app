@@ -8,6 +8,7 @@
 // somebody types another line, and a recap that is quietly out of date is worse than none.
 
 import { msg, post } from '/desk-ui.js';
+import { once } from '/desk-after.js';
 
 export function renderRecap(person) {
   const drafting = person.drafting || { models: [], chosen: null };
@@ -22,7 +23,7 @@ export function renderRecap(person) {
     return;
   }
 
-  button.addEventListener('click', async () => {
+  once(button, 'click', async () => {
     button.disabled = true;
     note.textContent = 'Reading the record. A worker starting from cold takes up to a minute.';
     try {

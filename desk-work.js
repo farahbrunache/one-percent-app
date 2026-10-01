@@ -5,6 +5,7 @@
 // record screen is about the call and the conversation, which is why it lives elsewhere.
 
 import { el, link, msg, post, money, when } from '/desk-ui.js';
+import { once, settled, wasBefore } from '/desk-after.js';
 import { renderActions } from '/desk-actions.js';
 import { renderQuotePayment } from '/desk-payments.js';
 
@@ -45,11 +46,13 @@ export function renderPlan(person) {
     button.append(el('span', why, 'why'));
     if (on) button.append(el('span', `Set on ${when(person.plan.setAt)}.`, 'why'));
     button.disabled = on;
-    button.addEventListener('click', async () => {
+    once(button, 'click', async () => {
       button.disabled = true;
       try {
+        const was = person.plan?.path || null;
         await post('plan', { id: person.id, path: value });
-        window.location.reload();
+        await settled(`Path set to ${label}.`,
+          was ? wasBefore('plan', { id: person.id, path: was }) : null);
       } catch (error) {
         button.disabled = false;
         msg('rmsg', error.message, 'bad');
@@ -107,17 +110,19 @@ export function renderSteps(person) {
     save.type = 'submit';
     actions.append(save);
     form.append(pickField, field, actions);
-    form.addEventListener('submit', async (event) => {
+    once(form, 'submit', async (event) => {
       event.preventDefault();
       save.disabled = true;
       try {
+        const was = { status: step.status, outcome: step.outcome || '' };
         await post('milestone-record', {
           id: person.id,
           milestoneId: step.id,
           status: pick.value,
           outcome: outcome.value,
         });
-        window.location.reload();
+        await settled(`Milestone ${pick.value}.`,
+          wasBefore('milestone-record', { id: person.id, milestoneId: step.id, ...was }));
       } catch (error) {
         save.disabled = false;
         msg('rmsg', error.message, 'bad');
@@ -207,7 +212,7 @@ export function renderQuotes(person) {
   if ((person.drafting?.models || []).length && person.calls.some((call) => call.transcript)) {
     const ask = el('button', 'What is this worth to them?', 'quiet');
     ask.type = 'button';
-    ask.addEventListener('click', async () => {
+    once(ask, 'click', async () => {
       ask.disabled = true;
       ask.textContent = 'Reading the call…';
       try {
@@ -260,7 +265,7 @@ export function renderQuotes(person) {
     if (quote.status === 'changes asked') {
       const counter = el('button', 'Counter it', 'quiet go-on');
       counter.type = 'button';
-      counter.addEventListener('click', () => {
+      once(counter, 'click', () => {
         document.getElementById('amount').value = quote.amount;
         document.getElementById('scope').value = quote.scope;
         replacing = quote.id;
@@ -275,11 +280,13 @@ export function renderQuotes(person) {
       if (status === quote.status) continue;
       const button = el('button', status, 'quiet');
       button.type = 'button';
-      button.addEventListener('click', async () => {
+      once(button, 'click', async () => {
         button.disabled = true;
         try {
+          const was = quote.status;
           await post('quote-move', { id: person.id, quoteId: quote.id, status });
-          window.location.reload();
+          await settled(`Quote ${status}.`,
+            wasBefore('quote-move', { id: person.id, quoteId: quote.id, status: was }));
         } catch (error) {
           button.disabled = false;
           msg('rmsg', error.message, 'bad');
@@ -291,7 +298,7 @@ export function renderQuotes(person) {
     list.append(row);
   }
 
-  form.addEventListener('submit', async (event) => {
+  once(form, 'submit', async (event) => {
     event.preventDefault();
     const amount = document.getElementById('amount').value;
     if (person.decision === 'no-go'
@@ -305,7 +312,7 @@ export function renderQuotes(person) {
         scope: document.getElementById('scope').value,
         replaces: replacing,
       });
-      window.location.reload();
+      await settled('Quote written.');
     } catch (error) {
       msg('rmsg', error.message, 'bad');
     }
@@ -355,17 +362,20 @@ export function renderIntroductions(person) {
     save.type = 'submit';
     actions.append(save);
     form.append(pickField, noteField, actions);
-    form.addEventListener('submit', async (event) => {
+    once(form, 'submit', async (event) => {
       event.preventDefault();
       save.disabled = true;
       try {
+        const was = { outcome: intro.outcome, note: intro.note || '' };
         await post('introduction-record', {
           id: person.id,
           introductionId: intro.id,
           outcome: pick.value,
           note: note.value,
         });
-        window.location.reload();
+        await settled(`Introduction ${pick.value}.`,
+          wasBefore('introduction-record',
+            { id: person.id, introductionId: intro.id, ...was }));
       } catch (error) {
         save.disabled = false;
         msg('rmsg', error.message, 'bad');
@@ -375,7 +385,7 @@ export function renderIntroductions(person) {
     list.append(row);
   }
 
-  document.getElementById('introduce').addEventListener('submit', async (event) => {
+  once(document.getElementById('introduce'), 'submit', async (event) => {
     event.preventDefault();
     try {
       await post('introduce', {
@@ -383,7 +393,7 @@ export function renderIntroductions(person) {
         reference: document.getElementById('otherref').value,
         reason: document.getElementById('introreason').value,
       });
-      window.location.reload();
+      await settled('Introduction recorded.');
     } catch (error) {
       msg('rmsg', error.message, 'bad');
     }

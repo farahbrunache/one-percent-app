@@ -346,6 +346,7 @@
   import { el, link, msg, call, get, post, when, minutes, money, demoChip, hours, owed,
     here, personId, state, page, mpage, askedForQueue } from '/desk-ui.js';
   import { renderPerson } from '/desk-record.js';
+  import { drawnBy, once } from '/desk-after.js';
 
   codeFields(['otherref']);
 
@@ -662,11 +663,22 @@
 
 
 
-  // Reloading without reaching for the browser's own button. The desk is a screen somebody
+  // Reading again without reaching for the browser's own button. The desk is a screen somebody
   // leaves open while the work happens elsewhere -- a call lands, a record gets kept -- so
   // the thing it shows goes out of date while nothing on the page has changed.
+  //
+  // It draws in place rather than reloading, for the same reason a write does: a reload throws
+  // away where the reader was, and on a long record that is the expensive part.
   for (const id of ['again', 'againrecord', 'todayagain']) {
-    document.getElementById(id).addEventListener('click', () => window.location.reload());
+    const button = document.getElementById(id);
+    once(button, 'click', async () => {
+      button.disabled = true;
+      try {
+        await draw();
+      } finally {
+        button.disabled = false;
+      }
+    });
   }
 
   // ---- getting started -------------------------------------------------------------
@@ -717,7 +729,10 @@
     });
   }
 
-  async function start() {
+  // Reading the screen and drawing it. One function, used for the first draw and for every draw
+  // after a write, so what a reader sees after recording something is built the same way as what
+  // they saw before it rather than by a second path that can disagree.
+  async function draw() {
     // No person and no queue asked for means the first screen. The queue is still reachable
     // and still works; it is just not what the morning opens on.
     const url = personId
@@ -755,7 +770,10 @@
     }
   }
 
-  start();
+  // How a write redraws the screen it landed on.
+  drawnBy(draw);
+
+  draw();
 </script>
 
 </body>

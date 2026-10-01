@@ -8,6 +8,7 @@
 // afterwards. That gap is the product's position, not a gap waiting to be closed.
 
 import { el, msg, post, when } from '/desk-ui.js';
+import { once, settled, wasBefore } from '/desk-after.js';
 
 const STATUSES = ['to approach', 'reached out', 'talking', 'said no', 'paying customer'];
 
@@ -36,12 +37,14 @@ function moveForm(person, contact) {
   actions.append(save);
 
   form.append(field, actions);
-  form.addEventListener('submit', async (event) => {
+  once(form, 'submit', async (event) => {
     event.preventDefault();
     save.disabled = true;
     try {
+      const was = contact.status;
       await post('contact-move', { id: person.id, contactId: contact.id, status: pick.value });
-      window.location.reload();
+      await settled(`Now ${pick.value}.`,
+        wasBefore('contact-move', { id: person.id, contactId: contact.id, status: was }));
     } catch (error) {
       save.disabled = false;
       msg('rmsg', error.message, 'bad');
@@ -78,7 +81,7 @@ function reachForm(person, contact) {
   actions.append(save);
 
   form.append(saidField, backField, actions);
-  form.addEventListener('submit', async (event) => {
+  once(form, 'submit', async (event) => {
     event.preventDefault();
     if (!said.value.trim() && !back.value.trim()) return;
     save.disabled = true;
@@ -89,7 +92,7 @@ function reachForm(person, contact) {
         said: said.value,
         back: back.value,
       });
-      window.location.reload();
+      await settled('Written down.');
     } catch (error) {
       save.disabled = false;
       msg('rmsg', error.message, 'bad');
@@ -102,9 +105,7 @@ function reachForm(person, contact) {
 // control this panel owns, so the panel is one file to read or delete.
 function wireAdd(person) {
   const form = document.getElementById('addcontact');
-  if (form.dataset.wired) return;
-  form.dataset.wired = 'yes';
-  form.addEventListener('submit', async (event) => {
+  once(form, 'submit', async (event) => {
     event.preventDefault();
     const name = document.getElementById('contactname');
     if (!name.value.trim()) return;
@@ -115,7 +116,7 @@ function wireAdd(person) {
         where: document.getElementById('contactwhere').value,
         why: document.getElementById('contactwhy').value,
       });
-      window.location.reload();
+      await settled(`${name.value.trim()} added.`);
     } catch (error) {
       msg('rmsg', error.message, 'bad');
     }
