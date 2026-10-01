@@ -38,9 +38,9 @@
     <div id="figures" class="stats"></div>
 
     <div class="panel sage">
-      <h2>This month</h2>
-      <p id="month" class="status-line"></p>
-      <p class="meta" id="monthwhy"></p>
+      <h2>The last seven days</h2>
+      <p id="window" class="status-line"></p>
+      <div id="windowrows" class="rows"></div>
     </div>
 
     <div class="panel">
@@ -62,6 +62,14 @@
           <span class="hint">Leave it at 100 unless it is split with other work.</span>
           <input id="lineshare" type="number" inputmode="numeric" min="1" max="100" step="1"
                  value="100" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="lineref">Whose cost is it</label>
+          <span class="hint">Leave it empty for the product. A 10-character reference puts it
+            against that one client. Never a demo session: what testing costs is the
+            project's.</span>
+          <input class="code-field" id="lineref" type="text" inputmode="latin"
+                 autocapitalize="characters" autocomplete="off" placeholder="The product">
         </div>
         <div class="field">
           <label for="lineevery">Charged</label>
@@ -95,6 +103,9 @@
 
 <script type="module">
   import { el, msg, call, money } from '/desk-ui.js';
+  import { codeFields } from '/codefield.js';
+
+  codeFields(['lineref']);
 
   // The desk's post() aims at the desk. This screen has its own endpoint, and borrowing that
   // one would have sent every cost line to a place that does not answer for them.
@@ -141,16 +152,36 @@
     // The month is the window the bills arrive on, so it is the one that answers whether this
     // pays for itself. Per session answers what a price has to clear, which is a different
     // question asked by the same screen.
-    const m = data.thisMonth;
-    const monthSaid = document.getElementById('month');
-    monthSaid.textContent = m.left >= 0
-      ? `${money(m.left)} ahead this month.`
-      : `${money(-m.left)} behind this month.`;
-    document.getElementById('monthwhy').textContent =
-      `${money(m.tookIn)} in from ${m.sessions} session${m.sessions === 1 ? '' : 's'} and paid `
-      + `work, against ${exact(m.callCost)} of calls, ${exact(m.draftCost)} of drafting over `
-      + `${m.draftSeconds}s, and ${m.fixed === null ? 'nothing listed' : money(m.fixed)} of `
-      + 'things you pay for every month.';
+    // Seven days back from now, broken into the two things money goes on: serving the people
+    // who paid, and running the thing at all. Testing is the second one -- it costs real money
+    // and brings in none.
+    const w = data.lastSeven;
+    document.getElementById('window').textContent = w.left >= 0
+      ? `${money(w.left)} ahead over ${w.days} days.`
+      : `${money(-w.left)} behind over ${w.days} days.`;
+
+    const rows = document.getElementById('windowrows');
+    rows.textContent = '';
+    const line = (label, value, note) => {
+      const row = el('div', null, 'row');
+      row.append(el('div', label, null));
+      row.append(el('div', value, 'value'));
+      if (note) row.append(el('div', note, 'meta'));
+      rows.append(row);
+    };
+    line('Came in', money(w.tookIn),
+      `${w.sessions} session${w.sessions === 1 ? '' : 's'} and paid work`);
+    line('Serving clients', exact(w.servingClients),
+      `${exact(w.clientCalls)} of calls, ${exact(w.clientDrafts)} of drafting over ${w.clientSeconds}s`);
+    line('Running the project', exact(w.runningTheProject),
+      `${exact(w.projectCalls)} of calls and ${exact(w.projectDrafts)} of drafting while testing`
+      + ` over ${w.projectSeconds}s, plus `
+      + `${w.fixedShare === null ? 'nothing listed' : exact(w.fixedShare)} of monthly bills for`
+      + ` ${w.days} of their 30 days`);
+    if (w.demoSessions) {
+      line('Demo sessions', String(w.demoSessions),
+        'Cost real money, took in nothing. Counted against the project.');
+    }
 
     const lines = document.getElementById('lines');
     lines.textContent = '';
@@ -166,6 +197,8 @@
       if (line.sharePercent !== 100) {
         row.append(el('div', `${line.sharePercent}% of it · ${money(line.costs)} here`, 'badge open'));
       }
+      row.append(el('div', line.forReference ? `For ${line.forReference}` : 'For the product',
+        'badge open'));
       if (line.note) row.append(el('div', line.note, 'meta'));
       const drop = el('button', 'Remove', 'quiet');
       drop.type = 'button';
@@ -239,6 +272,7 @@
         name: document.getElementById('linename').value,
         amount: document.getElementById('lineamount').value,
         share: document.getElementById('lineshare').value,
+        reference: document.getElementById('lineref').value,
         every: document.getElementById('lineevery').value,
       });
       window.location.reload();
