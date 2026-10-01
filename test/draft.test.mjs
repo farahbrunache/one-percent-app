@@ -109,6 +109,28 @@ try {
 check('waiting too long gives up and says how long it waited',
   waited?.status === 504 && /seconds/.test(waited.message), waited?.message);
 
+// Two timeouts that read the same and are nothing alike. Running out of money fails at the
+// submit, with a status code, so a job that got an id was paid for -- what is left is whether
+// anything picked it up. The message has to say which, or the only way to find out is to ask
+// somebody who can read the code.
+check('a job nothing ever started says it sat queued',
+  /queued the whole time/.test(waited.message) && /not\s+a billing refusal/.test(waited.message),
+  waited.message);
+
+clock = 0;
+stub([
+  { body: { id: 'job-4' } },
+  { body: { status: 'IN_QUEUE' } },
+  { body: { status: 'IN_PROGRESS' } },
+]);
+let slow = null;
+try {
+  await draft.draft([{ role: 'user', content: 'x' }], 'A', () => (clock += draft.DRAFT_BUDGET_MS / 2));
+} catch (error) { slow = error; }
+check('a job a worker took says it started and was slow',
+  slow?.status === 504 && /started on it/.test(slow.message)
+  && !/queued the whole time/.test(slow.message), slow?.message);
+
 // ---- the shape a sheet is written in ---------------------------------------------------------
 //
 // One list of rules, two readers: the template the operator starts from and the prompt a model
