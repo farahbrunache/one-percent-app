@@ -180,6 +180,31 @@
       </form>
     </details>
 
+    <details class="panel fold" id="fold-contacts">
+      <summary><h2>People to approach</h2><span class="sofar" id="sofar-contacts"></span></summary>
+      <p class="meta">Who they said they would go to, and what happened when they did. Nothing
+        here sends anything — the message goes out wherever they talk to people, and what came
+        back gets typed in afterwards.</p>
+      <div id="contacts" class="rows"></div>
+      <form class="fields" id="addcontact" hidden novalidate>
+        <div class="field">
+          <label for="contactname">Who</label>
+          <input id="contactname" type="text" autocomplete="off" maxlength="200">
+        </div>
+        <div class="field">
+          <label for="contactwhere">Where they would reach them</label>
+          <span class="hint">Quora, Signal, the shop on the corner. Leave it empty if it is not
+            settled.</span>
+          <input id="contactwhere" type="text" autocomplete="off" maxlength="200">
+        </div>
+        <div class="field">
+          <label for="contactwhy">Why this one</label>
+          <input id="contactwhy" type="text" autocomplete="off" maxlength="500">
+        </div>
+        <div class="actions"><button type="submit" class="quiet">Add</button></div>
+      </form>
+    </details>
+
     <details class="panel fold" id="fold-quotes">
       <summary><h2>Quotes</h2><span class="sofar" id="sofar-quotes"></span></summary>
       <p class="meta" id="quotenote"></p>

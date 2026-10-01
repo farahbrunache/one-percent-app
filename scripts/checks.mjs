@@ -442,31 +442,84 @@ const GLOBALS = new Set([
   'Buffer', 'process', 'console', 'if', 'for', 'while', 'switch', 'catch', 'return',
   'typeof', 'await', 'function', 'super', 'this', 'async', 'constructor', 'else', 'do',
   'new', 'delete', 'void', 'in', 'of', 'yield', 'throw', 'case',
+  // `import()` is the language, not a function anybody declares. It went unnoticed until a block
+  // of SQL moved out of lib/db.js: the backtick stripping above pairs template literals, and the
+  // dynamic import had been sitting inside a pair by accident of where the backticks fell. Moving
+  // the block changed the pairing and the call came into view, reading as a reference to nothing.
+  'import',
 ]);
 
-// The code inside every `${...}` of a template literal, and nothing around it. Brace matching
-// rather than a pattern, because an interpolation can hold braces of its own.
-function interpolations(text) {
-  const out = [];
-  for (let i = 0; i < text.length; i += 1) {
-    if (text[i] === '\\') { i += 1; continue; }
-    if (text[i] !== '`') continue;
-    i += 1;
-    for (; i < text.length && text[i] !== '`'; i += 1) {
-      if (text[i] === '\\') { i += 1; continue; }
-      if (text[i] !== '$' || text[i + 1] !== '{') continue;
-      let depth = 1;
-      const from = i + 2;
-      i += 2;
-      while (i < text.length && depth > 0) {
-        if (text[i] === '{') depth += 1;
-        else if (text[i] === '}') depth -= 1;
-        if (depth > 0) i += 1;
-      }
-      out.push(text.slice(from, i));
+// Code with every string, template and comment blanked, and nothing else touched.
+//
+// This was five chained replaces and it was quietly eating real code. Strings were blanked
+// before comments, so an apostrophe inside a `// person's own record` opened a string that ran
+// to the next apostrophe several lines later and took everything between with it. Reordering
+// does not fix it either -- blanking comments first eats the rest of any line holding a `//`
+// inside a string, which every URL is.
+//
+// Two live calls were invisible because of it: a dynamic `import()` in lib/db.js, and a
+// `quoteIsWaitingOnYou()` that was never imported and threw the moment anybody opened the record
+// of somebody who had been quoted. The check was written for exactly that and could not see it.
+//
+// So this walks the text once and knows which of the five states it is in. Interpolations inside
+// a template are kept, because they are code: `${owed(person)}` is a call like any other.
+function scrub(source) {
+  let out = '';
+  let i = 0;
+  const depth = [];
+  while (i < source.length) {
+    const c = source[i];
+    const next = source[i + 1];
+
+    if (c === '/' && next === '/') {
+      while (i < source.length && source[i] !== '\n') i += 1;
+      continue;
     }
+    if (c === '/' && next === '*') {
+      i += 2;
+      while (i < source.length && !(source[i] === '*' && source[i + 1] === '/')) i += 1;
+      i += 2;
+      continue;
+    }
+    if (c === "'" || c === '"') {
+      const quote = c;
+      i += 1;
+      while (i < source.length && source[i] !== quote) {
+        if (source[i] === '\\') i += 1;
+        i += 1;
+      }
+      i += 1;
+      out += `${quote}${quote}`;
+      continue;
+    }
+    if (c === '`') {
+      i += 1;
+      while (i < source.length && source[i] !== '`') {
+        if (source[i] === '\\') { i += 2; continue; }
+        // An interpolation is code and is kept. Braces nest, so count them.
+        if (source[i] === '$' && source[i + 1] === '{') {
+          let open = 1;
+          i += 2;
+          const from = i;
+          while (i < source.length && open > 0) {
+            if (source[i] === '{') open += 1;
+            else if (source[i] === '}') open -= 1;
+            if (open > 0) i += 1;
+          }
+          out += ` ${scrub(source.slice(from, i))} `;
+          i += 1;
+          continue;
+        }
+        i += 1;
+      }
+      i += 1;
+      out += '``';
+      continue;
+    }
+    out += c;
+    i += 1;
   }
-  return out.join('\n');
+  return out;
 }
 
 const callSites = [
@@ -520,12 +573,7 @@ for (const { where, text, page } of callSites) {
     }
   }
 
-  const withoutStrings = text
-    .replace(/`(?:[^`\\]|\\.)*`/g, '``')
-    .replace(/'(?:[^'\\]|\\.)*'/g, "''")
-    .replace(/"(?:[^"\\]|\\.)*"/g, '""')
-    .replace(/\/\/[^\n]*/g, '')
-    .replace(/\/\*[\s\S]*?\*\//g, '');
+  const withoutStrings = scrub(text);
 
   for (const m of withoutStrings.matchAll(/(^|[^.\w$])([a-z_$][\w$]*)\s*\(/g)) {
     const name = m[2];
@@ -562,7 +610,7 @@ for (const { where, text, page } of callSites) {
     // `${encodeURIComponent(here.pathname + here.search)}`. So the code inside every `${...}`
     // is put back, and only that: the prose around it would match an exported name like `page`
     // or `money` on nothing but a sentence.
-    const readable = withoutStrings + '\n' + interpolations(text);
+    const readable = withoutStrings;
     for (const m of readable.matchAll(/(^|[^.\w$'"])([a-z_$][\w$]*)(?![\w$(:])/g)) {
       const name = m[2];
       if (!reachable.has(name) || seenHere.has(name)) continue;

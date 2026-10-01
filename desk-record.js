@@ -9,6 +9,7 @@ import { el, link, msg, get, post, when, day, minutes, money, owed, mpage, here 
   from '/desk-ui.js';
 import { renderPlan, renderSteps, renderQuotes, renderIntroductions, pathLabel }
   from '/desk-work.js';
+import { renderContacts } from '/desk-contacts.js';
 import { SHEET_LINKS, SHEET_RULES, SHEET_TEMPLATE, unfilledSlots } from '/sheet.js';
 
 // Where in the conversation this is. Same shape as the queue's pager, and the page number
@@ -506,6 +507,10 @@ function foldLines(person) {
       : 'nothing said yet');
   sofar('plan', person.plan ? pathLabel(person.plan.path) : 'not set');
   sofar('steps', person.milestones.length ? `${done} of ${person.milestones.length} done` : 'none');
+  const approached = (person.contacts || []).filter((c) => c.status !== 'to approach').length;
+  sofar('contacts', person.contacts && person.contacts.length
+    ? `${approached} approached of ${person.contacts.length}`
+    : 'none');
   sofar('quotes', person.quotes.length
     ? `${openQuotes.length} open of ${person.quotes.length}`
     : 'none');
@@ -660,6 +665,7 @@ export function renderPerson(person) {
   renderThread(person);
   renderPlan(person);
   renderSteps(person);
+  renderContacts(person);
   renderQuotes(person);
   renderIntroductions(person);
   renderFirstCustomer(person);
