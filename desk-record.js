@@ -11,6 +11,7 @@ import { renderPlan, renderSteps, renderQuotes, renderIntroductions, pathLabel }
   from '/desk-work.js';
 import { renderContacts } from '/desk-contacts.js';
 import { renderWork } from '/desk-projects.js';
+import { renderRecap } from '/desk-recap.js';
 import { foldLines, openWhatIsNext, sofar } from '/desk-folds.js';
 import { SHEET_LINKS, SHEET_RULES, SHEET_TEMPLATE, unfilledSlots } from '/sheet.js';
 
@@ -603,6 +604,7 @@ export function renderPerson(person) {
   document.getElementById('called').textContent =
     (latest ? `Called ${when(latest.endedAt || latest.startedAt)}` : 'No call yet') +
     (person.linked ? '' : ' · no account linked yet');
+  renderRecap(person);
   renderCalls(person);
   renderOwed(person);
   renderDecision(person);

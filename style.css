@@ -406,9 +406,10 @@ input.code-field::placeholder {
   font-size: 0.95rem;
 }
 
-/* What was written after a call. Read on a phone, so it keeps the reading measure and the
-   line breaks somebody typed rather than becoming one block. */
-.sheet {
+/* What was written after a call, and the recap of where a relationship stands. Read on a phone,
+   so both keep the reading measure and the line breaks rather than becoming one block. */
+.sheet,
+.recap {
   margin-top: 0.5rem;
   white-space: pre-wrap;
   color: var(--ink-soft);
