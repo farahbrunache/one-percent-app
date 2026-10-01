@@ -37,6 +37,43 @@
 
     <div id="figures" class="stats"></div>
 
+    <div class="panel sage">
+      <h2>This month</h2>
+      <p id="month" class="status-line"></p>
+      <p class="meta" id="monthwhy"></p>
+    </div>
+
+    <div class="panel">
+      <h2>What it costs to run</h2>
+      <p class="meta">What you pay for, every month. A tool shared with other work carries only
+        its share here — a hundred dollars across three things is 33.</p>
+      <div id="lines" class="rows"></div>
+      <form class="fields" id="addline" novalidate>
+        <div class="field">
+          <label for="linename">What is it</label>
+          <input id="linename" type="text" autocomplete="off" maxlength="120" placeholder="Render">
+        </div>
+        <div class="field">
+          <label for="lineamount">Dollars</label>
+          <input id="lineamount" type="number" inputmode="decimal" min="0" step="any" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="lineshare">Your share, out of 100</label>
+          <span class="hint">Leave it at 100 unless it is split with other work.</span>
+          <input id="lineshare" type="number" inputmode="numeric" min="1" max="100" step="1"
+                 value="100" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="lineevery">Charged</label>
+          <select id="lineevery">
+            <option value="month">Every month</option>
+            <option value="draft-second">Per second of drafting</option>
+          </select>
+        </div>
+        <div class="actions"><button type="submit" class="quiet">Add it</button></div>
+      </form>
+    </div>
+
     <div class="panel">
       <h2>What is not counted</h2>
       <div id="unknown" class="rows"></div>
@@ -58,6 +95,16 @@
 
 <script type="module">
   import { el, msg, call, money } from '/desk-ui.js';
+
+  // The desk's post() aims at the desk. This screen has its own endpoint, and borrowing that
+  // one would have sent every cost line to a place that does not answer for them.
+  function post(action, body) {
+    return call(`/api/costs?action=${action}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  }
 
   // Cents, because a session is seven dollars and a call is under a dollar. Rounding either to
   // whole dollars would show both as nothing and the answer as a round number it is not.
@@ -89,6 +136,54 @@
         : `${exact(-left)} short on each session, before what the servers cost.`;
       why.textContent = `${exact(each)} to deliver against ${money(data.sessionPrice)} taken, `
         + `across ${data.sessions} session${data.sessions === 1 ? '' : 's'}.`;
+    }
+
+    // The month is the window the bills arrive on, so it is the one that answers whether this
+    // pays for itself. Per session answers what a price has to clear, which is a different
+    // question asked by the same screen.
+    const m = data.thisMonth;
+    const monthSaid = document.getElementById('month');
+    monthSaid.textContent = m.left >= 0
+      ? `${money(m.left)} ahead this month.`
+      : `${money(-m.left)} behind this month.`;
+    document.getElementById('monthwhy').textContent =
+      `${money(m.tookIn)} in from ${m.sessions} session${m.sessions === 1 ? '' : 's'} and paid `
+      + `work, against ${exact(m.callCost)} of calls, ${exact(m.draftCost)} of drafting over `
+      + `${m.draftSeconds}s, and ${m.fixed === null ? 'nothing listed' : money(m.fixed)} of `
+      + 'things you pay for every month.';
+
+    const lines = document.getElementById('lines');
+    lines.textContent = '';
+    if (!data.lines.length) {
+      lines.append(el('p', 'Nothing listed yet, so only calls and drafting are counted.', 'meta'));
+    }
+    for (const line of data.lines) {
+      const row = el('div', null, 'row');
+      row.append(el('div', line.name, null));
+      row.append(el('div', line.every === 'month'
+        ? `${money(line.amount)} a month`
+        : `${exact(line.amount)} per second of drafting`, 'meta'));
+      if (line.sharePercent !== 100) {
+        row.append(el('div', `${line.sharePercent}% of it · ${money(line.costs)} here`, 'badge open'));
+      }
+      if (line.note) row.append(el('div', line.note, 'meta'));
+      const drop = el('button', 'Remove', 'quiet');
+      drop.type = 'button';
+      drop.addEventListener('click', async () => {
+        if (!window.confirm(`Remove ${line.name}?`)) return;
+        drop.disabled = true;
+        try {
+          await post('line-remove', { id: line.id });
+          window.location.reload();
+        } catch (error) {
+          drop.disabled = false;
+          msg('msg', error.message, 'bad');
+        }
+      });
+      const actions = el('div', null, 'actions');
+      actions.append(drop);
+      row.append(actions);
+      lines.append(row);
     }
 
     const figures = document.getElementById('figures');
@@ -136,6 +231,21 @@
       orders.append(row);
     }
   }
+
+  document.getElementById('addline').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    try {
+      await post('line-add', {
+        name: document.getElementById('linename').value,
+        amount: document.getElementById('lineamount').value,
+        share: document.getElementById('lineshare').value,
+        every: document.getElementById('lineevery').value,
+      });
+      window.location.reload();
+    } catch (error) {
+      msg('msg', error.message, 'bad');
+    }
+  });
 
   document.getElementById('refresh').addEventListener('click', () => window.location.reload());
   document.getElementById('logout')?.addEventListener('click', async () => {

@@ -136,10 +136,17 @@ await tagged`insert into calls (order_id, call_id, transcript_encrypted)
 const made = await seedDemo();
 check('seeding makes a row for every path the desk has', made.length >= 7, made.length);
 
-// More orders than scenarios: one of them is a person who bought a second session, which is
-// the point of that scenario.
+// More orders than order scenarios: one of them is a person who bought a second session, which
+// is the point of that scenario. The seeder also reports things that are not orders -- what it
+// costs to run is one row of its own -- so the comparison is against the entries that are.
+const scenarios = made.filter((row) => /^DEMO\d/.test(row.reference)).length;
 const marked = await tagged`select count(*)::int as n from orders where is_demo`;
-check('every seeded order carries the mark', marked[0].n > made.length, marked[0]);
+check('every seeded order carries the mark', marked[0].n > scenarios,
+  { orders: marked[0].n, scenarios });
+
+const lines = await tagged`select count(*)::int as n from cost_lines where is_demo`;
+check('and what it costs to run is seeded too, so the cost screen has something to add up',
+  lines[0].n === 3, lines[0]);
 
 const unmarked = await tagged`
   select count(*)::int as n from orders where id = ${realOrder} and is_demo = false`;
@@ -390,9 +397,11 @@ const unpaid = costs.costOfOrder({
 }, 0.01);
 check('an unpaid order took in nothing', unpaid.tookIn === 0 && unpaid.left === 0, unpaid);
 
-// Against the database, so the query and the arithmetic are checked together.
-process.env.COST_DRAFT_PER_SECOND_USD = '0.01';
-delete process.env.COST_MONTHLY_FIXED_USD;
+// Against the database, so the query and the arithmetic are checked together. The rate is a
+// line now rather than a setting, because the owner edits it from a phone and the settings
+// store needs a laptop.
+await tagged`insert into cost_lines (name, amount_cents, share_percent, every)
+             values ('Drafting worker', 1, 100, 'draft-second')`;
 
 const costed = await newOrder();
 await tagged`insert into calls (order_id, call_id, transcript_encrypted, record_encrypted)
@@ -405,9 +414,25 @@ const now = await costsNow();
 const mine = now.orders.find((o) => o.id === costed);
 check('the screen prices a real order from the database',
   Math.abs(mine.spent - (0.581 + 0.2)) < 1e-9, mine);
-check('it says the monthly figure is missing rather than counting it as nothing',
+check('it says nothing is listed monthly rather than counting it as nothing',
   now.monthlyFixed === null
-  && now.unknown.some((line) => /COST_MONTHLY_FIXED_USD/.test(line)), now.unknown);
+  && now.unknown.some((line) => /Nothing is listed as a monthly cost/.test(line)), now.unknown);
+
+// A share is the whole point of the list: one tool bought once, used across three things,
+// carries a third of its price here.
+check('a line shared three ways carries a third of its price',
+  Math.abs(costs.lineCost({ amount_cents: 10000, share_percent: 33 }) - 33) < 1e-9);
+check('a line with no share carries all of it',
+  costs.lineCost({ amount_cents: 2500, share_percent: 100 }) === 25);
+
+await tagged`insert into cost_lines (name, amount_cents, share_percent, every)
+             values ('Render', 2500, 100, 'month'), ('Claude Code', 10000, 33, 'month')`;
+const withLines = await costsNow();
+check('the monthly total adds the shares rather than the full prices',
+  Math.abs(withLines.monthlyFixed - (25 + 33)) < 1e-9, withLines.monthlyFixed);
+check('and the month says whether it pays for itself',
+  typeof withLines.thisMonth.left === 'number'
+  && withLines.thisMonth.fixed === withLines.monthlyFixed, withLines.thisMonth);
 check('and the seven dollars is what a session took in', now.sessionPrice === 7);
 
 const failures = failureCount();
