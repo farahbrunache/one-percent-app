@@ -8,6 +8,7 @@
 // with it.
 
 import { el, money, msg, post, when } from '/desk-ui.js';
+import { once, settled, wasBefore } from '/desk-after.js';
 
 // When it is expected. Optional, because plenty of paid work has no date on it and a date
 // invented to make a row look complete is a deadline nobody agreed to.
@@ -31,12 +32,14 @@ function dueForm(person, quote) {
   actions.append(save);
 
   form.append(field, actions);
-  form.addEventListener('submit', async (event) => {
+  once(form, 'submit', async (event) => {
     event.preventDefault();
     save.disabled = true;
     try {
+      const was = quote.dueAt ? String(quote.dueAt).slice(0, 10) : '';
       await post('quote-due', { id: person.id, quoteId: quote.id, dueAt: input.value });
-      window.location.reload();
+      await settled(input.value ? `Due ${input.value}.` : 'No date on it now.',
+        wasBefore('quote-due', { id: person.id, quoteId: quote.id, dueAt: was }));
     } catch (error) {
       save.disabled = false;
       msg('rmsg', error.message, 'bad');
@@ -89,7 +92,7 @@ function paidForm(person, quote) {
   actions.append(save);
 
   form.append(amountField, whenField, whyField, actions);
-  form.addEventListener('submit', async (event) => {
+  once(form, 'submit', async (event) => {
     event.preventDefault();
     save.disabled = true;
     try {
@@ -100,7 +103,7 @@ function paidForm(person, quote) {
         at: at.value,
         discount: why.value,
       });
-      window.location.reload();
+      await settled('Payment recorded.');
     } catch (error) {
       save.disabled = false;
       msg('rmsg', error.message, 'bad');

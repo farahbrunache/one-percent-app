@@ -7,6 +7,7 @@
 // situation, and a screen that looked like it might be visible is a screen nobody writes in.
 
 import { el, msg, post, when } from '/desk-ui.js';
+import { once, settled, wasBefore } from '/desk-after.js';
 
 const STATUSES = ['open', 'done', 'dropped'];
 
@@ -55,11 +56,11 @@ function closeOutForm(person, action) {
   if (action.status === 'open' && action.cadence !== 'none') {
     const asked = el('button', 'Asked, still going', 'quiet');
     asked.type = 'button';
-    asked.addEventListener('click', async () => {
+    once(asked, 'click', async () => {
       asked.disabled = true;
       try {
         await post('action-push', { id: person.id, actionId: action.id });
-        window.location.reload();
+        await settled('Pushed out a cycle.');
       } catch (error) {
         asked.disabled = false;
         msg('rmsg', error.message, 'bad');
@@ -69,17 +70,19 @@ function closeOutForm(person, action) {
   }
 
   form.append(pickField, field, actions);
-  form.addEventListener('submit', async (event) => {
+  once(form, 'submit', async (event) => {
     event.preventDefault();
     save.disabled = true;
     try {
+      const was = { status: action.status, outcome: action.outcome || '' };
       await post('action-record', {
         id: person.id,
         actionId: action.id,
         status: pick.value,
         outcome: outcome.value,
       });
-      window.location.reload();
+      await settled(`Recorded as ${pick.value}.`,
+        wasBefore('action-record', { id: person.id, actionId: action.id, ...was }));
     } catch (error) {
       save.disabled = false;
       msg('rmsg', error.message, 'bad');
@@ -121,7 +124,7 @@ function addForm(person, step) {
   actions.append(add);
 
   form.append(field, pickField, actions);
-  form.addEventListener('submit', async (event) => {
+  once(form, 'submit', async (event) => {
     event.preventDefault();
     if (!input.value.trim()) return;
     add.disabled = true;
@@ -132,7 +135,7 @@ function addForm(person, step) {
         title: input.value,
         cadence: pick.value,
       });
-      window.location.reload();
+      await settled('Action added.');
     } catch (error) {
       add.disabled = false;
       msg('rmsg', error.message, 'bad');
