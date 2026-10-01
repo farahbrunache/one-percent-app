@@ -57,6 +57,8 @@ import { chooseModel, writeDraft } from '../lib/desk-drafts.js';
 import { addMilestone, recordMilestone, setPlan } from '../lib/desk-plan.js';
 import { funnel } from '../lib/desk-funnel.js';
 import { demoClear, demoSeed, markMine } from '../lib/desk-demo.js';
+import { block, close, unblock } from '../lib/desk-state.js';
+import { agentScript, callRecord } from '../lib/desk-voice.js';
 import { moveQuote, quoteWorth, writeQuote } from '../lib/desk-quotes.js';
 
 const PER_PAGE = 25;
@@ -132,6 +134,7 @@ async function queue(req, res) {
                order by m.created_at desc limit 1) = 'client' as awaiting_reply
         from orders o
         left join plans p on p.order_id = o.id and p.in_force
+        left join cases k on k.id = o.case_id
        where exists (select 1 from calls c
                       where c.order_id = o.id and c.transcript_encrypted is not null)
          and case ${state}
@@ -142,8 +145,8 @@ async function queue(req, res) {
                                    and (select m.author from messages m
                                          where m.account_id = o.client_account_id
                                          order by m.created_at desc limit 1) = 'client'
-               when 'active'  then o.decision = 'go'
-               else                o.decision = 'no-go'
+               when 'active'  then o.decision = 'go' and k.closed_at is null
+               else                k.closed_at is not null
              end
        order by o.id desc
        limit ${PER_PAGE} offset ${offset}
@@ -374,6 +377,11 @@ async function person(req, res) {
 
   // Quotes follow the account rather than the order. An order nobody has linked has nobody to
   // quote, which the screen says rather than offering a form that cannot work.
+  const [caseRow] = caseId
+    ? await sql()`select blocked_at, blocked_until, blocker_encrypted, closed_at
+                    from cases where id = ${caseId}`
+    : [];
+
   const quotes = row.client_account_id
     ? await sql()`
         select id, amount_cents, scope_encrypted, status, created_at, updated_at,
@@ -450,6 +458,12 @@ async function person(req, res) {
     // Not the screen's to work out. It got a different answer from the client area's and the two
     // contradicted each other on the same record.
     quoteWaiting: quotes.some((q) => quoteIsWaitingOnYou(q.status)),
+    // The owner's own bookkeeping. Neither reaches the client: a blocker is what this is
+    // waiting on, and closing is a view that shortens a list.
+    blocker: caseRow?.blocker_encrypted ? decrypt(caseRow.blocker_encrypted) : null,
+    blockedAt: caseRow?.blocked_at || null,
+    blockedUntil: caseRow?.blocked_until || null,
+    closedAt: caseRow?.closed_at || null,
     // The floor under a price, so it is on the screen before a number is typed rather than
     // worked out afterwards. It is not the price: what the work is worth to them is a
     // different question and it is the one that sets it.
@@ -531,81 +545,6 @@ async function person(req, res) {
 // The name of the one choice this screen owns. A slot letter, never an address and never a
 // key: those are settings and are not writable from a browser at any privilege.
 const MODEL_CHOICE = 'draft.model.slot';
-
-// The script the agent runs, as the voice service holds it. Read by this button and by the job
-// on a clock, which is why the gathering of it lives in lib/voice.js rather than in either.
-async function agentScript(req, res) {
-  requireAdmin(req);
-
-  const apiKey = process.env.RETELL_SECRET_KEY;
-  const agentId = process.env.RETELL_AGENT_ID;
-  if (!apiKey || !agentId) {
-    throw new HttpError(503, 'RETELL_SECRET_KEY or RETELL_AGENT_ID is not set, so nothing can be asked.');
-  }
-
-  try {
-    send(res, 200, await agentScriptExport(new Retell({ apiKey }), agentId));
-  } catch (error) {
-    if (error instanceof Retell.APIError) {
-      throw new HttpError(
-        502,
-        `The voice service would not hand over the agent (${error.status}): ` +
-          JSON.stringify(error.error ?? error.message).slice(0, 400),
-      );
-    }
-    throw new HttpError(502, `Could not reach the voice service: ${error.message}`);
-  }
-}
-
-// Everything the voice service holds about one call, as it holds it.
-//
-// What is kept here is the transcript and the summary, because those are what the work runs
-// on. The service keeps a great deal more -- how the agent was configured for that call, what
-// it cost, latencies, where each turn began and ended, why it ended -- and none of it is worth
-// a column until something needs it.
-//
-// What needs it is building a test case out of a real call, which is the only honest way to
-// write one for a conversation. So it is fetched live and handed over whole, rather than
-// stored and slowly diverging from what the service actually said.
-//
-// Nothing is written down by this. It is a read, and the copy that matters stays theirs.
-async function callRecord(req, res) {
-  requireAdmin(req);
-  const callId = String(query(req).get('call') || '').trim();
-  if (!callId) throw new HttpError(400, 'Which call? Pass the id the voice service gave it.');
-
-  const apiKey = process.env.RETELL_SECRET_KEY;
-  if (!apiKey) throw new HttpError(503, 'RETELL_SECRET_KEY is not set, so nothing can be asked.');
-
-  await ensureSchema();
-
-  // Only a call this site opened. The id comes from the screen, but the screen is not what
-  // decides whether it may be read.
-  const ours = await sql()`select 1 from calls where call_id = ${callId} limit 1`;
-  if (!ours.length) {
-    throw new HttpError(404, `No call here was started with the id ${callId}.`);
-  }
-
-  try {
-    const record = await new Retell({ apiKey }).call.retrieve(callId);
-
-    // Kept on the way past. Their retention is seven days, so a call made before anything here
-    // asked for its record can still be caught by somebody opening it -- and after that it is
-    // gone from both sides. Reading it is the only chance some calls will get.
-    await keepRecord(callId, encrypt(JSON.stringify(record)));
-
-    send(res, 200, record);
-  } catch (error) {
-    if (error instanceof Retell.APIError) {
-      throw new HttpError(
-        502,
-        `The voice service would not hand over call ${callId} (${error.status}): ` +
-          JSON.stringify(error.error ?? error.message).slice(0, 400),
-      );
-    }
-    throw new HttpError(502, `Could not reach the voice service: ${error.message}`);
-  }
-}
 
 // The end of the method. METHOD.md ends the relationship here rather than at a session count,
 // so this is the one outcome worth recording on its own and the bottom of the funnel.
@@ -783,6 +722,9 @@ const ACTIONS = {
     'introduction-record': recordIntroduction,
     'first-customer': firstCustomer,
     note: addNote,
+    block,
+    unblock,
+    close,
     'mine': markMine,
     'demo-seed': demoSeed,
     'demo-clear': demoClear,
