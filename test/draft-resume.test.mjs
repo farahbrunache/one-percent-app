@@ -107,8 +107,8 @@ check('and it still carries the job to go back to', row[0].job_id === 'job-1', r
 
 // ---- pressing again picks the same job back up ------------------------------------------
 //
-// The whole point. Before, this submitted a second job and paid for it while the first was
-// still running.
+// The case this fix exists for. Before, this submitted a second job and paid for it while
+// the first was still running.
 statusAnswer = (job) => (job === 'job-1'
   ? { status: 'COMPLETED', output: { content: 'Here is what I would do. 1. Ask for a rate per job.' } }
   : { status: 'IN_QUEUE' });
