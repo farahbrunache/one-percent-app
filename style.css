@@ -795,6 +795,43 @@ input.code-field::placeholder {
    at a time, which turned a list of ordinary work into a screen of warnings. */
 .inside .flag { color: var(--in-gold-soft); font-weight: 600; letter-spacing: normal; }
 
+/* Eight weeks, as a table. Rows were readable one at a time and useless for comparing, which
+   is the only reason to show eight of them.
+
+   Four columns is what fits at 390 pixels: when, in, out, and what is left. The last one
+   carries a colour and a word, never a colour alone -- a colour says nothing to somebody who
+   cannot see it or is being read the page. */
+.inside table.weeks {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+.inside table.weeks th,
+.inside table.weeks td {
+  padding: 0.45rem 0.3rem;
+  text-align: right;
+  font-size: 0.8125rem;
+  border-bottom: 1px solid var(--in-rule-card);
+}
+.inside table.weeks thead th {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--in-muted);
+}
+.inside table.weeks th[scope="row"] {
+  text-align: left;
+  font-weight: 400;
+  color: var(--in-soft);
+  white-space: nowrap;
+}
+.inside table.weeks td.ahead { color: var(--in-sage-bright); }
+.inside table.weeks td.short { color: var(--in-gold-soft); }
+.inside table.weeks tbody tr:last-child th,
+.inside table.weeks tbody tr:last-child td { border-bottom: 0; }
+
 /* The addresses, as something to press rather than something to type. Long enough that
    typing one is a dead link waiting to happen, and they wrap rather than widening the page. */
 .inside .chips {
