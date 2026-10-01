@@ -13,7 +13,8 @@
 
 import Retell, { verify } from 'retell-sdk';
 
-import { ensureSchema, keepRecord, sql } from '../lib/db.js';
+import { ensureSchema, sql } from '../lib/db.js';
+import { keepRecord } from '../lib/calls.js';
 import { encrypt } from '../lib/crypto.js';
 import { HttpError, handle, readRaw, send } from '../lib/http.js';
 
