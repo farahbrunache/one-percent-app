@@ -532,6 +532,48 @@ function openWhatIsNext(person) {
   }
 }
 
+// A session the owner bought and called through themselves, to see what the product does.
+//
+// It bills for real -- the voice service charges for the call whoever placed it -- so what it
+// cost belongs on the cost screen, under running the project. What it must never do is add
+// seven dollars nobody sent to the revenue.
+//
+// One way only, and the screen says so before the press. Unmarking would move real spending
+// onto a client who never existed.
+function renderWhoseSession(person) {
+  const why = document.getElementById('minewhy');
+  const actions = document.getElementById('mine');
+  actions.textContent = '';
+
+  if (person.isDemo) {
+    why.textContent = "Yours. The seven dollars is not counted as revenue, and what the call "
+      + "and any drafting cost is counted against running the project.";
+    sofar('mine', 'yours');
+    return;
+  }
+
+  why.textContent = 'A client\'s, so the seven dollars counts and what it cost is the cost of '
+    + 'serving them. Mark it as yours if you bought this one to test with: the money stops '
+    + 'counting as revenue and the costs move to the project. This cannot be undone.';
+  sofar('mine', "a client's");
+
+  const button = el('button', 'This one is mine', 'quiet');
+  button.type = 'button';
+  button.addEventListener('click', async () => {
+    if (!window.confirm('Mark this as your own test? The seven dollars stops counting as '
+      + 'revenue and this cannot be undone.')) return;
+    button.disabled = true;
+    try {
+      await post('mine', { id: person.id });
+      window.location.reload();
+    } catch (error) {
+      button.disabled = false;
+      msg('rmsg', error.message, 'bad');
+    }
+  });
+  actions.append(button);
+}
+
 export function renderPerson(person) {
   const heading = document.getElementById('ref');
   heading.textContent = person.reference || `Order ${person.id}`;
@@ -551,6 +593,7 @@ export function renderPerson(person) {
   renderQuotes(person);
   renderIntroductions(person);
   renderFirstCustomer(person);
+  renderWhoseSession(person);
   renderEvents(person);
   foldLines(person);
   openWhatIsNext(person);

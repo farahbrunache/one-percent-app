@@ -53,6 +53,7 @@ import { HttpError, handle, readJson, send } from '../lib/http.js';
 import { caseOf, orderId, record } from '../lib/desk-events.js';
 import { introduce, recordIntroduction } from '../lib/desk-introductions.js';
 import { chooseModel, writeDraft } from '../lib/desk-drafts.js';
+import { addMilestone, recordMilestone, setPlan } from '../lib/desk-plan.js';
 import { moveQuote, writeQuote } from '../lib/desk-quotes.js';
 
 const PER_PAGE = 25;
@@ -766,87 +767,6 @@ async function recommend(req, res) {
   send(res, 201, { ok: true, opened });
 }
 
-// Setting the path retires whatever was in force. Two statements rather than one, because the
-// partial unique index refuses two rows in force at the same moment.
-async function setPlan(req, res) {
-  requireAdmin(req);
-  await ensureSchema();
-  const body = await readJson(req);
-  const id = orderId(body.id);
-  const path = String(body.path || '');
-  if (!isPlanPath(path)) {
-    throw new HttpError(400, `Pick a path: ${Object.keys(PLAN_PATHS).join(' or ')}.`);
-  }
-
-  const exists = await sql()`select 1 from orders where id = ${id} and status = 'confirmed'`;
-  if (!exists.length) throw new HttpError(404, 'No confirmed order with that number.');
-  const caseId = needsCase(await caseOf(id));
-
-  const current = await sql()`select path from plans where case_id = ${caseId} and in_force`;
-  if (current[0]?.path === path) {
-    throw new HttpError(409, 'That path is already the one in force.');
-  }
-
-  await sql()`update plans set in_force = false where case_id = ${caseId} and in_force`;
-  await sql()`insert into plans (order_id, case_id, path) values (${id}, ${caseId}, ${path})`;
-  await record(id, 'plan.set', PLAN_PATHS[path].label);
-  send(res, 200, { ok: true, path });
-}
-
-async function addMilestone(req, res) {
-  requireAdmin(req);
-  await ensureSchema();
-  const body = await readJson(req);
-  const id = orderId(body.id);
-  const title = String(body.title || '').trim().slice(0, 300);
-  if (!title) throw new HttpError(400, 'A milestone needs a line saying what it is.');
-
-  const caseId = needsCase(await caseOf(id));
-  const plans = await sql()`select id from plans where case_id = ${caseId} and in_force`;
-  if (!plans.length) throw new HttpError(409, 'Pick a path first — a milestone belongs to one.');
-
-  const next = await sql()`
-    select coalesce(max(position), 0) + 1 as n from milestones where plan_id = ${plans[0].id}
-  `;
-  await sql()`
-    insert into milestones (plan_id, position, title_encrypted)
-    values (${plans[0].id}, ${next[0].n}, ${encrypt(title)})
-  `;
-  await record(id, 'milestone.added', title);
-  send(res, 201, { ok: true });
-}
-
-// What actually happened, in plain words. The status and the words are recorded together
-// because a status on its own says nothing anybody can act on later.
-async function recordMilestone(req, res) {
-  requireAdmin(req);
-  await ensureSchema();
-  const body = await readJson(req);
-  const id = orderId(body.id);
-  const milestoneId = orderId(body.milestoneId);
-  const status = String(body.status || '');
-  if (!isMilestoneStatus(status)) {
-    throw new HttpError(400, `Pick a status: ${MILESTONE_STATUSES.join(', ')}.`);
-  }
-  const outcome = String(body.outcome || '').trim().slice(0, 2000);
-
-  const done = await sql()`
-    update milestones m set
-      status = ${status},
-      outcome_encrypted = ${outcome ? encrypt(outcome) : null},
-      updated_at = now()
-     from plans p
-    where m.id = ${milestoneId} and m.plan_id = p.id
-      and p.order_id = ${id} and p.in_force
-    returning m.id
-  `;
-  if (!done.length) {
-    throw new HttpError(404, 'No milestone with that number under this person\'s current plan.');
-  }
-  await record(id, 'milestone.recorded', `${status}. ${outcome}`.trim());
-  send(res, 200, { ok: true, status });
-}
-
 // Answering. The reply goes to the account rather than to the order, and an order nobody has
 // linked has nowhere to send one — say that plainly rather than accepting a message into a
 // thread no one will ever read.
@@ -893,6 +813,36 @@ async function addNote(req, res) {
 // Demo records, made and removed from the desk because there is no terminal and no second
 // instance. Both are admin-only, and the delete refuses anything without the mark -- see
 // lib/demo.js for why that is a refusal rather than a filter.
+// Marking a session the owner made themselves, so its seven dollars stays out of the revenue
+// and its costs stay in.
+//
+// Different from a seeded row, and the difference is what was spent. A seeded row is invented
+// end to end: no call was placed and no worker ran, so counting its figures would put money on
+// the cost screen that was never spent. A session the owner buys and calls through to test
+// bills the voice service for real, and that bill is the price of having a product rather than
+// the price of serving somebody.
+//
+// One way only. An order marked as the owner's own stays that way, because unmarking it would
+// move real spending onto a client who never existed and let seven dollars nobody sent into
+// the revenue.
+async function markMine(req, res) {
+  requireAdmin(req);
+  await ensureSchema();
+  const body = await readJson(req);
+  const id = orderId(body.id);
+
+  const rows = await sql()`select is_demo from orders where id = ${id}`;
+  if (!rows.length) throw new HttpError(404, 'No order with that number.');
+  if (rows[0].is_demo) {
+    throw new HttpError(409, 'That one is already marked as yours.');
+  }
+
+  await sql()`update orders set is_demo = true where id = ${id}`;
+  await record(id, 'note', 'Marked as the owner\'s own: no revenue counted, costs are the '
+    + "project's.");
+  send(res, 200, { ok: true });
+}
+
 async function demoSeed(req, res) {
   requireAdmin(req);
   await ensureSchema();
@@ -922,6 +872,7 @@ const ACTIONS = {
     'introduction-record': recordIntroduction,
     'first-customer': firstCustomer,
     note: addNote,
+    'mine': markMine,
     'demo-seed': demoSeed,
     'demo-clear': demoClear,
   },
