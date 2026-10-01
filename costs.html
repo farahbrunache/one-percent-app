@@ -29,13 +29,23 @@
 
   <div id="work" hidden>
     <!-- The answer first. Everything under it is the working. -->
-    <div class="panel">
-      <h2>What a session costs to serve</h2>
-      <p id="verdict" class="status-line"></p>
-      <p class="meta" id="verdictwhy"></p>
+    <div class="panel sage">
+      <h2>Are you underwater</h2>
+      <p id="verdict30" class="status-line"></p>
+      <p class="meta" id="verdict30why"></p>
     </div>
 
-    <div id="figures" class="stats"></div>
+    <div class="panel">
+      <h2>Week by week</h2>
+      <p id="pattern" class="meta"></p>
+      <table class="weeks">
+        <thead>
+          <tr><th scope="col">Week</th><th scope="col">In</th><th scope="col">Out</th>
+            <th scope="col">Left</th></tr>
+        </thead>
+        <tbody id="weeks"></tbody>
+      </table>
+    </div>
 
     <div class="panel sage">
       <h2>The last seven days</h2>
@@ -43,13 +53,13 @@
       <div id="windowrows" class="rows"></div>
     </div>
 
-    <div class="panel sage">
-      <h2>Are you underwater</h2>
-      <p id="pattern" class="status-line"></p>
-      <p class="meta">One short week is worth watching. Most of them short is worth changing
-        something about, and this is how you tell which without waiting a month to find out.</p>
-      <div id="weeks" class="rows"></div>
+    <div class="panel">
+      <h2>What a session costs to serve</h2>
+      <p id="verdict" class="status-line"></p>
+      <p class="meta" id="verdictwhy"></p>
     </div>
+
+    <div id="figures" class="stats"></div>
 
     <div class="panel">
       <h2>What it costs to run</h2>
@@ -235,24 +245,34 @@
     pattern.textContent = !weeks.length
       ? ''
       : short === 0
-        ? `Ahead in all ${weeks.length} of the last ${weeks.length} weeks.`
-        : `Short in ${short} of the last ${weeks.length} weeks.`;
+        ? `Ahead in all ${weeks.length} of them.`
+        : `Short in ${short} of the last ${weeks.length} weeks. One short week is worth `
+          + 'watching; most of them short is worth changing something about.';
+
+    // Thirty days is the answer, because seven is one session wide -- sell two instead of one
+    // and it flips. Thirty still moves every day, so it is an answer rather than a wait.
+    const v = data.verdict;
+    document.getElementById('verdict30').textContent = v.left >= 0
+      ? `${money(v.left)} ahead over ${v.days} days.`
+      : `${money(-v.left)} underwater over ${v.days} days.`;
+    document.getElementById('verdict30why').textContent =
+      `${money(v.tookIn)} in from ${v.sessions} session${v.sessions === 1 ? '' : 's'} and paid `
+      + `work, against ${exact(v.servingClients)} serving them and `
+      + `${exact(v.runningTheProject)} running the project.`;
 
     const weekRows = document.getElementById('weeks');
     weekRows.textContent = '';
     for (const week of weeks) {
-      const row = el('div', null, 'row');
-      row.append(el('div', week.endedDaysAgo === 0
-        ? 'The last 7 days'
-        : `${week.endedDaysAgo} to ${week.endedDaysAgo + 7} days ago`, null));
-      row.append(el('div', week.left >= 0 ? `${money(week.left)} ahead` : `${money(-week.left)} short`,
-        week.left >= 0 ? 'badge go' : 'flag'));
-      row.append(el('div',
-        `${money(week.tookIn)} in from ${week.sessions} session${week.sessions === 1 ? '' : 's'}`
-        + ` · ${exact(week.spent)} out`, 'meta'));
-      if (week.demoSessions) {
-        row.append(el('div', `${week.demoSessions} tested, which took in nothing`, 'meta'));
-      }
+      const row = el('tr', null, week.left >= 0 ? 'ahead' : 'short');
+      const when = el('th', week.endedDaysAgo === 0 ? 'Last 7 days' : `${week.endedDaysAgo}–${week.endedDaysAgo + 7}d`, null);
+      when.scope = 'row';
+      row.append(when);
+      row.append(el('td', money(week.tookIn), null));
+      row.append(el('td', money(week.spent), null));
+      // The word, not only the colour. A colour alone says nothing to somebody who cannot see
+      // it or is being read the page aloud.
+      row.append(el('td', week.left >= 0 ? `${money(week.left)} up` : `${money(-week.left)} short`,
+        week.left >= 0 ? 'ahead' : 'short'));
       weekRows.append(row);
     }
 
