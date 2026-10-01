@@ -533,6 +533,46 @@ check('and the seven dollars is what a session took in', now.sessionPrice === 7)
   check('marking it twice is refused', (await pressMine(bought)) === 409);
 }
 
+// The gap, and the floor under a price. Both arithmetic: a quote is written against what the
+// work is worth to the person who needs it, and nothing here claims to know that.
+{
+  const closes = costs.whatClosesTheGap(
+    { left: -50, sessions: 4, servingClients: 2, days: 30 }, 7, 90);
+  check('the gap is stated in sessions, one quote, and money a month',
+    closes.short === 50 && closes.oneQuote === 50 && closes.sessions === 8
+    && Math.abs(closes.perMonth - 50) < 1e-9, closes);
+  check('a session counts for what is left of the seven after serving somebody',
+    Math.abs(closes.perSessionLeft - 6.5) < 1e-9, closes.perSessionLeft);
+  check('with nothing served, the sessions figure is left out rather than guessed',
+    costs.whatClosesTheGap({ left: -50, sessions: 0, servingClients: 0, days: 30 }, 7, 90)
+      .sessions === null);
+  check('and being ahead closes no gap',
+    costs.whatClosesTheGap({ left: 10, sessions: 4, servingClients: 2, days: 30 }, 7, 90) === null);
+
+  // The floor is what they cost, plus their share of running the thing, less what their seven
+  // already covered. Never the price.
+  const floor = costs.breakEvenFor(
+    { spent: 2, counted: 7 }, 13);
+  check('break-even is what is left after the session covered part of it',
+    floor.breakEven === 8 && floor.theirs === 2 && floor.share === 13, floor);
+  check('and it never goes below nothing',
+    costs.breakEvenFor({ spent: 0.5, counted: 7 }, 0).breakEven === 0);
+
+  // Against the database, so the query and the arithmetic are checked together.
+  const quoted = await newOrder();
+  await tagged`insert into calls (order_id, call_id, transcript_encrypted, record_encrypted)
+               values (${quoted}, ${'c-floor-' + quoted}, ${seal('x')},
+                       ${seal(JSON.stringify({ call_cost: { combined_cost: 0.5 } }))})`;
+  await tagged`insert into cost_lines (name, amount_cents, share_percent, every, order_id)
+               values ('Extra research', 4000, 100, 'month', ${quoted})`;
+
+  const real = await costs.breakEvenForOrder(quoted);
+  check('a line attached to one person is part of their floor',
+    Math.abs(real.theirs - (0.5 + 40)) < 1e-9, real);
+  check('and the screen knows whether the monthly figure is there at all',
+    real.monthlyKnown === true, real);
+}
+
 const failures = failureCount();
 console.log(failures ? `\n${failures} failed` : '\nall passed');
 process.exit(failures ? 1 : 0);

@@ -2,8 +2,8 @@
   "_comment": "BURN-DOWN list for the size check in checks.mjs: files already over the limit when it was added. The list may only ever shrink. The gate fails three ways: a file over the limit that is not listed here, a listed file that has grown past the number recorded for it, and a listed file that no longer needs to be listed. Never add an entry to make a red check green -- take the smallest thing in the file out into its own file instead. Every entry says what will split it and stays until that happens.",
   "files": {
     "api/desk.js": {
-      "lines": 895,
-      "note": "The remaining desk actions in one file: the first screen, the queue, the funnel, a person, and the writes that are about one person rather than a subject. The page went first, then the quotes, the write helpers, the introductions, the drafting and the plan. Recorded 2026-10-01."
+      "lines": 806,
+      "note": "The desk actions about the person in front of you, plus the two lists that find them. Every subject with a shape of its own has moved out: the page, the quotes, the write helpers, the introductions, the drafting, the plan, the funnel, the demo records. Recorded 2026-10-01."
     },
     "test/database.test.mjs": {
       "lines": 783,

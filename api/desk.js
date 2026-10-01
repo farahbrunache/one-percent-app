@@ -51,10 +51,13 @@ import { normalizeReference, OPENING_LINE } from '../lib/orders.js';
 import { clearDemo, seedDemo } from '../lib/demo.js';
 import { HttpError, handle, readJson, send } from '../lib/http.js';
 import { caseOf, orderId, record } from '../lib/desk-events.js';
+import { breakEvenForOrder } from '../lib/costs.js';
 import { introduce, recordIntroduction } from '../lib/desk-introductions.js';
 import { chooseModel, writeDraft } from '../lib/desk-drafts.js';
 import { addMilestone, recordMilestone, setPlan } from '../lib/desk-plan.js';
-import { moveQuote, writeQuote } from '../lib/desk-quotes.js';
+import { funnel } from '../lib/desk-funnel.js';
+import { demoClear, demoSeed, markMine } from '../lib/desk-demo.js';
+import { moveQuote, quoteWorth, writeQuote } from '../lib/desk-quotes.js';
 
 const PER_PAGE = 25;
 
@@ -278,58 +281,6 @@ async function today(req, res) {
   });
 }
 
-// The funnel, counted rather than entered. Five numbers, each a strict subset of the one above,
-// so the drop between two of them is a real rate and not two unrelated figures side by side.
-//
-// A person with more than one order is counted once. Somebody who came back for a second
-// session is not two people, and a funnel that said so would overstate the top and understate
-// every rate below it.
-async function funnel(req, res) {
-  requireAdmin(req);
-  await ensureSchema();
-
-  const rows = await sql()`
-    with people as (
-      select o.id,
-             coalesce('case:' || o.case_id, 'order:' || o.id) as who,
-             o.decision,
-             (select k.first_customer_at from cases k where k.id = o.case_id) as first_customer_at,
-             exists (select 1 from calls c
-                      where c.order_id = o.id and c.transcript_encrypted is not null) as called,
-             exists (select 1 from plans p
-                      where p.in_force
-                        and (p.case_id = o.case_id or (o.case_id is null and p.order_id = o.id))
-                    ) as planned,
-             exists (select 1 from plans p join milestones m on m.plan_id = p.id
-                      where m.status = 'worked'
-                        and (p.case_id = o.case_id or (o.case_id is null and p.order_id = o.id))
-                    ) as worked
-        from orders o
-       where o.status = 'confirmed'
-    )
-    select
-      count(distinct who) filter (where called) as called,
-      count(distinct who) filter (where called and decision = 'go') as go,
-      count(distinct who) filter (where called and decision = 'go' and planned) as planned,
-      count(distinct who) filter (where called and decision = 'go' and planned and worked) as worked,
-      count(distinct who) filter (where first_customer_at is not null) as earning
-      from people
-  `;
-  const counts = rows[0] || {};
-
-  let above = null;
-  send(res, 200, {
-    stages: FUNNEL_STAGES.map((stage) => {
-      const count = Number(counts[stage.key] || 0);
-      // The rate from the stage above, which is the only comparison that means anything. The
-      // first stage has nothing above it, and a stage below an empty one has no rate either.
-      const rate = above === null ? null : above === 0 ? null : Math.round((count / above) * 100);
-      above = count;
-      return { key: stage.key, label: stage.label, count, rate };
-    }),
-  });
-}
-
 // One person, entire. Four queries rather than one join, because a join across events and
 // milestones multiplies rows and the shapes are different enough that pulling them apart
 // again costs more than asking twice.
@@ -499,6 +450,10 @@ async function person(req, res) {
     // Not the screen's to work out. It got a different answer from the client area's and the two
     // contradicted each other on the same record.
     quoteWaiting: quotes.some((q) => quoteIsWaitingOnYou(q.status)),
+    // The floor under a price, so it is on the screen before a number is typed rather than
+    // worked out afterwards. It is not the price: what the work is worth to them is a
+    // different question and it is the one that sets it.
+    breakEven: await breakEvenForOrder(id),
     conversationOpen: conversationIsOpen({
       approvedAt: row.approved_as_client_at,
       quoteCount: quotes.length,
@@ -810,51 +765,6 @@ async function addNote(req, res) {
   send(res, 201, { ok: true });
 }
 
-// Demo records, made and removed from the desk because there is no terminal and no second
-// instance. Both are admin-only, and the delete refuses anything without the mark -- see
-// lib/demo.js for why that is a refusal rather than a filter.
-// Marking a session the owner made themselves, so its seven dollars stays out of the revenue
-// and its costs stay in.
-//
-// Different from a seeded row, and the difference is what was spent. A seeded row is invented
-// end to end: no call was placed and no worker ran, so counting its figures would put money on
-// the cost screen that was never spent. A session the owner buys and calls through to test
-// bills the voice service for real, and that bill is the price of having a product rather than
-// the price of serving somebody.
-//
-// One way only. An order marked as the owner's own stays that way, because unmarking it would
-// move real spending onto a client who never existed and let seven dollars nobody sent into
-// the revenue.
-async function markMine(req, res) {
-  requireAdmin(req);
-  await ensureSchema();
-  const body = await readJson(req);
-  const id = orderId(body.id);
-
-  const rows = await sql()`select is_demo from orders where id = ${id}`;
-  if (!rows.length) throw new HttpError(404, 'No order with that number.');
-  if (rows[0].is_demo) {
-    throw new HttpError(409, 'That one is already marked as yours.');
-  }
-
-  await sql()`update orders set is_demo = true where id = ${id}`;
-  await record(id, 'note', 'Marked as the owner\'s own: no revenue counted, costs are the '
-    + "project's.");
-  send(res, 200, { ok: true });
-}
-
-async function demoSeed(req, res) {
-  requireAdmin(req);
-  await ensureSchema();
-  send(res, 201, { made: await seedDemo() });
-}
-
-async function demoClear(req, res) {
-  requireAdmin(req);
-  await ensureSchema();
-  send(res, 200, await clearDemo());
-}
-
 const ACTIONS = {
   GET: { today, queue, person, funnel, 'call-record': callRecord, 'agent-script': agentScript },
   POST: {
@@ -868,6 +778,7 @@ const ACTIONS = {
     model: chooseModel,
     quote: writeQuote,
     'quote-move': moveQuote,
+    'quote-worth': quoteWorth,
     introduce,
     'introduction-record': recordIntroduction,
     'first-customer': firstCustomer,
