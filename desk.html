@@ -58,6 +58,12 @@
     </div>
 
     <div class="panel">
+      <h2>Owed by you</h2>
+      <p class="meta" id="owingcount"></p>
+      <div id="newowing" class="rows"></div>
+    </div>
+
+    <div class="panel">
       <h2>Due to ask about</h2>
       <p class="meta" id="duecount"></p>
       <div id="newdue" class="rows"></div>
@@ -115,6 +121,15 @@
     <div class="panel sage">
       <h2>Waiting on you</h2>
       <div id="owed" class="rows"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Catch me up</h2>
+      <div class="actions">
+        <button type="button" class="quiet" id="recapit">Where does this stand?</button>
+      </div>
+      <p class="meta" id="recapnote"></p>
+      <p id="recapout" class="recap" hidden></p>
     </div>
 
     <details class="panel fold" id="fold-calls">
@@ -183,6 +198,30 @@
           <input id="steptitle" type="text" autocomplete="off" maxlength="300">
         </div>
         <div class="actions"><button type="submit" class="quiet">Add</button></div>
+      </form>
+    </details>
+
+    <details class="panel fold" id="fold-work">
+      <summary><h2>Work you owe them</h2><span class="sofar" id="sofar-work"></span></summary>
+      <p class="meta">Everything else here is work they owe themselves. This is the other
+        direction: what you took on, and whether it has been handed over.</p>
+      <div id="work" class="rows"></div>
+      <form class="fields" id="addwork" hidden novalidate>
+        <div class="field">
+          <label for="worktitle">What is the work</label>
+          <input id="worktitle" type="text" autocomplete="off" maxlength="300">
+        </div>
+        <div class="field">
+          <label for="workquote">Against which quote</label>
+          <span class="hint">Leave it empty if nothing was quoted for it.</span>
+          <select id="workquote"></select>
+        </div>
+        <div class="field">
+          <label for="workdue">Due</label>
+          <span class="hint">Leave it empty if no date was agreed.</span>
+          <input id="workdue" type="date">
+        </div>
+        <div class="actions"><button type="submit" class="quiet">Take it on</button></div>
       </form>
     </details>
 
@@ -526,6 +565,12 @@
       if (row.dueAt && row.amount !== undefined) {
         line.append(el('div', `${money(row.amount)} agreed, due ${when(row.dueAt)}`, 'flag'));
       }
+      // Work you took on. The words are what decides whether to do it now, so the row carries
+      // them rather than a reference and a date.
+      if (row.title && row.dueAt && row.amount === undefined) {
+        line.append(el('div', row.title, 'said'));
+        line.append(el('div', `Was due ${when(row.dueAt)}`, 'flag'));
+      }
       line.append(link(verb, `/desk?id=${row.id}`,
         primary && i === 0 ? 'button go-on' : 'button quiet-link'));
       box.append(line);
@@ -569,6 +614,16 @@
       'Nothing owed.', 'Open it', false);
     document.getElementById('latecount').textContent = owing.length
       ? `${owing.length} past its date`
+      : '';
+
+    // Work taken on and not handed over. The other direction from the list above: that one is
+    // money somebody owes, this one is work you owe.
+    const owedByYou = data.owing || [];
+    renderTodayList(
+      document.getElementById('newowing'), owedByYou, data.targetHours,
+      'Nothing owed by you.', 'Open it', false);
+    document.getElementById('owingcount').textContent = owedByYou.length
+      ? `${owedByYou.length} past its date`
       : '';
 
     // Last, because nobody here is waiting on an answer. Somebody said they would do something
