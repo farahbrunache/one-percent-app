@@ -70,8 +70,7 @@
     </div>
 
     <div class="actions">
-      <button type="button" class="quiet" id="seeddemo">Add demo data</button>
-      <button type="button" class="quiet" id="cleardemo">Delete demo data</button>
+      <button type="button" class="quiet" id="demodata"></button>
     </div>
     <div class="actions">
       <a class="button quiet-link" href="/desk?state=waiting">Everybody</a>
@@ -346,7 +345,7 @@
   import { el, link, msg, call, get, post, when, minutes, money, demoChip, hours, owed,
     here, personId, state, page, mpage, askedForQueue } from '/desk-ui.js';
   import { renderPerson } from '/desk-record.js';
-  import { drawnBy, once } from '/desk-after.js';
+  import { drawnBy, once, settled } from '/desk-after.js';
 
   codeFields(['otherref']);
 
@@ -555,21 +554,26 @@
       if (row.status) {
         line.append(el('div', `${row.status} · ${money(row.amount)}`, 'badge open'));
       }
-      // What to ask about, and which step it sits under. Without the words the row is a
-      // reference and a date, which is a trip into the record to find out what it means.
+      // The words, once. Without them the row is a reference and a date, which is a trip into
+      // the record to find out what it means.
+      //
+      // Two kinds of row carry words -- something to ask about, and work you owe -- and this
+      // used to decide between them by looking for the words themselves, which both have. So
+      // both matched both branches: every one of these rows printed its words twice, and the
+      // work rows printed "undefined · undefined" underneath, because only an action belongs to
+      // a step. Each row now answers for what it has rather than for what it is.
       if (row.title) {
         line.append(el('div', row.title, 'said'));
-        line.append(el('div', `${row.milestone} · ${row.cadenceLabel}`, 'meta'));
+        if (row.milestone) {
+          line.append(el('div', `${row.milestone} · ${row.cadenceLabel}`, 'meta'));
+        }
       }
-      // What is owed and when it was due. A reference and a date would send you into the record
-      // to find out how much, which is the one fact that decides whether to chase it.
+      // When it was due, and how much where there is a figure. A reference and a date would send
+      // you into the record to find out how much, which is the one fact that decides whether to
+      // chase it.
       if (row.dueAt && row.amount !== undefined) {
         line.append(el('div', `${money(row.amount)} agreed, due ${when(row.dueAt)}`, 'flag'));
-      }
-      // Work you took on. The words are what decides whether to do it now, so the row carries
-      // them rather than a reference and a date.
-      if (row.title && row.dueAt && row.amount === undefined) {
-        line.append(el('div', row.title, 'said'));
+      } else if (row.dueAt) {
         line.append(el('div', `Was due ${when(row.dueAt)}`, 'flag'));
       }
       line.append(link(verb, `/desk?id=${row.id}`,
@@ -638,6 +642,8 @@
     document.getElementById('duecount').textContent = due.length
       ? `${due.length} to ask about`
       : '';
+
+    renderDemoData(Boolean(data.demoData));
   }
 
 
@@ -687,35 +693,39 @@
   // so the endpoint refused it and the press landed on a page of JSON saying which actions
   // exist. It is POST-only on purpose: anything that can log somebody out by being visited
   // can be triggered by a link somebody else wrote.
-  document.getElementById('seeddemo')?.addEventListener('click', async () => {
-    const button = document.getElementById('seeddemo');
-    button.disabled = true;
-    button.textContent = 'Making…';
-    try {
-      const out = await post('demo-seed', {});
-      msg('tmsg', `Made ${out.made.length} demo records. Refresh to see them.`, 'good');
-    } catch (error) {
-      msg('tmsg', error.message, 'bad');
-    }
-    button.disabled = false;
-    button.textContent = 'Add demo data';
-  });
-
-  document.getElementById('cleardemo')?.addEventListener('click', async () => {
-    if (!window.confirm('Delete every record marked DEMO? Real records are not touched.')) return;
-    const button = document.getElementById('cleardemo');
-    button.disabled = true;
-    button.textContent = 'Deleting…';
-    try {
-      const out = await post('demo-clear', {});
-      msg('tmsg', `Deleted ${out.orders} demo orders and ${out.cases} demo people. `
-        + 'Refresh to see.', 'good');
-    } catch (error) {
-      msg('tmsg', error.message, 'bad');
-    }
-    button.disabled = false;
-    button.textContent = 'Delete demo data';
-  });
+  // Demo data is one control, because it is one fact with two sides and only one of them can be
+  // true. Two buttons side by side read as a choice between two things you might want, and the
+  // one that did not apply was the louder half of the pair -- offering to add a second set on top
+  // of the first, which is what pressing it actually did: the seed stamps every run, so it adds
+  // rather than doing nothing.
+  //
+  // Which one it is comes from the row rather than from anything the reader sets, the same way
+  // every other decision on this desk is made.
+  function renderDemoData(there) {
+    const button = document.getElementById('demodata');
+    if (!button) return;
+    button.textContent = there ? 'Delete demo data' : 'Add demo data';
+    once(button, 'click', async () => {
+      const deleting = button.textContent === 'Delete demo data';
+      if (deleting && !window.confirm('Delete every record marked DEMO? Real records are not '
+        + 'touched.')) return;
+      button.disabled = true;
+      button.textContent = deleting ? 'Deleting…' : 'Making…';
+      try {
+        if (deleting) {
+          const out = await post('demo-clear', {});
+          await settled(`Deleted ${out.orders} demo orders and ${out.cases} demo people.`);
+        } else {
+          const out = await post('demo-seed', {});
+          await settled(`Made ${out.made.length} demo records.`);
+        }
+      } catch (error) {
+        msg('tmsg', error.message, 'bad');
+        button.textContent = deleting ? 'Delete demo data' : 'Add demo data';
+      }
+      button.disabled = false;
+    });
+  }
 
   for (const [id, box] of [['logout', 'qmsg'], ['tlogout', 'tmsg']]) {
     document.getElementById(id)?.addEventListener('click', async () => {
