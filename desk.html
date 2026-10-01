@@ -52,6 +52,12 @@
     </div>
 
     <div class="panel">
+      <h2>Owed to you</h2>
+      <p class="meta" id="latecount"></p>
+      <div id="newlate" class="rows"></div>
+    </div>
+
+    <div class="panel">
       <h2>Due to ask about</h2>
       <p class="meta" id="duecount"></p>
       <div id="newdue" class="rows"></div>
@@ -515,6 +521,11 @@
         line.append(el('div', row.title, 'said'));
         line.append(el('div', `${row.milestone} · ${row.cadenceLabel}`, 'meta'));
       }
+      // What is owed and when it was due. A reference and a date would send you into the record
+      // to find out how much, which is the one fact that decides whether to chase it.
+      if (row.dueAt && row.amount !== undefined) {
+        line.append(el('div', `${money(row.amount)} agreed, due ${when(row.dueAt)}`, 'flag'));
+      }
       line.append(link(verb, `/desk?id=${row.id}`,
         primary && i === 0 ? 'button go-on' : 'button quiet-link'));
       box.append(line);
@@ -548,6 +559,16 @@
     document.getElementById('answeredcount').textContent = answered.length
       ? `${answered.length} waiting on you`
         + (overdue ? ` · ${overdue} past ${data.targetHours} hours` : '')
+      : '';
+
+    // Money agreed and not arrived. The quietest thing on this screen and the easiest to let
+    // slide, because nobody chases it and the client is not waiting on an answer.
+    const owing = data.late || [];
+    renderTodayList(
+      document.getElementById('newlate'), owing, data.targetHours,
+      'Nothing owed.', 'Open it', false);
+    document.getElementById('latecount').textContent = owing.length
+      ? `${owing.length} past its date`
       : '';
 
     // Last, because nobody here is waiting on an answer. Somebody said they would do something
