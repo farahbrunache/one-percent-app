@@ -29,8 +29,8 @@
 
   <div id="work" hidden>
     <!-- The answer first. Everything under it is the working. -->
-    <div class="panel sage">
-      <h2>Are you underwater</h2>
+    <div class="panel">
+      <h2>What a session costs to serve</h2>
       <p id="verdict" class="status-line"></p>
       <p class="meta" id="verdictwhy"></p>
     </div>
@@ -41,6 +41,14 @@
       <h2>The last seven days</h2>
       <p id="window" class="status-line"></p>
       <div id="windowrows" class="rows"></div>
+    </div>
+
+    <div class="panel sage">
+      <h2>Are you underwater</h2>
+      <p id="pattern" class="status-line"></p>
+      <p class="meta">One short week is worth watching. Most of them short is worth changing
+        something about, and this is how you tell which without waiting a month to find out.</p>
+      <div id="weeks" class="rows"></div>
     </div>
 
     <div class="panel">
@@ -143,8 +151,8 @@
       const each = data.perSession;
       const left = data.sessionPrice - each;
       said.textContent = left >= 0
-        ? `${exact(left)} left over on each session, before what the servers cost.`
-        : `${exact(-left)} short on each session, before what the servers cost.`;
+        ? `${exact(left)} of the seven is left after serving them.`
+        : `${exact(-left)} more than the seven, before anything the project costs.`;
       why.textContent = `${exact(each)} to deliver against ${money(data.sessionPrice)} taken, `
         + `across ${data.sessions} session${data.sessions === 1 ? '' : 's'}.`;
     }
@@ -217,6 +225,35 @@
       actions.append(drop);
       row.append(actions);
       lines.append(row);
+    }
+
+    // One week says where this week landed. Eight say whether that is this week or every week,
+    // and those two call for different things.
+    const weeks = data.weeks || [];
+    const short = weeks.filter((week) => week.left < 0).length;
+    const pattern = document.getElementById('pattern');
+    pattern.textContent = !weeks.length
+      ? ''
+      : short === 0
+        ? `Ahead in all ${weeks.length} of the last ${weeks.length} weeks.`
+        : `Short in ${short} of the last ${weeks.length} weeks.`;
+
+    const weekRows = document.getElementById('weeks');
+    weekRows.textContent = '';
+    for (const week of weeks) {
+      const row = el('div', null, 'row');
+      row.append(el('div', week.endedDaysAgo === 0
+        ? 'The last 7 days'
+        : `${week.endedDaysAgo} to ${week.endedDaysAgo + 7} days ago`, null));
+      row.append(el('div', week.left >= 0 ? `${money(week.left)} ahead` : `${money(-week.left)} short`,
+        week.left >= 0 ? 'badge go' : 'flag'));
+      row.append(el('div',
+        `${money(week.tookIn)} in from ${week.sessions} session${week.sessions === 1 ? '' : 's'}`
+        + ` · ${exact(week.spent)} out`, 'meta'));
+      if (week.demoSessions) {
+        row.append(el('div', `${week.demoSessions} tested, which took in nothing`, 'meta'));
+      }
+      weekRows.append(row);
     }
 
     const figures = document.getElementById('figures');

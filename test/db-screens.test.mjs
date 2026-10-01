@@ -454,6 +454,20 @@ check('a demo session takes in nothing, whatever its status says',
 check('and what it cost is counted against the project',
   Math.abs(withDemo.demoSpent - 0.4) < 1e-9 && withDemo.demoSessions === 1,
   { demoSpent: withDemo.demoSpent, demoSessions: withDemo.demoSessions });
+// One window says where this week landed. Eight say whether it is this week or every week.
+const pattern = await costsNow();
+check('eight weeks come back, newest first',
+  pattern.weeks.length === 8 && pattern.weeks[0].endedDaysAgo === 0
+  && pattern.weeks[7].endedDaysAgo === 49, pattern.weeks.map((w) => w.endedDaysAgo));
+check('the newest week matches the seven-day window it repeats',
+  Math.abs(pattern.weeks[0].tookIn - pattern.lastSeven.tookIn) < 1e-9,
+  [pattern.weeks[0].tookIn, pattern.lastSeven.tookIn]);
+check('a monthly bill lands on every week, because it was owed in every one',
+  pattern.weeks.every((w) => Math.abs(w.fixedShare - pattern.weeks[0].fixedShare) < 1e-9),
+  pattern.weeks.map((w) => w.fixedShare));
+check('and a week with nothing in it is still short by what the bills cost',
+  pattern.weeks[7].tookIn === 0 && pattern.weeks[7].left < 0, pattern.weeks[7]);
+
 check('it is not in what serving clients cost',
   Math.abs(withDemo.spent - withLines.spent) < 1e-9,
   [withDemo.spent, withLines.spent]);
