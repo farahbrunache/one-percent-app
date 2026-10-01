@@ -114,7 +114,7 @@ export default handle('POST', async (req, res) => {
   const summary = call.analysis ? encrypt(JSON.stringify(call.analysis)) : null;
 
   // The row api/call.js opened when the session started is what this fills in. Matching on the
-  // call id alone is enough and is the whole check: that id was minted by the voice service and
+  // call id alone is enough and is the entire check: that id was minted by the voice service and
   // written here at start, so a delivery naming an order it does not belong to finds nothing.
   //
   // The later event carries more than the earlier one, so this overwrites — but `coalesce`

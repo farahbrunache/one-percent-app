@@ -145,7 +145,7 @@
   }
 
   // Cents, because a session is seven dollars and a call is under a dollar. Rounding either to
-  // whole dollars would show both as nothing and the answer as a round number it is not.
+  // dollars alone would show both as nothing and the answer as a round number it is not.
   function exact(value) {
     return `$${Number(value).toFixed(3)}`;
   }
@@ -267,7 +267,7 @@
           `At ${money(c.perSessionLeft)} left over each, across the same ${v.days} days.`);
       }
       say(`One piece of paid work at ${money(c.oneQuote)}`,
-        'Covering the whole of it on its own. What it is actually worth to them is a different '
+        'Covering all of it on its own. What it is actually worth to them is a different '
         + 'question, and it is the one that sets the price.');
       if (c.perMonth !== null) {
         say(`${money(c.perMonth)} a month less going out`,

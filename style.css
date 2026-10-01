@@ -351,7 +351,7 @@ input.code-field {
   letter-spacing: 0.08em;
 }
 /* The prompt is a sentence, not a code, so it goes back to the reading face and normal
-   spacing -- "Whole reference, as they typed it" set in spaced mono runs off a phone. */
+   spacing -- "The entire reference, as they typed it" set in spaced mono runs off a phone. */
 input.code-field::placeholder {
   font-family: "Source Sans 3", ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
   letter-spacing: normal;
@@ -1037,7 +1037,7 @@ input.code-field::placeholder {
 
 /* Dark ink on the band, not light. When every band was coral, cream read well on all five.
    The bands run coral to sage now, and cream on the sage end is close to unreadable, so the
-   text takes the one colour that works on the whole range -- which is what the shipped
+   text takes the one colour that works across the range -- which is what the shipped
    funnel already used on its bands. */
 .inside .funnel .count {
   font-family: Georgia, "Times New Roman", serif;

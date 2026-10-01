@@ -106,7 +106,7 @@ check('the work knows which quote it came from', bathrooms.quoteId === quoteId, 
 
 // ---- money taken for work nobody is tracking --------------------------------------------
 //
-// The case this whole feature exists for. A paid quote with no work against it is money taken
+// The case this feature exists for. A paid quote with no work against it is money taken
 // for something nobody is following, and the quote says so rather than leaving it to be noticed.
 const untracked = await tagged`
   insert into quotes (account_id, amount_cents, scope_encrypted, status, paid_cents, paid_at)

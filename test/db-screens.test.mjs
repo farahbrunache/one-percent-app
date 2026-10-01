@@ -418,7 +418,7 @@ check('it says nothing is listed monthly rather than counting it as nothing',
   now.monthlyFixed === null
   && now.unknown.some((line) => /Nothing is listed as a monthly cost/.test(line)), now.unknown);
 
-// A share is the whole point of the list: one tool bought once, used across three things,
+// A share is what the list is for: one tool bought once, used across three things,
 // carries a third of its price here.
 check('a line shared three ways carries a third of its price',
   Math.abs(costs.lineCost({ amount_cents: 10000, share_percent: 33 }) - 33) < 1e-9);
@@ -435,7 +435,7 @@ check('the monthly total adds the shares rather than the full prices',
 check('the window is seven days wide',
   withLines.lastSeven.days === 7 && typeof withLines.lastSeven.left === 'number',
   withLines.lastSeven);
-check('a monthly bill is spread across those seven days rather than landed whole',
+check('a monthly bill is spread across those seven days rather than landed at once',
   Math.abs(withLines.lastSeven.fixedShare - (withLines.monthlyFixed * 7) / 30) < 1e-9,
   [withLines.lastSeven.fixedShare, withLines.monthlyFixed]);
 

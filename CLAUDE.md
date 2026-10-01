@@ -514,7 +514,27 @@ repository here starts from. They are settled there and are not re-argued per re
 
 `.claude/hooks/check-no-pleasantries.mjs` in this repository enforces them and is the source
 of truth when the two disagree. It is a copy, so a change to the baseline is copied across
-rather than inherited automatically — change both or they drift.
+rather than inherited automatically — change both or they drift. That drift happened: the ban
+on one word was added upstream in September and this copy did not carry it for months.
+
+### The banned words apply to the source, not only to a reply
+
+The hook reads what an agent says. It never reads the repository, so for a long time every
+banned word could be written into a comment, a variable name, or a line a customer reads, with
+nothing looking. One was: a function named for a word on the list shipped inside a fix for a
+billing bug, and because the word sat inside a camelCase name there was no word boundary in
+front of it — even a hook that did read the source would have walked past it.
+
+`scripts/checks-words.mjs` carries the same list and fails the build on any of it anywhere in
+a `.js`, `.mjs`, `.html` or `.css` file, matching inside names as well as in prose. Two files
+are exempt because their job is to hold the dictionary: the hook, and that check itself.
+
+`console` has the one exemption, and it is narrow: `console.log` and a quoted `'console'` in a
+list of browser globals are the identifier's real name and are not ours to rename. "The browser
+console" in a sentence is the jargon the rule is about, and still fails.
+
+A banned word in a name or a comment is not a smaller problem than one on a screen. Whoever
+works on this next reads all three.
 
 Never quote the owner's messages in a commit message, a pull request body, or a file. Write
 what changed in your own words.
