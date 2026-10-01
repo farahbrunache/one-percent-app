@@ -53,11 +53,6 @@ services:
       # setting — it is a choice the operator makes on the desk, and it lives in the database.
       - key: DRAFT_MODEL_A_NAME
         sync: false
-      # Read off a bill and typed in; nothing here can work either out.
-      - key: COST_DRAFT_PER_SECOND_USD
-        sync: false
-      - key: COST_MONTHLY_FIXED_USD
-        sync: false
       - key: DRAFT_MODEL_A_URL
         sync: false
       - key: DRAFT_MODEL_A_KEY
