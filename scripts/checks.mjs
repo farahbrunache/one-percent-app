@@ -16,6 +16,7 @@ import { basename, dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { namesResolve } from './checks-names.mjs';
 import { wordsAreAllowed } from './checks-words.mjs';
+import { walkthroughNumbersHold } from './checks-walkthrough.mjs';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -591,6 +592,8 @@ if (!/test\/\*\.test\.mjs/.test(chain)) {
     );
   }
 }
+
+walkthroughNumbersHold({ ROOT, read, fail, join });
 
 // ---- the walkthrough falling behind the code -------------------------------------------------
 //

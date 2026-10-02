@@ -8,8 +8,8 @@ what is already here before building something that exists.
 
 **This file is part of a change, not a follow-up.** Add or alter a feature and this file changes in
 the same commit. `scripts/checks.mjs` fails when an address the server serves or an action the desk
-answers is missing from it, so the list cannot quietly fall behind the code — but the words around
-each line are nobody's job but the writer's, so write them.
+answers is missing from it, and when a number here (a price, a limit, a page size) no longer
+matches the line of code that sets it. The rest of the words are the writer's job, so write them.
 
 **Where to test.** On production, against the demo records. Press **Add demo data** on the first
 screen; every reference starts `DEMO` and carries a chip. Press **Delete demo data** when done — it

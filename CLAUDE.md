@@ -250,7 +250,9 @@ So a change that adds, alters or removes something a person can do updates that 
 commit. Not a follow-up and not an issue.
 
 `scripts/checks.mjs` fails when an address the server serves, or an action the desk answers, is
-missing from it. That half is mechanical and cannot be forgotten. Whether the words around each
+missing from it, and `scripts/checks-walkthrough.mjs` fails when a number in it (a price, a limit,
+a page size) no longer matches the line of code that sets it. A new number in the file gets a
+line in that check. That half is mechanical and cannot be forgotten. Whether the words around each
 line are still true is nobody's job but the writer's, so write them rather than only adding a row
 to the index at the foot.
 
