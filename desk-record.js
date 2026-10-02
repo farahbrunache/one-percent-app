@@ -5,7 +5,7 @@
 // they're doing -- the path, the milestones, the quotes, the introductions -- is its own module,
 // imported and rendered in place.
 
-import { el, link, msg, get, post, when, day, minutes, money, owed, mpage, here }
+import { askModel, el, link, msg, get, post, when, day, minutes, money, owed, mpage, here }
   from '/desk-ui.js';
 import { renderPlan, renderSteps, renderQuotes, renderIntroductions, pathLabel }
   from '/desk-work.js';
@@ -364,7 +364,7 @@ function renderReplyDrafting(person) {
     button.disabled = true;
     note.textContent = 'Asking. A worker starting from cold takes up to a minute.';
     try {
-      const written = await post('draft', { id: person.id, of: 'reply' });
+      const written = await askModel(button, { id: person.id, of: 'reply' });
       input.value = written.content;
       input.focus();
       note.textContent = 'Read it before you send it. '
@@ -417,7 +417,7 @@ function renderDrafting(person) {
     button.disabled = true;
     note.textContent = 'Asking. A worker starting from cold takes up to a minute.';
     try {
-      const written = await post('draft', { id: person.id });
+      const written = await askModel(button, { id: person.id });
       input.value = written.content;
       input.focus();
       const cost = [
