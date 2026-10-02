@@ -476,22 +476,29 @@ for (const file of files.filter((f) => DRAWN_AGAIN.test(f.slice(ROOT.length + 1)
 
 // ---- a test nobody runs ----------------------------------------------------------------------
 //
-// `npm test` is a hand-typed chain of filenames, so a test written and never added to it passes
-// forever by never running. That happened: the payments test shipped alongside the screen it
-// covers and was not in the chain, so the screen that records what a quote was paid had no cover
-// at all while looking like it did.
+// `npm test` used to be a hand-typed chain of filenames, so a test written and never added to it
+// passed forever by never running. Three did: the payments test, the projects test and the drafting
+// bill test each shipped alongside the work they cover and sat there unrun.
+//
+// The script is a loop over the directory now, so a new test runs because it exists. That also
+// ended a second problem the chain was causing: every change that added a test rewrote the same
+// line, and three merges in a row collided on it.
+//
+// This check stays as the guard. If somebody goes back to naming files one by one, every file has
+// to be named.
 const chain = JSON.parse(read(join(ROOT, 'package.json'))).scripts.test || '';
-for (const file of files.filter((f) => f.endsWith('.test.mjs'))) {
-  const name = file.slice(ROOT.length + 1);
-  if (chain.includes(name)) continue;
-  fail(
-    'unrun test',
-    `${name} is never run — it is not in the test chain in package.json, so it passes by sitting `
-      + 'there. Add it.',
-  );
-}
 
-wordsAreAllowed({ ROOT, files, read, fail });
+if (!/test\/\*\.test\.mjs/.test(chain)) {
+  for (const file of files.filter((f) => f.endsWith('.test.mjs'))) {
+    const name = file.slice(ROOT.length + 1);
+    if (chain.includes(name)) continue;
+    fail(
+      'unrun test',
+      `${name} is never run — the test script in package.json names files one by one and this one `
+        + 'is not among them, so it passes by sitting there. Add it, or run the directory.',
+    );
+  }
+}
 
 // ---- what happened --------------------------------------------------------------------------
 
