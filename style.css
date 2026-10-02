@@ -1370,12 +1370,7 @@ input.code-field::placeholder {
 }
 .inside button.paid:hover { border-color: var(--in-spend); color: var(--in-cream); }
 .inside .paidmark {
-  white-space: nowrap;
   flex: 0 0 auto;
-  font-size: 0.6875rem;
-  letter-spacing: 0.06em;
-  padding: 0.125rem 0.5rem;
-  border-radius: 999px;
-  background: var(--in-spend);
-  color: var(--in-shell);
+  font-size: 1.125rem;
+  line-height: 1;
 }
