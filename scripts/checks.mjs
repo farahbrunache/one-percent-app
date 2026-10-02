@@ -290,7 +290,12 @@ for (const file of files.filter((f) => f.endsWith('.html'))) {
 // payload is one object literal, and its top-level keys are the contract between the two
 // halves of that screen.
 {
-  const desk = read(`${ROOT}/api/desk.js`);
+  // The payloads were built in api/desk.js and moved out to lib/ as that file grew, and a check
+  // that read only the one file went on passing while reading nothing that mattered. So it reads
+  // the endpoint and every library, and finds each payload wherever it now lives.
+  const desk = [`${ROOT}/api/desk.js`, ...readdirSync(`${ROOT}/lib`)
+    .filter((f) => f.endsWith('.js')).map((f) => `${ROOT}/lib/${f}`)]
+    .map((f) => read(f)).join('\n');
 
   // Both payloads, because the page calls a row in the queue `person` too -- one object
   // per person either way, and a field named in neither is named nowhere.
@@ -312,11 +317,15 @@ for (const file of files.filter((f) => f.endsWith('.html'))) {
   if (sent.size < 10) {
     fail('payload', 'scripts/checks.mjs could not read the desk payloads, so its fields are unchecked.');
   } else {
-    const page = read(`${ROOT}/desk.html`);
-    const seen = new Set([...page.matchAll(/\bperson\.([a-zA-Z]\w*)/g)].map((m) => m[1]));
-    for (const field of seen) {
-      if (!sent.has(field)) {
-        fail('payload', `desk.html reads person.${field} and the desk endpoint sends no such field.`);
+    // The page and every module it loads, since the record screen is drawn from several.
+    const pages = ['desk.html', ...readdirSync(ROOT).filter((f) => /^desk[\w-]*\.js$/.test(f))];
+    for (const file of pages) {
+      const page = read(`${ROOT}/${file}`);
+      const seen = new Set([...page.matchAll(/\bperson\.([a-zA-Z]\w*)/g)].map((m) => m[1]));
+      for (const field of seen) {
+        if (!sent.has(field)) {
+          fail('payload', `${file} reads person.${field} and the desk endpoint sends no such field.`);
+        }
       }
     }
   }

@@ -17,7 +17,9 @@ The desk will read claimed Directory profiles from Skills Economy, so people alr
 there aren't entered twice (owner decision, 2026-10-02). A record here stores the profile id and
 nothing else about the person. The read goes one way, shows only on the owner's desk, and never
 sits in the path of a payment, a call or a sheet. The full limits are in the private
-`one-percent` repository and in `chargingthefuture/chargingthefuture`. The route isn't built yet.
+`one-percent` repository and in `chargingthefuture/chargingthefuture`. It's a contact on
+"People to approach" with a pasted profile link, read by `lib/desk-directory.js`, and it's off
+until `DIRECTORY_SERVICE_URL` and `DIRECTORY_SERVICE_TOKEN` are both set.
 
 The stylesheet is a copy of the landing page's, taken at the split. The two are expected to
 drift as these screens grow. Do not build a shared package for one CSS file.
