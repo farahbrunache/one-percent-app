@@ -151,6 +151,18 @@ check('and it is absent again rather than zero', row(data, 'pool').count === nul
 check('the six rows are still there', data.stages.length === 6, data.stages.length);
 check('and they start at the call', data.stages[0].key === 'called', data.stages[0]);
 
+// ---- adding one a day ---------------------------------------------------------------------
+console.log('adding one');
+await write({ pool: '' });
+let added = await write({ add: 1 });
+check('adding to an empty list starts it at one', added.out.pool === 1 && added.out.before === null, added);
+await write({ pool: '170' });
+added = await write({ add: 1 });
+check('adding one goes up by one', added.out.pool === 171 && added.out.before === 170, added);
+check('and the funnel reads the new figure', row(await read(), 'pool').count === 171);
+check('undo puts the figure back', (await write({ pool: String(added.out.before) })).out.pool === 170);
+check('only one at a time', (await write({ add: 5 })).status === 400);
+
 const failures = failureCount();
 console.log(failures ? `\n${failures} failed` : '\nall passed');
 process.exit(failures ? 1 : 0);
