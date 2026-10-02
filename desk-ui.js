@@ -147,7 +147,7 @@ export function owed(person) {
 // says as "Costs money". This refuses a press from a button without that look, so a new
 // paid button can't ship looking like a free one. scripts/checks.mjs fails the build on a
 // request for any of these actions made anywhere else.
-export const MODEL_ACTIONS = ['draft', 'quote-worth'];
+export const MODEL_ACTIONS = ['draft', 'quote-worth', 'call-fields-draft'];
 
 export function askModel(button, body, action = 'draft') {
   if (!MODEL_ACTIONS.includes(action)) {

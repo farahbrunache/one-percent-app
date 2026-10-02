@@ -64,6 +64,7 @@ import { recordPayment, setQuoteDue } from '../lib/desk-payments.js';
 import { moveWork, setWorkDue, takeOnWork } from '../lib/desk-projects.js';
 import { today } from '../lib/desk-today.js';
 import { person } from '../lib/desk-person.js';
+import { draftCallFields, saveCallFields } from '../lib/desk-callfields.js';
 import { funnel, setPool } from '../lib/desk-funnel.js';
 import { demoClear, demoSeed, markMine } from '../lib/desk-demo.js';
 import { block, close, unblock } from '../lib/desk-state.js';
@@ -410,6 +411,8 @@ const ACTIONS = {
     'introduction-record': recordIntroduction,
     'first-customer': firstCustomer,
     note: addNote,
+    'call-fields': saveCallFields,
+    'call-fields-draft': draftCallFields,
     'funnel-pool': setPool,
     block,
     unblock,

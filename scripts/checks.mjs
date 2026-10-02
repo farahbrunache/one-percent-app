@@ -455,22 +455,24 @@ for (const file of files) {
 {
   const modelActions = new Set([...(read(join(ROOT, 'desk-ui.js'))
     .match(/MODEL_ACTIONS = \[([^\]]*)\]/)?.[1] || '').matchAll(/'([\w-]+)'/g)].map((m) => m[1]));
+  // Every function in lib/ and api/ that reaches the model, followed across files: one that
+  // calls the drafting client, or calls another function that does, wherever that one lives.
   const reaching = new Set();
+  const bodies = [];
   for (const file of files.filter((f) => /\/(lib|api)\/[\w-]+\.js$/.test(f))) {
     const text = read(file);
     const local = text.match(/import \{[^}]*\bdraft as (\w+)[^}]*\} from '\.\/draft\.js'/)?.[1];
-    if (!local) continue;
-    const bodies = new Map([...text.matchAll(/(?:export )?async function (\w+)\([\s\S]*?\n\}\n/g)]
-      .map((m) => [m[1], m[0]]));
-    const calls = new Set([local]);
-    for (let grew = true; grew;) {
-      grew = false;
-      for (const [name, body] of bodies) {
-        if (calls.has(name)) continue;
-        if ([...calls].some((c) => new RegExp(`\\b${c}\\(`).test(body))) { calls.add(name); grew = true; }
-      }
+    if (local) reaching.add(local);
+    for (const m of text.matchAll(/(?:export )?async function (\w+)\([\s\S]*?\n\}\n/g)) {
+      bodies.push([m[1], m[0]]);
     }
-    for (const name of calls) if (name !== local) reaching.add(name);
+  }
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const [name, body] of bodies) {
+      if (reaching.has(name)) continue;
+      if ([...reaching].some((c) => new RegExp(`\\b${c}\\(`).test(body))) { reaching.add(name); grew = true; }
+    }
   }
   for (const [, action, handler] of read(join(ROOT, 'api/desk.js')).matchAll(/'?([\w-]+)'?:\s*(\w+),/g)) {
     if (reaching.has(handler) && !modelActions.has(action)) {
