@@ -7,7 +7,7 @@
 // goes out on Quora, in Signal, or across a counter, and what came back is typed in here
 // afterwards. That gap is the product's position, not a gap waiting to be closed.
 
-import { el, msg, post, when } from '/desk-ui.js';
+import { el, get, link, msg, post, when } from '/desk-ui.js';
 import { once, settled, wasBefore } from '/desk-after.js';
 
 const STATUSES = ['to approach', 'reached out', 'talking', 'said no', 'paying customer'];
@@ -101,6 +101,33 @@ function reachForm(person, contact) {
   return form;
 }
 
+// What the Directory says about a contact who came from it, read now and never stored. The row is
+// drawn first and this fills in when the answer comes back; a failure says what failed in the same
+// place, and the contact stays on the list either way.
+function directoryLine(person, contact) {
+  const line = el('div', null, 'meta');
+  get(`directory-profile&id=${encodeURIComponent(person.id)}&contact=${contact.id}`).then(({ profile }) => {
+    const name = [profile.firstName, profile.lastName].filter(Boolean).join(' ');
+    const trade = profile.jobTitle || profile.headline;
+    const place = [profile.city, profile.state, profile.country].filter(Boolean).join(', ');
+    line.append(el('div', [name, trade].filter(Boolean).join(' · '), null));
+    if (profile.skills && profile.skills.length) line.append(el('div', profile.skills.join(', '), 'meta'));
+    if (place) line.append(el('div', place, 'meta'));
+    // Only an address that opens a page. Anything else is shown as text rather than made a link.
+    if (profile.profileUrl && /^https?:\/\//i.test(profile.profileUrl)) {
+      const away = link(profile.profileUrl, profile.profileUrl, null);
+      away.rel = 'noopener noreferrer';
+      away.target = '_blank';
+      line.append(away);
+    } else if (profile.profileUrl) {
+      line.append(el('div', profile.profileUrl, 'meta'));
+    }
+  }).catch((error) => {
+    line.append(el('div', error.message, 'msg bad'));
+  });
+  return line;
+}
+
 // The form that adds somebody. Wired here rather than on the record screen, with every other
 // control this panel owns, so the panel is one file to read or delete.
 function wireAdd(person) {
@@ -108,15 +135,17 @@ function wireAdd(person) {
   once(form, 'submit', async (event) => {
     event.preventDefault();
     const name = document.getElementById('contactname');
-    if (!name.value.trim()) return;
+    const directory = document.getElementById('contactdirectory');
+    if (!name.value.trim() && !directory.value.trim()) return;
     try {
       await post('contact-add', {
         id: person.id,
         name: name.value,
+        directory: directory.value,
         where: document.getElementById('contactwhere').value,
         why: document.getElementById('contactwhy').value,
       });
-      await settled(`${name.value.trim()} added.`);
+      await settled(`${name.value.trim() || 'Directory profile'} added.`);
     } catch (error) {
       msg('rmsg', error.message, 'bad');
     }
@@ -129,6 +158,7 @@ export function renderContacts(person) {
   wireAdd(person);
   // A contact hangs off the case, so there is nowhere to put one until somebody has signed in.
   document.getElementById('addcontact').hidden = !person.linkedCase;
+  document.getElementById('contactdirectoryfield').hidden = !person.directoryRead;
   if (!person.linkedCase) {
     list.append(el('p', 'Nobody has signed in against this order yet, so there is nobody to '
       + 'keep a list for.', 'meta'));
@@ -140,7 +170,8 @@ export function renderContacts(person) {
 
   for (const contact of contacts) {
     const row = el('div', null, contact.status === 'paying customer' ? 'row said us' : 'row');
-    row.append(el('div', contact.name, null));
+    row.append(el('div', contact.name || 'From the Directory', null));
+    if (contact.fromDirectory) row.append(directoryLine(person, contact));
 
     const parts = [contact.status];
     if (contact.where) parts.push(contact.where);

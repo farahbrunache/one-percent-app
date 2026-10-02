@@ -79,6 +79,9 @@ OPTIONAL_KEYS=(
   DRAFT_MODEL_B_URL
   DRAFT_MODEL_B_KEY
   RUNPOD_API_KEY
+  # Reading claimed Directory profiles on the desk. Off when either is empty: the link field hides.
+  DIRECTORY_SERVICE_URL
+  DIRECTORY_SERVICE_TOKEN
 )
 
 die() { echo "::error title=Deploy stopped::$*"; exit 1; }
