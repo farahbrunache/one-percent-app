@@ -89,6 +89,23 @@
     </div>
     <h1>Desk</h1>
 
+    <h2>Getting to a call, and what it led to</h2>
+    <p class="meta">The list you're working from, then what came of it. Each person counted
+      once.</p>
+    <div id="sellingfunnel" class="funnel"></div>
+    <div class="actions">
+      <button type="button" class="quiet" id="poolopen">Change the list size</button>
+    </div>
+    <form class="fields" id="poolform" hidden>
+      <div class="field">
+        <label for="poolsize">People to approach</label>
+        <span class="hint">Nothing in this app counts that list, so it's typed. Leave it empty
+          to take the row off the chart.</span>
+        <input id="poolsize" inputmode="numeric" autocomplete="off" maxlength="7">
+      </div>
+      <div class="actions"><button type="submit" class="quiet">Save it</button></div>
+    </form>
+
     <h2>How far people get</h2>
     <p class="meta">Each person counted once, no matter how many sessions they've bought.</p>
     <div id="funnel" class="funnel"></div>
@@ -346,6 +363,7 @@
     here, personId, state, page, mpage, askedForQueue } from '/desk-ui.js';
   import { renderPerson } from '/desk-record.js';
   import { drawnBy, once, settled } from '/desk-after.js';
+  import { drawBands } from '/desk-bands.js';
 
   codeFields(['otherref']);
 
@@ -427,64 +445,50 @@
   //
   // It is on the queue and nowhere else. A person's record is about that person, and a
   // figure covering everybody has nothing to do with the one in front of you.
-  // The colour of each step, top to bottom. Coral where everybody is, sage where the work
-  // has ended in somebody being paid -- so the shape narrows and warms at the same time.
-  const FUNNEL_COLOURS = ['#c96859', '#c08262', '#a89a6d', '#8bab84', '#6fb894'];
-
-  // The funnel's widest and narrowest bands, as a share of the row. The steps between
-  // them are even: a band has to hold a number and a line of words, and one that is
-  // literally proportional to its count does not -- one person out of twelve is a sliver.
-  // What the shape says is that there is a drop at every step. What the drop was is the
-  // number in the band and the percentage beside it.
-  const WIDEST = 100;
-  const NARROWEST = 56;
-
+  // Two funnels from one read. The selling one carries the list size, which is the only figure
+  // on this desk that is typed rather than counted, so the screen says which row that is.
   function renderFunnel() {
-    const box = document.getElementById('funnel');
+    const method = document.getElementById('funnel');
+    const selling = document.getElementById('sellingfunnel');
     return call('/api/desk?action=funnel').then((data) => {
-      box.textContent = '';
-
-      if (!data.stages[0] || !data.stages[0].count) {
-        box.append(el('p', "No calls yet, so there's nothing to chart. The first one fills "
-          + 'the top.', 'nothing'));
-        return;
-      }
-
-      // The open top of the vessel. Without it the first band is a rectangle and the
-      // shape starts as a box.
-      box.append(el('div', null, 'rim'));
-
-      // Every band tapers, the last one included. The step is the full drop divided by the
-      // number of bands rather than by the gaps between them, so the bottom of the last
-      // band is the narrowest width and nothing ends as a rectangle.
-      const step = (WIDEST - NARROWEST) / data.stages.length;
-      data.stages.forEach((stage, i) => {
-        const top = WIDEST - step * i;
-        const bottom = WIDEST - step * (i + 1);
-        const row = el('div', null, 'stage');
-        row.style.setProperty('--band', FUNNEL_COLOURS[i] || FUNNEL_COLOURS.at(-1));
-        row.style.setProperty('--top-left', `${(100 - top) / 2}%`);
-        row.style.setProperty('--top-right', `${100 - (100 - top) / 2}%`);
-        row.style.setProperty('--bottom-left', `${(100 - bottom) / 2}%`);
-        row.style.setProperty('--bottom-right', `${100 - (100 - bottom) / 2}%`);
-        // Keep the words inside the shape at its narrowest point rather than inside the
-        // row. The row is full width; the band is not, and a clipped shape cuts its own
-        // text, so the bottom label was being sliced by the taper it sat in.
-        row.style.paddingInline = `calc(${(100 - bottom) / 2}% + 0.6rem)`;
-
-        // The rate reads on the same line as the name. Put against the band's edge it was
-        // cut off, because a clipped shape clips its own text too.
-        row.append(el('div', String(stage.count), 'count'));
-        row.append(el('div',
-          stage.rate === null ? stage.label : `${stage.label} · ${stage.rate}%`, 'name'));
-
-        box.append(row);
-      });
+      drawBands(method, data.stages,
+        "No calls yet, so there's nothing to chart. The first one fills the top.");
+      drawBands(selling, data.selling?.stages,
+        'Nothing to chart yet. Type in how many people there are to approach, and the first '
+          + 'call fills the row under it.');
+      const pool = data.selling?.pool;
+      document.getElementById('poolsize').value = pool === null || pool === undefined
+        ? ''
+        : String(pool);
     }).catch((error) => {
-      box.textContent = '';
-      box.append(el('p', error.message, 'nothing'));
+      for (const box of [method, selling]) {
+        box.textContent = '';
+        box.append(el('p', error.message, 'nothing'));
+      }
     });
   }
+
+  // Behind one control rather than open on the screen. It is set once in a while and the desk is
+  // not where a form belongs.
+  once(document.getElementById('poolopen'), 'click', () => {
+    const form = document.getElementById('poolform');
+    form.hidden = !form.hidden;
+    if (!form.hidden) document.getElementById('poolsize').focus();
+  });
+
+  once(document.getElementById('poolform'), 'submit', async (event) => {
+    event.preventDefault();
+    const input = document.getElementById('poolsize');
+    try {
+      const out = await post('funnel-pool', { pool: input.value });
+      document.getElementById('poolform').hidden = true;
+      await settled(out.pool === null
+        ? 'The list size is off the chart.'
+        : `${out.pool} people to approach.`);
+    } catch (error) {
+      msg('qmsg', error.message, 'bad');
+    }
+  });
 
   function renderQueue(data) {
     renderDateline();
