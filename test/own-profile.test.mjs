@@ -59,6 +59,29 @@ check('and matches its job title to the trade list', read.tradeId === 'op-elec' 
 const [before] = await tagged`select trade_id from orders where id = ${id}`;
 check('nothing from the profile is saved by reading it', before.trade_id === null, before);
 
+console.log('found by their account');
+const [other] = await tagged`
+  insert into orders (claim_token_hash, card_code_hash, card_amount_cents, payment_method,
+                      reference_code, status, decision)
+  values ('op-h2', 'op-c2', 700, 'wise', 'OWNPROF002', 'confirmed', 'go') returning id`;
+const otherCase = await db.caseForAccount('user_inventedAccount0001');
+await tagged`update orders set case_id = ${otherCase}, client_account_id = 'user_inventedAccount0001' where id = ${other.id}`;
+const byAccount = (await call('GET', `/api/desk?action=own-profile&id=${other.id}`)).out;
+check('with nothing pasted, it asks by the account they signed in with',
+  asked.endsWith('/api/directory/service/accounts/user_inventedAccount0001/profile'), asked);
+check('and reads the trade the same way', byAccount.tradeId === 'op-elec', byAccount);
+const [kept] = await tagged`select directory_profile_encrypted from cases where id = ${otherCase}`;
+check('then saves the profile id it found, and nothing else', decrypt(kept.directory_profile_encrypted) === 'profile-1');
+
+const demoCase = await db.caseForAccount('demo-acct-invented');
+const [demo] = await tagged`
+  insert into orders (claim_token_hash, card_code_hash, card_amount_cents, payment_method,
+                      reference_code, status, decision, case_id)
+  values ('op-h3', 'op-c3', 700, 'wise', 'OWNPROF003', 'confirmed', 'go', ${demoCase}) returning id`;
+asked = null;
+const demoRead = await call('GET', `/api/desk?action=own-profile&id=${demo.id}`);
+check('a demo account is never asked about', demoRead.status === 404 && asked === null, demoRead);
+
 const failures = failureCount();
 console.log(failures ? `\n${failures} failed` : '\nall passed');
 process.exit(failures ? 1 : 0);
