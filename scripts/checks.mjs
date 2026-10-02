@@ -441,9 +441,75 @@ for (const file of files) {
 for (const file of files) {
   const rel = file.slice(ROOT.length + 1);
   if (!/\.(js|html)$/.test(rel) || rel.includes('/') || rel === 'desk-ui.js' || rel === 'server.js') continue;
-  if (/post\(\s*['"`]draft['"`]|action=draft/.test(read(file))) {
+  if (/post\(\s*['"`](draft|quote-worth)['"`]|action=(draft|quote-worth)\b/.test(read(file))) {
     fail('paid', `${rel} asks the drafting model for something without askModel, so the button doesn't show that it costs money.`);
   }
+}
+
+// And the list of those actions comes from the server, not from memory. Any desk action whose
+// handler reaches the model -- directly, or through a function in the same file that does --
+// has to be in MODEL_ACTIONS, or its button could be written as an ordinary one. "What is this
+// worth" shipped exactly like that: billed, plain, and missed by a check that only knew about
+// drafts.
+{
+  const modelActions = new Set([...(read(join(ROOT, 'desk-ui.js'))
+    .match(/MODEL_ACTIONS = \[([^\]]*)\]/)?.[1] || '').matchAll(/'([\w-]+)'/g)].map((m) => m[1]));
+  const reaching = new Set();
+  for (const file of files.filter((f) => /\/(lib|api)\/[\w-]+\.js$/.test(f))) {
+    const text = read(file);
+    const local = text.match(/import \{[^}]*\bdraft as (\w+)[^}]*\} from '\.\/draft\.js'/)?.[1];
+    if (!local) continue;
+    const bodies = new Map([...text.matchAll(/(?:export )?async function (\w+)\([\s\S]*?\n\}\n/g)]
+      .map((m) => [m[1], m[0]]));
+    const calls = new Set([local]);
+    for (let grew = true; grew;) {
+      grew = false;
+      for (const [name, body] of bodies) {
+        if (calls.has(name)) continue;
+        if ([...calls].some((c) => new RegExp(`\\b${c}\\(`).test(body))) { calls.add(name); grew = true; }
+      }
+    }
+    for (const name of calls) if (name !== local) reaching.add(name);
+  }
+  for (const [, action, handler] of read(join(ROOT, 'api/desk.js')).matchAll(/'?([\w-]+)'?:\s*(\w+),/g)) {
+    if (reaching.has(handler) && !modelActions.has(action)) {
+      fail('paid', `the desk action '${action}' runs the model and isn't in MODEL_ACTIONS in desk-ui.js, so its button can look free.`);
+    }
+  }
+}
+
+// ---- a name read before the line that declares it --------------------------------------------
+//
+// `const` and `let` can't be read above their own line in the same function: the read throws,
+// and on a page that means the rest of the script never runs. That happened on the costs page,
+// where one sentence used the thirty-day figure two dozen lines before it was declared, so the
+// entire page came up blank whenever there was a gap to close.
+//
+// The check walks up from each declaration to the start of its block and looks for a read of
+// the same name in a block nested inside it. A name declared again inside one of those inner
+// blocks is a different variable, and its reads don't count.
+for (const file of files.filter((f) => /\.(html|js)$/.test(f) && !f.includes('/scripts/')
+  && !f.includes('/test/') && !f.includes('node_modules'))) {
+  const lines = read(file).split('\n');
+  lines.forEach((line, i) => {
+    const m = line.match(/^(\s*)(?:const|let) (\w+)\s*=/);
+    if (!m) return;
+    const [, indent, name] = m;
+    const use = new RegExp(`(^|[^\\w.'"\`])${name}\\.\\w`);
+    const again = new RegExp(`^\\s*(?:const|let) ${name}\\b`);
+    let found = [];
+    for (let j = i - 1; j >= 0; j -= 1) {
+      const l = lines[j];
+      if (!l.trim() || /^\s*(\/\/|\*)/.test(l)) continue;
+      const depth = l.match(/^\s*/)[0].length;
+      if (depth < indent.length && /[{(]\s*$/.test(l)) break;
+      if (depth > indent.length && again.test(l)) { found = []; continue; }
+      if (depth > indent.length && use.test(l.replace(/(['"]).*?\1/g, ''))) found.push(j + 1);
+    }
+    for (const at of found) {
+      fail('order', `${file.slice(ROOT.length + 1)}:${at} reads ${name} before line ${i + 1} declares it. That read throws, and nothing after it on the page runs.`);
+    }
+  });
 }
 
 // ---- every module a page asks for is one the server hands out ---------------------------------
