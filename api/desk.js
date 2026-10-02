@@ -111,6 +111,7 @@ async function queue(req, res) {
                       where c2.order_id = o.id and c2.record_encrypted is null
                         and c2.transcript_encrypted is not null) as record_missing,
              o.decision_at, o.client_account_id is not null as linked, o.is_demo,
+             k.name_encrypted,
              p.path as plan_path,
              (select c.ended_at from calls c
                where c.order_id = o.id and c.transcript_encrypted is not null
@@ -154,6 +155,7 @@ async function queue(req, res) {
     people: rows.map((r) => ({
       id: r.id,
       reference: r.reference_code,
+      name: r.name_encrypted ? decrypt(r.name_encrypted) : null,
       calledAt: r.called_at,
       seconds: r.seconds,
       callCount: r.call_count,

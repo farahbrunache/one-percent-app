@@ -482,7 +482,7 @@
     for (const person of data.people) {
       const card = link('', `/desk?id=${person.id}`, 'who');
       const head = el('div', null, 'who-head');
-      head.append(el('span', person.reference || `Order ${person.id}`, 'code'));
+      named(head, person);
       demoChip(person, head);
       // The decision, said as a state rather than left to be worked out from which queue
       // the row happens to be in.
@@ -535,6 +535,18 @@
     ['due', 'Ask about', 'sage', (row) => row.title],
   ];
 
+  // The name on their Skills Economy account once they've linked, with the code beside it;
+  // the code alone before that, because a purchase on its own has no identity.
+  function named(head, row) {
+    const code = row.reference || `Order ${row.id}`;
+    if (row.name) {
+      head.append(el('span', row.name, 'name'));
+      head.append(el('span', code, 'code small'));
+    } else {
+      head.append(el('span', code, 'code'));
+    }
+  }
+
   function gather(data) {
     const people = new Map();
     for (const spec of REASONS) {
@@ -542,7 +554,7 @@
       const words = spec[3];
       for (const row of data[key] || []) {
         if (!people.has(row.id)) {
-          people.set(row.id, { id: row.id, reference: row.reference, isDemo: row.isDemo, hours: null, reasons: [] });
+          people.set(row.id, { id: row.id, reference: row.reference, name: row.name, isDemo: row.isDemo, hours: null, reasons: [] });
         }
         const who = people.get(row.id);
         if (row.hoursWaiting !== null && row.hoursWaiting > (who.hours ?? -1)) who.hours = row.hoursWaiting;
@@ -559,7 +571,7 @@
   function renderWho(who, target, first) {
     const card = link('', `/desk?id=${who.id}`, first ? 'who next' : 'who');
     const head = el('div', null, 'who-head');
-    head.append(el('span', who.reference || `Order ${who.id}`, 'code'));
+    named(head, who);
     demoChip(who, head);
     const over = who.hours !== null && who.hours >= target;
     head.append(el('span', who.hours === null ? '' : hours(who.hours), over ? 'when flag' : 'when meta'));

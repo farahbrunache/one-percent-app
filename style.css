@@ -1288,3 +1288,11 @@ input.code-field::placeholder {
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+.inside .who-head .name {
+  flex-basis: 100%;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.25rem;
+  line-height: 1.15;
+  color: var(--in-cream);
+}
+.inside .who-head .code.small { font-size: 0.8125rem; font-weight: 600; color: var(--in-soft); }

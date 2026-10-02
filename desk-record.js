@@ -602,10 +602,14 @@ function renderWhereItStands(person) {
 
 export function renderPerson(person) {
   const heading = document.getElementById('ref');
-  heading.textContent = person.reference || `Order ${person.id}`;
+  // The name once they've signed in and linked, and the code until then. With a name, the
+  // code moves to the line underneath, because it's still what a payment note carries.
+  const code = person.reference || `Order ${person.id}`;
+  heading.textContent = person.name || code;
   if (person.isDemo) heading.append(el('span', 'DEMO', 'badge demo'));
   const latest = person.calls[0];
   document.getElementById('called').textContent =
+    (person.name ? `${code} · ` : '') +
     (latest ? `Called ${when(latest.endedAt || latest.startedAt)}` : 'No call yet') +
     (person.linked ? '' : ' · no account linked yet');
   renderRecap(person);
