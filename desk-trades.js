@@ -48,11 +48,17 @@ function option(text, value, selected) {
   return item;
 }
 
-// Their own Directory profile: paste the link once, and each time the record opens the job title
-// they gave there is read and offered as their trade. Only the profile id is saved here.
+// Their own Directory profile: found by the account they signed in with, or pasted when that
+// account hasn't claimed one. Each time the record opens the job title they gave there is read
+// and offered as their trade. Only the profile id is saved here.
 function ownProfile(person) {
   const wrap = el('div', null, 'ownprofile');
-  if (!person.ownProfileLinked) {
+  const line = el('p', null, 'meta');
+  wrap.append(line);
+
+  // The paste box, for when their sign-in account has no claimed profile, or they claimed it
+  // under another account. Shown only once the read has said so.
+  const pasteBox = () => {
     const form = el('form', null, 'fields');
     form.noValidate = true;
     const field = el('div', null, 'field');
@@ -79,12 +85,9 @@ function ownProfile(person) {
         msg('rmsg', error.message, 'bad');
       }
     });
-    wrap.append(form);
-    return wrap;
-  }
+    return form;
+  };
 
-  const line = el('p', null, 'meta');
-  wrap.append(line);
   get(`own-profile&id=${encodeURIComponent(person.id)}`).then((found) => {
     if (!found.jobTitle) {
       line.textContent = 'Their Directory profile has no job title on it.';
@@ -112,6 +115,7 @@ function ownProfile(person) {
     }
   }).catch((error) => {
     line.textContent = error.message;
+    if (error.status === 404 && !person.ownProfileLinked) wrap.append(pasteBox());
   });
   return wrap;
 }
