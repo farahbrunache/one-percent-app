@@ -9,8 +9,15 @@ The page One Percent is sold from is a separate repository, `one-percent-landing
 `farahbrunache.com`, and that one is static and stays on Vercel. That split is deliberate: a change to sales copy must not redeploy the
 code that holds money, and the two do not share environment variables.
 
-One Percent is paid work and a separate product from Skills Economy, which is free and
-self-service. Nothing here requires an account anywhere.
+One Percent is the paid tier of Skills Economy, run as a separate product with its own
+repositories, settings and books. Skills Economy stays free and self-service. Nothing here
+requires an account anywhere.
+
+The desk will read claimed Directory profiles from Skills Economy, so people already entered
+there aren't entered twice (owner decision, 2026-10-02). A record here stores the profile id and
+nothing else about the person. The read goes one way, shows only on the owner's desk, and never
+sits in the path of a payment, a call or a sheet. The full limits are in the private
+`one-percent` repository and in `chargingthefuture/chargingthefuture`. The route isn't built yet.
 
 The stylesheet is a copy of the landing page's, taken at the split. The two are expected to
 drift as these screens grow. Do not build a shared package for one CSS file.
