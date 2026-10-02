@@ -273,3 +273,57 @@ export function namesResolve({ ROOT, files, read, fail }) {
     }
   }
 }
+
+// ---- an import nothing reads ----------------------------------------------------------------
+//
+// Forty-five names across seven files referenced nothing. Thirty-four were in the desk endpoint
+// alone, left behind by the splits that moved the handlers out into lib/desk-*.js, and each one
+// reads as a claim that this file still does that work.
+//
+// It matters here more than it would elsewhere, because the rule in this repository is that a
+// change which strands something removes it in the same change. An import list nobody prunes is
+// the one place that rule was quietly not holding.
+export function importsAreRead({ ROOT, files, read, fail }) {
+  const looked = files.filter((f) => /\/(api|lib)\/[\w.-]+\.js$/.test(f)
+    || /^[^/]+\.js$/.test(f.slice(ROOT.length + 1)));
+
+  for (const file of looked) {
+    const text = read(file);
+    const name = file.slice(ROOT.length + 1);
+    // The import statements come out before the scrubbing, not after. Scrubbing blanks the quoted
+    // source path, so the pattern that removes an import no longer matches it -- which left every
+    // imported name sitting in its own import line, and the first version of this check reported
+    // nothing at all with forty-five unread imports in front of it.
+    //
+    // Comments and strings go after that, because a name mentioned only in a comment is still a
+    // name nothing reads.
+    const body = scrub(text.replace(/^import[\s\S]*?from\s+'[^']+';\s*$/gm, ''));
+
+    const imported = [];
+    for (const m of text.matchAll(/^import\s+(?:\{([\s\S]*?)\}|(\w+))\s+from/gm)) {
+      if (m[1]) {
+        for (const part of m[1].split(',')) {
+          const local = part.trim().split(/\s+as\s+/).pop()?.trim();
+          if (local) imported.push(local);
+        }
+      } else if (m[2]) {
+        imported.push(m[2]);
+      }
+    }
+
+    for (const wanted of imported) {
+      // Two ways a name can be read, and the second one cost a working import.
+      //
+      // The first pattern refuses a dot in front, so `thing.name` is not read as a reference to
+      // `name`. A spread puts three dots in front of a real reference -- `...SHEET_RULES.map(…)`
+      // -- so the strict pattern called it unread, and the rules the sheet prompt is built from
+      // were removed from the one file that uses them.
+      const safe = wanted.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const reads = new RegExp(`(?<![\\w$.])${safe}(?![\\w$])`);
+      const spread = new RegExp(`\\.\\.\\.${safe}(?![\\w$])`);
+      if (reads.test(body) || spread.test(body)) continue;
+      fail('unread import', `${name} imports ${wanted} and nothing in the file reads it. `
+        + 'Remove it, or the file claims to do work it handed to somewhere else.');
+    }
+  }
+}

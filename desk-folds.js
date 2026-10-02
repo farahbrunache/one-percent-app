@@ -3,7 +3,7 @@
 // Out of desk-record.js because that file passed its size limit, and because this is one
 // subject: a record is a dozen sections and only one of them is the work in hand.
 
-import { day, minutes, money, when } from '/desk-ui.js';
+import { day, minutes } from '/desk-ui.js';
 import { pathLabel } from '/desk-work.js';
 
 // A record is a dozen sections and one of them is the work in hand. So eleven are shut, and
