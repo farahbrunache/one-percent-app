@@ -64,6 +64,7 @@ import { recordPayment, setQuoteDue } from '../lib/desk-payments.js';
 import { moveWork, setWorkDue, takeOnWork } from '../lib/desk-projects.js';
 import { today } from '../lib/desk-today.js';
 import { person } from '../lib/desk-person.js';
+import { STEPS, startClock, timeReport, timeStep } from '../lib/desk-time.js';
 import { funnel, setPool } from '../lib/desk-funnel.js';
 import { demoClear, demoSeed, markMine } from '../lib/desk-demo.js';
 import { block, close, unblock } from '../lib/desk-state.js';
@@ -382,7 +383,10 @@ async function addNote(req, res) {
 }
 
 const ACTIONS = {
-  GET: { today, queue, person, funnel, 'call-record': callRecord, 'agent-script': agentScript },
+  GET: {
+    today, queue, person, funnel, 'call-record': callRecord, 'agent-script': agentScript,
+    time: timeReport,
+  },
   POST: {
     decide,
     plan: setPlan,
@@ -432,5 +436,15 @@ export default handle(['GET', 'POST'], async (req, res) => {
         + `have: ${names}.`,
     );
   }
-  return run(req, res);
+  await run(req, res);
+
+  // The clock behind "Where your minutes go". After the answer has gone, and never able to turn
+  // a write that worked into an error: a step that wasn't timed costs a figure, not the work.
+  const params = query(req);
+  try {
+    if (req.method === 'GET' && action === 'person') await startClock(params.get('id'));
+    if (req.method === 'POST' && STEPS[action]) await timeStep(params.get('on'), action);
+  } catch (error) {
+    console.error('[one-percent] a step was not timed:', error.message);
+  }
 });
