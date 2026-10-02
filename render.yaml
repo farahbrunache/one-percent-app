@@ -63,3 +63,8 @@ services:
         sync: false
       - key: DRAFT_MODEL_B_KEY
         sync: false
+      # Reads what the drafting worker billed, per endpoint, so the cost screen stops pricing it
+      # from a rate somebody typed in. Optional: without it the screen falls back to the rate and
+      # says which it is using.
+      - key: RUNPOD_API_KEY
+        sync: false
