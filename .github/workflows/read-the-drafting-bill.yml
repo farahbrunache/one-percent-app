@@ -1,0 +1,46 @@
+name: Read the drafting bill
+
+# What the drafting worker cost, off Runpod's own billing rather than seconds times a rate
+# somebody typed in.
+#
+# Daily, because billing buckets by day and runs about an hour behind. A day in progress keeps
+# moving, so the row for today is revised on each run rather than written once.
+#
+# Filtered to this product's own endpoints. The Runpod account is shared with Charging The
+# Future, and an account-wide total would put that product's spending in this product's figures.
+#
+# This is not a one-shot workflow and is not deleted. It runs for as long as drafting does.
+
+on:
+  schedule:
+    - cron: '41 5 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: read-the-drafting-bill
+  cancel-in-progress: false
+
+jobs:
+  bill:
+    name: Ask what drafting billed
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Read it
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          SWEEP_SECRET: ${{ secrets.SWEEP_SECRET }}
+        run: |
+          set -euo pipefail
+          [ -n "$APP_URL" ] || { echo "::error title=APP_URL is not set::Nothing to call."; exit 1; }
+          [ -n "$SWEEP_SECRET" ] || { echo "::error title=SWEEP_SECRET is not set::The job cannot prove itself."; exit 1; }
+
+          origin=$(printf '%s' "$APP_URL" | sed -E 's#^(https?://[^/]+).*#\1#')
+          answer=$(curl -sS --fail-with-body --max-time 120 \
+            -X POST "$origin/api/drafting-bill" \
+            -H "authorization: Bearer $SWEEP_SECRET")
+
+          # Counts only. No key, no address, no amount tied to anybody -- this repository's
+          # Actions logs are world-readable.
+          days=$(printf '%s' "$answer" | sed -E 's/.*"days":([0-9]+).*/\1/')
+          echo "Days of billing written or revised: ${days:-unknown}" >> "$GITHUB_STEP_SUMMARY"

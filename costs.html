@@ -108,6 +108,15 @@
     </div>
 
     <div class="panel">
+      <h2>What drafting actually billed</h2>
+      <p class="meta" id="billsays"></p>
+      <p class="meta">Read off Runpod per endpoint, so Charging The Future's own spending on the
+        same account stays out of these figures. It runs on a clock; this is for when you want it
+        now. Billing is about an hour behind, so today keeps moving until the day is over.</p>
+      <div class="actions"><button type="button" class="quiet" id="pullbill">Read the bill</button></div>
+    </div>
+
+    <div class="panel">
       <h2>What is not counted</h2>
       <div id="unknown" class="rows"></div>
     </div>
@@ -199,16 +208,24 @@
     line('Came in', money(w.tookIn),
       `${w.sessions} session${w.sessions === 1 ? '' : 's'} and paid work`);
     line('Serving clients', exact(w.servingClients),
-      `${exact(w.clientCalls)} of calls, ${exact(w.clientDrafts)} of drafting over ${w.clientSeconds}s`);
+      w.billRead
+        ? `${exact(w.clientCalls)} of calls. Drafting is billed to the project.`
+        : `${exact(w.clientCalls)} of calls, ${exact(w.clientDrafts)} of drafting over ${w.clientSeconds}s`);
     line('Running the project', exact(w.runningTheProject),
-      `${exact(w.projectCalls)} of calls and ${exact(w.projectDrafts)} of drafting while testing`
-      + ` over ${w.projectSeconds}s, plus `
-      + `${w.fixedShare === null ? 'nothing listed' : exact(w.fixedShare)} of monthly bills for`
-      + ` ${w.days} of their 30 days`);
+      `${exact(w.projectCalls)} of calls and ${exact(w.drafting)} of drafting`
+      + (w.billRead ? ' off the bill' : ` worked out from ${w.projectSeconds}s at the rate`)
+      + `, plus ${w.fixedShare === null ? 'nothing listed' : exact(w.fixedShare)} of monthly `
+      + `bills for ${w.days} of their 30 days`);
     if (w.demoSessions) {
       line('Demo sessions', String(w.demoSessions),
         'Cost real money, took in nothing. Counted against the project.');
     }
+
+    // Whether these figures are a bill or a rate, said once where it matters rather than left for
+    // somebody to work out from a number.
+    document.getElementById('billsays').textContent = data.lastSeven.billRead
+      ? `${exact(data.lastSeven.drafting)} over the last ${data.lastSeven.days} days, off the bill.`
+      : 'Not read yet, so drafting is priced at the per-second line below.';
 
     const lines = document.getElementById('lines');
     lines.textContent = '';
@@ -359,6 +376,23 @@
       orders.append(row);
     }
   }
+
+  // Reading the bill takes a moment and the control says so on itself, which is the one place a
+  // wait is allowed to be announced.
+  const pull = document.getElementById('pullbill');
+  pull.addEventListener('click', async () => {
+    const said = pull.textContent;
+    pull.disabled = true;
+    pull.textContent = 'Reading the bill';
+    try {
+      await post('pull-bill', {});
+      window.location.reload();
+    } catch (error) {
+      pull.disabled = false;
+      pull.textContent = said;
+      msg('msg', error.message, 'bad');
+    }
+  });
 
   document.getElementById('addline').addEventListener('submit', async (event) => {
     event.preventDefault();

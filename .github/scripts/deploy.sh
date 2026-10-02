@@ -78,6 +78,7 @@ OPTIONAL_KEYS=(
   DRAFT_MODEL_B_NAME
   DRAFT_MODEL_B_URL
   DRAFT_MODEL_B_KEY
+  RUNPOD_API_KEY
 )
 
 die() { echo "::error title=Deploy stopped::$*"; exit 1; }
