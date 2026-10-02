@@ -103,56 +103,106 @@ async function queue(req, res) {
   // choosing to work with them, which is the same choice a go is. This queue asked only
   // about approved, so a quoted no-go could write and their message landed nowhere: the
   // tab that exists to surface a message said there was nothing in it.
-  const rows = await sql()`
-      select o.id, o.reference_code, o.decision,
-             o.recommendations_written_at,
-             count(*) over () as total,
-             exists (select 1 from calls c2
-                      where c2.order_id = o.id and c2.record_encrypted is null
-                        and c2.transcript_encrypted is not null) as record_missing,
-             o.decision_at, o.client_account_id is not null as linked, o.is_demo,
-             k.name_encrypted,
-             p.path as plan_path,
-             (select c.ended_at from calls c
-               where c.order_id = o.id and c.transcript_encrypted is not null
-               order by c.ended_at desc nulls last limit 1) as called_at,
-             (select c.seconds from calls c
-               where c.order_id = o.id and c.transcript_encrypted is not null
-               order by c.ended_at desc nulls last limit 1) as seconds,
-             (select count(*)::int from calls c
-               where c.order_id = o.id and c.transcript_encrypted is not null) as call_count,
-             exists (select 1 from quotes q
-                      where q.account_id = o.client_account_id
-                        and q.status = any(${QUOTE_ANSWERS_WAITING})) as quote_waiting,
-             (select m.author from messages m
-               where m.account_id = o.client_account_id
-               order by m.created_at desc limit 1) = 'client' as awaiting_reply
+  // Search runs across every queue, by the code or the name. Names are sealed, so they can't
+  // be matched in SQL; the match is made here, on the opened names, and the ids go back in.
+  // At fifty thousand people that's fifty thousand short decryptions, which is milliseconds.
+  const asked = (params.get('q') || '').trim().toLowerCase().slice(0, 80);
+  let matches = [];
+  if (asked) {
+    const all = await sql()`
+      select o.id, o.reference_code, k.name_encrypted
         from orders o
-        left join plans p on p.order_id = o.id and p.in_force
         left join cases k on k.id = o.case_id
        where exists (select 1 from calls c
                       where c.order_id = o.id and c.transcript_encrypted is not null)
-         and case ${state}
-               when 'waiting' then o.decision is null
-               when 'replies' then (o.approved_as_client_at is not null
-                                     or exists (select 1 from quotes q
-                                                 where q.account_id = o.client_account_id))
-                                   and (select m.author from messages m
-                                         where m.account_id = o.client_account_id
-                                         order by m.created_at desc limit 1) = 'client'
-               when 'active'  then o.decision = 'go' and k.closed_at is null
-               else                k.closed_at is not null
-             end
-       order by o.id desc
-       limit ${PER_PAGE} offset ${offset}
     `;
+    matches = all
+      .filter((r) => String(r.reference_code || '').toLowerCase().includes(asked)
+        || (r.name_encrypted && decrypt(r.name_encrypted).toLowerCase().includes(asked)))
+      .map((r) => Number(r.id));
+  }
+
+  // Which queue each person is in is worked out once, as four columns, and both the page and
+  // the counts on the four tabs read those columns. One copy of each condition, so a tab's
+  // count and the list under it can't disagree.
+  const rows = await sql()`
+      with base as (
+        select o.id, o.reference_code, o.decision,
+               o.recommendations_written_at,
+               exists (select 1 from calls c2
+                        where c2.order_id = o.id and c2.record_encrypted is null
+                          and c2.transcript_encrypted is not null) as record_missing,
+               o.decision_at, o.client_account_id is not null as linked, o.is_demo,
+               k.name_encrypted,
+               p.path as plan_path,
+               (select c.ended_at from calls c
+                 where c.order_id = o.id and c.transcript_encrypted is not null
+                 order by c.ended_at desc nulls last limit 1) as called_at,
+               (select c.seconds from calls c
+                 where c.order_id = o.id and c.transcript_encrypted is not null
+                 order by c.ended_at desc nulls last limit 1) as seconds,
+               (select count(*)::int from calls c
+                 where c.order_id = o.id and c.transcript_encrypted is not null) as call_count,
+               exists (select 1 from quotes q
+                        where q.account_id = o.client_account_id
+                          and q.status = any(${QUOTE_ANSWERS_WAITING})) as quote_waiting,
+               (select m.author from messages m
+                 where m.account_id = o.client_account_id
+                 order by m.created_at desc limit 1) = 'client' as awaiting_reply,
+               o.decision is null as in_waiting,
+               (o.approved_as_client_at is not null
+                  or exists (select 1 from quotes q
+                              where q.account_id = o.client_account_id))
+                 and coalesce((select m.author from messages m
+                                where m.account_id = o.client_account_id
+                                order by m.created_at desc limit 1) = 'client', false)
+                 as in_replies,
+               coalesce(o.decision = 'go' and k.closed_at is null, false) as in_active,
+               k.closed_at is not null as in_closed
+          from orders o
+          left join plans p on p.order_id = o.id and p.in_force
+          left join cases k on k.id = o.case_id
+         where exists (select 1 from calls c
+                        where c.order_id = o.id and c.transcript_encrypted is not null)
+      ),
+      counts as (
+        select count(*) filter (where in_waiting)::int as waiting,
+               count(*) filter (where in_replies)::int as replies,
+               count(*) filter (where in_active)::int as active,
+               count(*) filter (where in_closed)::int as closed
+          from base
+      )
+      select shown.*, to_json(counts.*) as counts
+        from counts
+        left join (
+          select base.*, count(*) over () as total
+            from base
+           where case when ${Boolean(asked)} then base.id = any(${matches}::bigint[])
+                      else case ${state}
+                             when 'waiting' then in_waiting
+                             when 'replies' then in_replies
+                             when 'active'  then in_active
+                             else                in_closed
+                           end
+                 end
+           order by base.id desc
+           limit ${PER_PAGE} offset ${offset}
+        ) shown on true
+       order by shown.id desc
+    `;
+
+  // Always one row, because the counts ride on it; an empty page is that row with no person.
+  const counts = rows[0].counts;
+  const people = rows.filter((r) => r.id !== null);
 
   send(res, 200, {
     state,
     page,
+    asked,
+    counts,
     perPage: PER_PAGE,
-    total: Number(rows[0]?.total || 0),
-    people: rows.map((r) => ({
+    total: Number(people[0]?.total || 0),
+    people: people.map((r) => ({
       id: r.id,
       reference: r.reference_code,
       name: r.name_encrypted ? decrypt(r.name_encrypted) : null,

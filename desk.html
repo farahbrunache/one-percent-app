@@ -37,6 +37,12 @@
       <a href="/costs">What it costs</a>
     </nav>
     <h1>Desk</h1>
+    <form class="find" role="search" action="/desk" method="get">
+      <label class="visually-hidden" for="tfind">Find somebody by name or code</label>
+      <input type="search" id="tfind" name="q" placeholder="Name or code" autocomplete="off"
+             maxlength="80" enterkeyhint="search">
+      <button type="submit" class="quiet">Find</button>
+    </form>
     <p class="meta" id="todaycount"></p>
     <div id="todaylist" class="who-list" aria-live="polite"></div>
     <div class="pages" id="todaypager" hidden></div>
@@ -61,6 +67,12 @@
       <a href="/costs">What it costs</a>
     </nav>
     <h1>Everybody</h1>
+    <form class="find" role="search" action="/desk" method="get">
+      <label class="visually-hidden" for="qfind">Find somebody by name or code</label>
+      <input type="search" id="qfind" name="q" placeholder="Name or code" autocomplete="off"
+             maxlength="80" enterkeyhint="search">
+      <button type="submit" class="quiet">Find</button>
+    </form>
 
     <nav class="navlist" id="tabs"></nav>
     <p class="meta" id="qcount"></p>
@@ -342,7 +354,7 @@
 <script type="module">
   import { codeFields } from '/codefield.js';
   import { el, link, msg, call, get, post, when, minutes, money, demoChip, hours, owed,
-    here, personId, state, page, mpage, askedForQueue } from '/desk-ui.js';
+    here, personId, state, page, mpage, asked, askedForQueue } from '/desk-ui.js';
   import { renderPerson } from '/desk-record.js';
   import { drawnBy, once, settled } from '/desk-after.js';
   import { drawBands } from '/desk-bands.js';
@@ -397,12 +409,17 @@
     }
   }
 
-  function renderTabs(active) {
+  // Each queue with how many are in it, so a queue that's filling up shows from any of the
+  // four. While searching none of them is the one you're in, because a search crosses them.
+  function renderTabs(active, counts) {
     const tabs = document.getElementById('tabs');
     tabs.textContent = '';
     for (const [value, label] of STATES) {
-      const a = link(label, `/desk?state=${value}`, value === active ? 'on' : null);
-      if (value === active) a.setAttribute('aria-current', 'page');
+      const on = !asked && value === active;
+      const a = link(label, `/desk?state=${value}`, on ? 'on' : null);
+      const n = counts?.[value];
+      if (n !== undefined) a.append(el('span', String(n), n && value !== 'closed' ? 'n some' : 'n'));
+      if (on) a.setAttribute('aria-current', 'page');
       tabs.append(a);
     }
   }
@@ -410,7 +427,9 @@
   function renderPager(data) {
     const last = Math.max(1, Math.ceil(data.total / data.perPage));
     renderPages(document.getElementById('pager'), data.page, last, (to) => {
-      location.href = `/desk?state=${data.state}&page=${to}`;
+      location.href = asked
+        ? `/desk?q=${encodeURIComponent(asked)}&page=${to}`
+        : `/desk?state=${data.state}&page=${to}`;
     });
   }
 
@@ -470,12 +489,18 @@
 
   function renderQueue(data) {
     renderDateline();
-    renderTabs(data.state);
+    renderTabs(data.state, data.counts);
+    for (const id of ['qfind', 'tfind']) document.getElementById(id).value = asked;
     const first = (data.page - 1) * data.perPage + 1;
     const last = first + data.people.length - 1;
-    document.getElementById('qcount').textContent = data.total
-      ? `Showing ${first} to ${last} of ${data.total}.`
-      : 'Nothing in this one.';
+    document.getElementById('qcount').textContent = asked
+      ? (data.total
+        ? `${data.total} ${data.total === 1 ? 'match' : 'matches'} for "${asked}", across all four.`
+          + (data.total > data.perPage ? ` Showing ${first} to ${last}.` : '')
+        : `Nobody matches "${asked}". Search looks at names and codes.`)
+      : data.total
+        ? `Showing ${first} to ${last} of ${data.total}.`
+        : 'Nothing in this one.';
 
     const list = document.getElementById('people');
     list.textContent = '';
@@ -736,6 +761,7 @@
         + (mpage ? `&mpage=${encodeURIComponent(mpage)}` : '')
       : askedForQueue
         ? `/api/desk?action=queue&state=${encodeURIComponent(state)}&page=${page}`
+          + (asked ? `&q=${encodeURIComponent(asked)}` : '')
         : '/api/desk?action=today';
     // Drawn first, shown second. Revealing the block before rendering into it meant a render
     // that threw left a half-drawn screen on display -- a heading, a count, and no rows.

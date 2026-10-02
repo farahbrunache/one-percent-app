@@ -19,7 +19,10 @@ export const page = Math.max(1, Number(here.searchParams.get('page')) || 1);
 // Which page of the conversation. Absent means the newest, which the endpoint decides,
 // because only it knows how many there are.
 export const mpage = here.searchParams.get('mpage');
-export const askedForQueue = here.searchParams.has('state') || here.searchParams.has('page');
+// A search, which is a queue of its own: everybody whose code or name has these letters in it.
+export const asked = (here.searchParams.get('q') || '').trim();
+export const askedForQueue = here.searchParams.has('state') || here.searchParams.has('page')
+  || Boolean(asked);
 
 export function el(tag, text, className) {
   const node = document.createElement(tag);
