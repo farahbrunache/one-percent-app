@@ -93,6 +93,7 @@ rows, never by a switch you have to remember to set.
 - [ ] **+ Add one** adds a person to that figure. "Change the list size" opens one field to type it. Empty takes the row off the chart. The row says **typed** so it is never mistaken for a measurement.
 - [ ] **How far people get** — calls that came back, worth going on with, on a path, someone to approach, approached somebody, first paying customer.
 - [ ] Both are cumulative subsets and count one person once, so every drop is a real rate.
+- [ ] **Where your minutes go** — over the last 30 days, each kind of step (reading the call, go or no-go, writing the sheet, replying, quotes, introductions, their trade, the path, following up, people to approach, work you owe, notes), how many times, the typical time and the total, and about how many minutes each person took. Opening a record starts a clock for that person, each write records the time since the last one, and a gap over 30 minutes isn't counted. The demo records carry a few invented times.
 
 ## 6. A person's record
 
@@ -104,6 +105,8 @@ rows, never by a switch you have to remember to set.
 ### Now
 
 - [ ] **Calls** — every call with its transcript and summary. **Everything the voice service has** fetches and saves the record yourself.
+- [ ] Four lines on each call, above the transcript: Trade, Rate, What's in the way, First customer. Type them and press Save, and the call is decided from four lines instead of thirty minutes. The demo plumber called 31 hours ago has them filled in.
+- [ ] "Fill from the call" 💸 reads that one call's transcript and puts its answers in the four boxes. Nothing is saved until you read them and press Save. **(off — `DRAFT_MODEL_A_*`)**: the boxes work the same without it.
 - [ ] **Go or no-go** — two equal buttons. Reversible. Both land on the trail.
 - [ ] **Their sheet** — the box you write in, up to 8000 characters.
 - [ ] "Start from the template" fills it with the shape: an opening line, three numbered things each with what to do and why it works for this person, a sub-bullet for where it happens, and a closing slot for which one to start with this week.
@@ -183,7 +186,7 @@ rows, never by a switch you have to remember to set.
 - [ ] A way back on the left and Refresh on the right, in one row at the top. The desk is the top of the operator side and has refresh alone.
 - [ ] Nothing says it is loading. A screen is blank for a moment and then it is the page. A failure says what failed and what to do about it, where the content would have been.
 - [ ] A control that starts work disables itself while it runs. Where the wait is long — a call starting, a draft, reading the bill — it also says what it's doing on itself.
-- [ ] Every button that runs the drafting model is purple, a color nothing else uses, and ends in 💸: Where does this stand?, Draft it from the call, Draft a reply, What is this worth to them? Nothing else is purple. The build fails if a desk screen asks the model for anything without going through `askModel`, or if an action that reaches the model is missing from `MODEL_ACTIONS`.
+- [ ] Every button that runs the drafting model is purple, a color nothing else uses, and ends in 💸: Where does this stand?, Draft it from the call, Draft a reply, What is this worth to them?, Fill from the call. Each order gets 10 drafts a day across all of them, and every one is counted on What it costs. Nothing else is purple. The build fails if a desk screen asks the model for anything without going through `askModel`, or if an action that reaches the model is missing from `MODEL_ACTIONS`.
 
 ## 10. Running on its own
 
@@ -220,6 +223,7 @@ without a line here. The check in `scripts/checks.mjs` reads this list.
 | `queue` | one of the four tabs, paged and searchable | 5 |
 | `person` | one person entire; opening it marks their messages read | 6 |
 | `funnel` | both funnels in one read | 5 |
+| `time` | where your minutes go, step by step | 5 |
 | `call-record` | the kept voice-service record for one call | 3 |
 | `agent-script` | exports the voice agent's configuration | 3 |
 | `decide` | go or no-go | 6 |
@@ -251,6 +255,8 @@ without a line here. The check in `scripts/checks.mjs` reads this list.
 | `trade` | set their trade from the list | 6 |
 | `trades-copy` | copy the trade list now | 6 |
 | `pairs` | introductions to make, across everybody | 5 |
+| `call-fields` | save the four lines on a call | 6 |
+| `call-fields-draft` | ask the model to fill the four lines from that call — a paid button | 6 |
 | `funnel-pool` | the size of the list being approached, or one more | 4, 5 |
 | `block` | they are waiting on somebody else | 6 |
 | `unblock` | they are not any more | 6 |

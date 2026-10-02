@@ -59,8 +59,11 @@ export function get(action) {
   return call(`/api/desk?action=${action}`);
 }
 
+// A write on a person's record says which record it came from, so the desk can time the step.
+// The body already names the order, but the server times the step after the body is spent.
 export function post(action, body) {
-  return call(`/api/desk?action=${action}`, {
+  const on = personId ? `&on=${encodeURIComponent(personId)}` : '';
+  return call(`/api/desk?action=${action}${on}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
@@ -147,7 +150,7 @@ export function owed(person) {
 // says as "Costs money". This refuses a press from a button without that look, so a new
 // paid button can't ship looking like a free one. scripts/checks.mjs fails the build on a
 // request for any of these actions made anywhere else.
-export const MODEL_ACTIONS = ['draft', 'quote-worth'];
+export const MODEL_ACTIONS = ['draft', 'quote-worth', 'call-fields-draft'];
 
 export function askModel(button, body, action = 'draft') {
   if (!MODEL_ACTIONS.includes(action)) {

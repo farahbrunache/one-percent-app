@@ -6,6 +6,7 @@
 // imported and rendered in place.
 
 import { renderTrades } from '/desk-trades.js';
+import { renderCallFields } from '/desk-callfields.js';
 import { askModel, el, link, msg, get, post, when, day, minutes, money, owed, mpage, here }
   from '/desk-ui.js';
 import { renderPlan, renderSteps, renderQuotes, renderIntroductions, pathLabel }
@@ -154,6 +155,9 @@ function renderCalls(person) {
     const row = el('div', null, 'row');
     row.append(el('div', call.kind === 'intake' ? 'Intake' : 'Follow-up', 'label'));
     row.append(el('div', `${when(call.endedAt || call.startedAt)} · ${minutes(call.seconds)}`, 'meta'));
+    // Four lines first, so the call is decided from them and the transcript is for when one
+    // of them is unclear.
+    row.append(renderCallFields(person, call));
     const open = el('details');
     open.append(el('summary', 'Read it'));
     const wrap = el('div', null, 'transcript');
