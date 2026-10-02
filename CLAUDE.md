@@ -639,5 +639,13 @@ code change.
 A gift card code is money in bearer form. It is encrypted at rest and destroyed the moment a
 decision is recorded. Nothing spendable survives in the database.
 
-Nothing that identifies a person is collected at any point — no name, no email address, no
-location. A lost claim link is recovered with the reference or the card code and nothing else.
+Buying and the call collect nothing that identifies a person — no name, no email address, no
+location. A purchase has no identity. A lost claim link is recovered with the reference or the
+card code and nothing else.
+
+The name arrives later, and from one place (owner decision, 2026-10-02). After somebody reads
+their sheet they're asked to sign in with Skills Economy, and when that account links their
+session, the name on the account is saved on the case, sealed like everything else, and the
+desk shows it in place of the code. That's the point where a purchase becomes somebody the
+owner is working with. Nothing asks for a name on the way in, and signing in without linking
+saves nothing.

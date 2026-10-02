@@ -1121,3 +1121,216 @@ input.code-field::placeholder {
   opacity: 0.6;
   cursor: default;
 }
+
+/* ---- Daily driving --------------------------------------------------------------------
+   The desk is used all day on a phone, so the text is read at arm's length and every
+   control is pressed with a thumb. Body text at 15px, small print at 13px, nothing pressable
+   under 44px tall. The look stays as the design drew it; this is the size it's read at. */
+.inside { font-size: 0.9375rem; }
+.inside .meta,
+.inside .row .meta { font-size: 0.8125rem; color: var(--in-muted); }
+.inside h2 { font-size: 0.75rem; }
+.inside .field .hint { font-size: 0.8125rem; }
+.inside button,
+.inside a.button {
+  font-size: 0.8125rem;
+  min-height: 2.75rem;
+  padding: 0.625rem 0.875rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The top row stays put while the list scrolls under it: where you came from, refresh,
+   and on the desk the four places it goes. */
+.inside .topbar {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 5;
+  background: var(--in-shell);
+  padding-block: 0.625rem;
+  margin: 0 -1rem 0.5rem;
+  padding-inline: 1rem;
+  border-bottom: 1px solid var(--in-rule-card);
+}
+.inside .jumps {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  margin-bottom: 0.75rem;
+}
+.inside .jumps a {
+  flex: 0 0 auto;
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 1rem;
+  border: 1px solid var(--in-rule-card);
+  border-radius: 999px;
+  color: var(--in-soft);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 0.8125rem;
+}
+.inside .jumps a.on { background: var(--in-gold); border-color: var(--in-gold); color: var(--in-shell); }
+
+/* One card per person. The card is the link, so the target is the size of the card. */
+.inside .who-list { display: grid; gap: 0.625rem; margin-top: 0.75rem; }
+.inside a.who {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.875rem;
+  border: 1px solid var(--in-rule-card);
+  border-radius: 16px;
+  background: var(--in-panel);
+  color: var(--in-ink);
+  text-decoration: none;
+}
+.inside a.who:hover { border-color: var(--in-sage); }
+.inside a.who:focus-visible { outline: 2px solid var(--in-sage-bright); outline-offset: 2px; }
+.inside a.who.next { border-color: var(--in-gold); background: var(--in-panel-sage); }
+.inside .who-head { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.inside .who-head .code {
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--in-cream);
+}
+.inside .who-head .badge { margin: 0; }
+.inside .who-head .when { margin-left: auto; font-variant-numeric: tabular-nums; }
+.inside .why { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.5rem; }
+.inside .why .what { flex: 1 1 12rem; min-width: 0; }
+.inside .why .meta { flex-basis: 100%; }
+.inside .tag {
+  flex: 0 0 auto;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.125rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid currentColor;
+}
+.inside .tag.gold { color: var(--in-gold); }
+.inside .tag.coral { color: var(--in-coral-soft); }
+.inside .tag.sage { color: var(--in-sage); }
+.inside a.who .go-on { justify-self: stretch; }
+
+/* Numbered pages. Prev, the first, the ones either side, the last, Next. */
+.inside .pages { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.375rem; margin-top: 1rem; }
+.inside .pages button { min-width: 2.75rem; }
+.inside .pages button.on { background: var(--in-gold); border-color: var(--in-gold); color: var(--in-shell); }
+.inside .pages button:disabled { opacity: 0.4; }
+
+/* The queues, two by two, so all four are in view at once. */
+.inside .navlist#tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 0.375rem; }
+.inside .navlist#tabs a {
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--in-rule-card);
+  font-size: 0.875rem;
+}
+
+/* A record's sections, in three lists rather than fifteen cards. Shut, each is one line;
+   open, it's the full section, in place. */
+.inside .groupname {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--in-muted);
+  margin: 1.5rem 0 0.5rem;
+}
+.inside .foldgroup {
+  border: 1px solid var(--in-rule-card);
+  border-radius: 16px;
+  background: var(--in-panel);
+  overflow: hidden;
+}
+.inside .foldgroup > .panel.fold {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.inside .foldgroup > .panel.fold + .panel.fold { border-top: 1px solid var(--in-rule-card); }
+.inside .foldgroup > .panel.fold[open] { background: var(--in-panel-sage); }
+.inside .foldgroup > .panel.fold > summary { min-height: 3rem; }
+.inside .foldgroup > .panel.fold > summary {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.125rem 0.75rem;
+  padding: 0.75rem 0;
+}
+.inside .foldgroup > .panel.fold > summary > h2 { grid-column: 1; font-size: 0.75rem; }
+.inside .foldgroup > .panel.fold > summary > .sofar { grid-column: 1; font-size: 0.875rem; }
+.inside .foldgroup > .panel.fold > summary::after {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  margin: 0;
+  font-size: 1.25rem;
+}
+.inside a.who span.go-on {
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #326b57;
+  color: #e7f4ea;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.inside .who-head .name {
+  flex-basis: 100%;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.25rem;
+  line-height: 1.15;
+  color: var(--in-cream);
+}
+.inside .who-head .code.small { font-size: 0.8125rem; font-weight: 600; color: var(--in-soft); }
+
+/* Find somebody: one field and one button, on Today and on Everybody. */
+.inside .find { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem; margin: 0.75rem 0; }
+.inside .find input {
+  min-width: 0;
+  min-height: 2.75rem;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--in-ink);
+  background: var(--in-inset);
+  border: 1px solid var(--in-rule-card);
+  border-radius: 12px;
+  padding: 0 0.875rem;
+}
+.inside .find input:focus-visible { outline: 2px solid var(--in-sage-bright); outline-offset: 1px; }
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* How many are in each queue. Filled while there's somebody in it, except Closed, which
+   only ever grows. */
+.inside .navlist#tabs a { gap: 0.5rem; }
+.inside .navlist#tabs .n {
+  min-width: 1.5rem;
+  padding: 0 0.375rem;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8125rem;
+  text-align: center;
+  border: 1px solid var(--in-rule-card);
+}
+.inside .navlist#tabs .n.some { background: var(--in-coral); border-color: var(--in-coral); color: var(--in-cream); }
+.inside .navlist#tabs a.on .n { border-color: var(--in-shell); }

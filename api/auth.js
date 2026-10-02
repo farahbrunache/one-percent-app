@@ -5,15 +5,16 @@
 // signed cookie. No password is typed here and none is stored.
 
 import {
+  NAME_COOKIE,
   SESSION_COOKIE,
-  accountId,
   endpoints,
   exchangeCode,
   redirectUri,
   signInUrl,
+  whoSignedIn,
 } from '../lib/auth.js';
-import { callerKey, randomToken, sha256Base64Url, signSession } from '../lib/crypto.js';
-import { ensureSchema } from '../lib/db.js';
+import { callerKey, encrypt, randomToken, sha256Base64Url, signSession } from '../lib/crypto.js';
+import { ensureSchema, sql } from '../lib/db.js';
 import { underLimit } from '../lib/settings.js';
 import { HttpError, handle, readCookie, redirect, send, setCookie } from '../lib/http.js';
 
@@ -80,8 +81,20 @@ async function callback(req, res) {
   try {
     const discovery = await endpoints();
     const token = await exchangeCode({ code, verifier, returnTo: redirectUri(req) }, discovery);
-    const id = await accountId(token, discovery);
+    const { id, name } = await whoSignedIn(token, discovery);
     setCookie(res, SESSION_COOKIE, signSession(id), 12 * 3600, ACROSS_THE_RETURN);
+    setCookie(res, NAME_COOKIE, name ? encrypt(name) : '', name ? 12 * 3600 : 0, ACROSS_THE_RETURN);
+    // A name changed on Skills Economy reaches the desk on the next sign-in. Only a case that
+    // already exists is touched: signing in alone makes nobody a client.
+    // A failure here costs a name on the desk, never the sign-in, so it's logged and passed.
+    if (name) {
+      try {
+        await ensureSchema();
+        await sql()`update cases set name_encrypted = ${encrypt(name)} where account_id = ${id}`;
+      } catch (error) {
+        console.error('[one-percent] the name from that sign-in was not saved:', error.message);
+      }
+    }
   } catch (error) {
     return failed(error.message);
   }
@@ -101,6 +114,7 @@ export default handle(['GET', 'POST'], async (req, res) => {
   if (req.method === 'GET' && action === 'callback') return callback(req, res);
   if (req.method === 'POST' && action === 'signout') {
     setCookie(res, SESSION_COOKIE, '', 0, ACROSS_THE_RETURN);
+    setCookie(res, NAME_COOKIE, '', 0, ACROSS_THE_RETURN);
     return send(res, 200, { ok: true });
   }
 

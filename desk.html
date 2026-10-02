@@ -22,61 +22,34 @@
     <div id="lmsg" hidden></div>
   </div>
 
-  <!-- The queue. Which one and which page are both in the address, so a place in a list can
-       be returned to and the back button does what it looks like it does. -->
-  <!-- The first screen. Two questions, oldest first, and nothing that answers "is this
-       working" -- that is the funnel, and it belongs on a quieter screen than this one. -->
+  <!-- The first screen. One card per person who needs something, the first card the next
+       thing to do. A person who is owed three things is one card with three lines, not three
+       cards in three panels. -->
   <div id="todayview" hidden>
     <div class="topbar">
       <p class="dateline" id="todaydate"></p>
       <button type="button" class="quiet" id="todayagain">Refresh</button>
     </div>
+    <nav class="jumps" aria-label="Desk">
+      <a class="on" aria-current="page" href="/desk">Today</a>
+      <a href="/desk?state=waiting">Everybody</a>
+      <a href="/payments">Payments</a>
+      <a href="/costs">What it costs</a>
+    </nav>
     <h1>Desk</h1>
-
-    <div class="panel">
-      <h2>New calls</h2>
-      <p class="meta" id="callscount"></p>
-      <div id="newcalls" class="rows"></div>
-    </div>
-
-    <div class="panel">
-      <h2>Wrote to you</h2>
-      <p class="meta" id="unreadcount"></p>
-      <div id="newunread" class="rows"></div>
-    </div>
-
-    <div class="panel">
-      <h2>Answered a quote</h2>
-      <p class="meta" id="answeredcount"></p>
-      <div id="newanswered" class="rows"></div>
-    </div>
-
-    <div class="panel">
-      <h2>Owed to you</h2>
-      <p class="meta" id="latecount"></p>
-      <div id="newlate" class="rows"></div>
-    </div>
-
-    <div class="panel">
-      <h2>Owed by you</h2>
-      <p class="meta" id="owingcount"></p>
-      <div id="newowing" class="rows"></div>
-    </div>
-
-    <div class="panel">
-      <h2>Due to ask about</h2>
-      <p class="meta" id="duecount"></p>
-      <div id="newdue" class="rows"></div>
-    </div>
+    <form class="find" role="search" action="/desk" method="get">
+      <label class="visually-hidden" for="tfind">Find somebody by name or code</label>
+      <input type="search" id="tfind" name="q" placeholder="Name or code" autocomplete="off"
+             maxlength="80" enterkeyhint="search">
+      <button type="submit" class="quiet">Find</button>
+    </form>
+    <p class="meta" id="todaycount"></p>
+    <div id="todaylist" class="who-list" aria-live="polite"></div>
+    <div class="pages" id="todaypager" hidden></div>
 
     <div class="actions">
-      <button type="button" class="quiet" id="demodata"></button>
-    </div>
-    <div class="actions">
-      <a class="button quiet-link" href="/desk?state=waiting">Everybody</a>
-      <a class="button quiet-link" href="/payments">Payments</a>
-      <a class="button quiet-link" href="/costs">What it costs</a>
       <button type="button" class="quiet" id="tscript">Export the script</button>
+      <button type="button" class="quiet" id="demodata"></button>
       <button type="button" class="quiet" id="tlogout">Sign out</button>
     </div>
     <div id="tmsg" hidden></div>
@@ -87,7 +60,24 @@
       <p class="dateline" id="today"></p>
       <button type="button" class="quiet" id="again">Refresh</button>
     </div>
-    <h1>Desk</h1>
+    <nav class="jumps" aria-label="Desk">
+      <a href="/desk">Today</a>
+      <a class="on" aria-current="page" href="/desk?state=waiting">Everybody</a>
+      <a href="/payments">Payments</a>
+      <a href="/costs">What it costs</a>
+    </nav>
+    <h1>Everybody</h1>
+    <form class="find" role="search" action="/desk" method="get">
+      <label class="visually-hidden" for="qfind">Find somebody by name or code</label>
+      <input type="search" id="qfind" name="q" placeholder="Name or code" autocomplete="off"
+             maxlength="80" enterkeyhint="search">
+      <button type="submit" class="quiet">Find</button>
+    </form>
+
+    <nav class="navlist" id="tabs"></nav>
+    <p class="meta" id="qcount"></p>
+    <div id="people" class="who-list" aria-live="polite"></div>
+    <div class="pages" id="pager" hidden></div>
 
     <h2>Getting to a call, and what it led to</h2>
     <p class="meta">The list you're working from, then what came of it. Each person counted
@@ -110,14 +100,7 @@
     <p class="meta">Each person counted once, no matter how many sessions they've bought.</p>
     <div id="funnel" class="funnel"></div>
 
-    <nav class="navlist" id="tabs"></nav>
-    <p class="meta" id="qcount"></p>
-    <div id="people" class="rows" aria-live="polite"></div>
-    <div class="actions" id="pager" hidden></div>
-
     <div class="actions">
-      <a class="button quiet-link" href="/payments">Payments</a>
-      <a class="button quiet-link" href="/costs">What it costs</a>
       <button type="button" class="quiet" id="script">Export the script</button>
       <button type="button" class="quiet" id="logout">Sign out</button>
     </div>
@@ -148,6 +131,8 @@
       <p id="recapout" class="recap" hidden></p>
     </div>
 
+    <h3 class="groupname">Now</h3>
+    <div class="foldgroup">
     <details class="panel fold" id="fold-calls">
       <summary><h2>Calls</h2><span class="sofar" id="sofar-calls"></span></summary>
       <div id="calls"></div>
@@ -200,6 +185,10 @@
       </form>
     </details>
 
+    </div>
+
+    <h3 class="groupname">The work</h3>
+    <div class="foldgroup">
     <details class="panel fold" id="fold-plan">
       <summary><h2>The path</h2><span class="sofar" id="sofar-plan"></span></summary>
       <div id="plan"></div>
@@ -304,6 +293,10 @@
       </form>
     </details>
 
+    </div>
+
+    <h3 class="groupname">The account</h3>
+    <div class="foldgroup">
     <details class="panel fold" id="fold-orders">
       <summary><h2>Sessions bought</h2><span class="sofar" id="sofar-orders"></span></summary>
       <p class="meta" id="ordersnote"></p>
@@ -352,6 +345,7 @@
       </form>
       <div id="events" class="rows"></div>
     </details>
+    </div>
 
   </div>
 
@@ -360,7 +354,7 @@
 <script type="module">
   import { codeFields } from '/codefield.js';
   import { el, link, msg, call, get, post, when, minutes, money, demoChip, hours, owed,
-    here, personId, state, page, mpage, askedForQueue } from '/desk-ui.js';
+    here, personId, state, page, mpage, asked, askedForQueue } from '/desk-ui.js';
   import { renderPerson } from '/desk-record.js';
   import { drawnBy, once, settled } from '/desk-after.js';
   import { drawBands } from '/desk-bands.js';
@@ -415,25 +409,28 @@
     }
   }
 
-  function renderTabs(active) {
+  // Each queue with how many are in it, so a queue that's filling up shows from any of the
+  // four. While searching none of them is the one you're in, because a search crosses them.
+  function renderTabs(active, counts) {
     const tabs = document.getElementById('tabs');
     tabs.textContent = '';
     for (const [value, label] of STATES) {
-      const a = link(label, `/desk?state=${value}`, value === active ? 'on' : null);
-      if (value === active) a.setAttribute('aria-current', 'page');
+      const on = !asked && value === active;
+      const a = link(label, `/desk?state=${value}`, on ? 'on' : null);
+      const n = counts?.[value];
+      if (n !== undefined) a.append(el('span', String(n), n && value !== 'closed' ? 'n some' : 'n'));
+      if (on) a.setAttribute('aria-current', 'page');
       tabs.append(a);
     }
   }
 
   function renderPager(data) {
-    const pager = document.getElementById('pager');
-    pager.textContent = '';
     const last = Math.max(1, Math.ceil(data.total / data.perPage));
-    if (last === 1) { pager.hidden = true; return; }
-    pager.hidden = false;
-    if (data.page > 1) pager.append(link('Newer', `/desk?state=${data.state}&page=${data.page - 1}`, 'button quiet-link'));
-    pager.append(el('span', `Page ${data.page} of ${last}`, 'meta'));
-    if (data.page < last) pager.append(link('Older', `/desk?state=${data.state}&page=${data.page + 1}`, 'button quiet-link'));
+    renderPages(document.getElementById('pager'), data.page, last, (to) => {
+      location.href = asked
+        ? `/desk?q=${encodeURIComponent(asked)}&page=${to}`
+        : `/desk?state=${data.state}&page=${to}`;
+    });
   }
 
   // Five numbers, each a subset of the one above. It starts at the call because nothing above
@@ -492,173 +489,175 @@
 
   function renderQueue(data) {
     renderDateline();
-    renderTabs(data.state);
+    renderTabs(data.state, data.counts);
+    for (const id of ['qfind', 'tfind']) document.getElementById(id).value = asked;
     const first = (data.page - 1) * data.perPage + 1;
     const last = first + data.people.length - 1;
-    document.getElementById('qcount').textContent = data.total
-      ? `Showing ${first} to ${last} of ${data.total}.`
-      : 'Nothing in this one.';
+    document.getElementById('qcount').textContent = asked
+      ? (data.total
+        ? `${data.total} ${data.total === 1 ? 'match' : 'matches'} for "${asked}", across all four.`
+          + (data.total > data.perPage ? ` Showing ${first} to ${last}.` : '')
+        : `Nobody matches "${asked}". Search looks at names and codes.`)
+      : data.total
+        ? `Showing ${first} to ${last} of ${data.total}.`
+        : 'Nothing in this one.';
 
     const list = document.getElementById('people');
     list.textContent = '';
     for (const person of data.people) {
-      const row = el('div', null, 'row');
-      row.append(link(person.reference || `Order ${person.id}`, `/desk?id=${person.id}`, 'code'));
-      row.append(el('div', `${when(person.calledAt)} · ${minutes(person.seconds)}`, 'meta'));
-      demoChip(person, row);
-      if (person.callCount > 1) row.append(el('div', `${person.callCount} calls`, 'meta'));
+      const card = link('', `/desk?id=${person.id}`, 'who');
+      const head = el('div', null, 'who-head');
+      named(head, person);
+      demoChip(person, head);
       // The decision, said as a state rather than left to be worked out from which queue
       // the row happens to be in.
-      if (person.decision) {
-        const tone = person.decision === 'go' ? 'go' : 'nogo';
-        row.append(el('div', person.decision === 'go' ? 'Go' : 'No-go', `badge ${tone}`));
-      } else {
-        row.append(el('div', 'Not read yet', 'badge open'));
-      }
+      const [said, tone] = !person.decision ? ['Not read yet', 'open']
+        : person.decision === 'go' ? ['Go', 'go'] : ['No-go', 'nogo'];
+      head.append(el('span', said, `when badge ${tone}`));
+      card.append(head);
+      const facts = [`${when(person.calledAt)} · ${minutes(person.seconds)}`];
+      if (person.callCount > 1) facts.push(`${person.callCount} calls`);
+      if (person.planLabel) facts.push(person.planLabel);
+      if (!person.linked) facts.push('No account linked yet');
+      card.append(el('div', facts.join(' · '), 'meta'));
       if (person.awaitingReply) {
-        row.append(el('div', 'Wrote to you and is waiting on a reply', 'flag'));
+        const line = el('div', null, 'why');
+        line.append(el('span', 'Wrote to you', 'tag gold'));
+        line.append(el('span', 'Waiting on a reply', 'what'));
+        card.append(line);
       }
       for (const item of owed(person)) {
-        if (item.yours) row.append(el('div', item.what, 'flag'));
+        if (!item.yours) continue;
+        const line = el('div', null, 'why');
+        line.append(el('span', 'Next', 'tag coral'));
+        line.append(el('span', item.what, 'what'));
+        card.append(line);
       }
-      if (person.planLabel) row.append(el('div', person.planLabel, 'meta'));
-      if (!person.linked) row.append(el('div', 'No account linked yet', 'meta'));
-      list.append(row);
+      list.append(card);
     }
     renderPager(data);
   }
 
   // The first screen.
   //
-  // Two lists, oldest first, and the top row of each is the next thing to do. At fifty thousand
-  // people a list somebody scrolls is a list somebody loses, so the count says how many are
-  // behind and the first row is the one to press.
+  // Six questions used to be six panels, and a person owed three things showed up three times
+  // in three places. Now it's one card per person, in the order the panels went -- somebody
+  // waiting to be read, then somebody who wrote, then a quote answered, then money and work
+  // past its date, then something to ask about -- and each card lists every reason it's here.
   //
   // What shouts is the twenty-four hour line. Forty-eight is what the claim page promised, so
   // past twenty-four the promise is at risk rather than broken.
+  const PER_PAGE = 15;
+  let todayPage = 1;
+  let todayData = null;
 
+  const REASONS = [
+    ['calls', 'New call', 'gold', () => 'Not read yet'],
+    ['unread', 'Wrote to you', 'gold', () => 'Waiting on a reply'],
+    ['answered', 'Answered a quote', 'gold', (row) => `${row.status} · ${money(row.amount)}`],
+    ['late', 'Owes you', 'coral', (row) => `${money(row.amount)} agreed, due ${when(row.dueAt)}`],
+    ['owing', 'You owe', 'coral', (row) => row.title],
+    ['due', 'Ask about', 'sage', (row) => row.title],
+  ];
 
-  function renderTodayList(box, rows, target, empty, verb, primary) {
-    box.textContent = '';
-    if (!rows.length) {
-      box.append(el('p', empty, 'meta'));
-      return 0;
+  // The name on their Skills Economy account once they've linked, with the code beside it;
+  // the code alone before that, because a purchase on its own has no identity.
+  function named(head, row) {
+    const code = row.reference || `Order ${row.id}`;
+    if (row.name) {
+      head.append(el('span', row.name, 'name'));
+      head.append(el('span', code, 'code small'));
+    } else {
+      head.append(el('span', code, 'code'));
     }
-    let late = 0;
-    rows.forEach((row, i) => {
-      const over = row.hoursWaiting !== null && row.hoursWaiting >= target;
-      if (over) late += 1;
-      const line = el('div', null, i === 0 ? 'row said us' : 'row');
-      line.append(el('div', row.reference, 'code'));
-      demoChip(row, line);
-      line.append(el('div', hours(row.hoursWaiting), over ? 'flag' : 'meta'));
-      if (row.wasBlocked) line.append(el('div', 'Was blocked', 'badge open'));
-      // What they answered and what it was for. A row saying only that somebody answered
-      // sends you into the record to find out which of three things happened.
-      if (row.status) {
-        line.append(el('div', `${row.status} · ${money(row.amount)}`, 'badge open'));
-      }
-      // The words, once. Without them the row is a reference and a date, which is a trip into
-      // the record to find out what it means.
-      //
-      // Two kinds of row carry words -- something to ask about, and work you owe -- and this
-      // used to decide between them by looking for the words themselves, which both have. So
-      // both matched both branches: every one of these rows printed its words twice, and the
-      // work rows printed "undefined · undefined" underneath, because only an action belongs to
-      // a step. Each row now answers for what it has rather than for what it is.
-      if (row.title) {
-        line.append(el('div', row.title, 'said'));
-        if (row.milestone) {
-          line.append(el('div', `${row.milestone} · ${row.cadenceLabel}`, 'meta'));
+  }
+
+  function gather(data) {
+    const people = new Map();
+    for (const spec of REASONS) {
+      const [key, label, tone] = spec;
+      const words = spec[3];
+      for (const row of data[key] || []) {
+        if (!people.has(row.id)) {
+          people.set(row.id, { id: row.id, reference: row.reference, name: row.name, isDemo: row.isDemo, hours: null, reasons: [] });
         }
+        const who = people.get(row.id);
+        if (row.hoursWaiting !== null && row.hoursWaiting > (who.hours ?? -1)) who.hours = row.hoursWaiting;
+        const extra = [];
+        if (row.wasBlocked) extra.push('Was blocked');
+        if (row.milestone) extra.push(`${row.milestone} · ${row.cadenceLabel}`);
+        if (row.dueAt && row.amount === undefined) extra.push(`Was due ${when(row.dueAt)}`);
+        who.reasons.push({ label, tone, said: words(row), extra });
       }
-      // When it was due, and how much where there is a figure. A reference and a date would send
-      // you into the record to find out how much, which is the one fact that decides whether to
-      // chase it.
-      if (row.dueAt && row.amount !== undefined) {
-        line.append(el('div', `${money(row.amount)} agreed, due ${when(row.dueAt)}`, 'flag'));
-      } else if (row.dueAt) {
-        line.append(el('div', `Was due ${when(row.dueAt)}`, 'flag'));
-      }
-      line.append(link(verb, `/desk?id=${row.id}`,
-        primary && i === 0 ? 'button go-on' : 'button quiet-link'));
-      box.append(line);
-    });
-    return late;
+    }
+    return [...people.values()];
+  }
+
+  function renderWho(who, target, first) {
+    const card = link('', `/desk?id=${who.id}`, first ? 'who next' : 'who');
+    const head = el('div', null, 'who-head');
+    named(head, who);
+    demoChip(who, head);
+    const over = who.hours !== null && who.hours >= target;
+    head.append(el('span', who.hours === null ? '' : hours(who.hours), over ? 'when flag' : 'when meta'));
+    card.append(head);
+    for (const reason of who.reasons) {
+      const line = el('div', null, 'why');
+      line.append(el('span', reason.label, `tag ${reason.tone}`));
+      line.append(el('span', reason.said, 'what'));
+      for (const bit of reason.extra) line.append(el('span', bit, 'meta'));
+      card.append(line);
+    }
+    if (first) card.append(el('span', 'Open it', 'go-on'));
+    return card;
+  }
+
+  // Numbered pages rather than an endless list. A list somebody scrolls at fifty thousand
+  // people is a list somebody loses their place in.
+  function renderPages(box, page, last, go) {
+    box.textContent = '';
+    box.hidden = last <= 1;
+    if (last <= 1) return;
+    const button = (label, to, current) => {
+      const b = el('button', label, current ? 'on' : null);
+      b.type = 'button';
+      if (current) b.setAttribute('aria-current', 'page');
+      if (to < 1 || to > last) b.disabled = true;
+      else b.addEventListener('click', () => go(to));
+      return b;
+    };
+    box.append(button('Prev', page - 1));
+    for (let n = 1; n <= last; n += 1) {
+      if (n === 1 || n === last || Math.abs(n - page) <= 1) box.append(button(String(n), n, n === page));
+      else if (Math.abs(n - page) === 2) box.append(el('span', '…', 'meta'));
+    }
+    box.append(button('Next', page + 1));
   }
 
   function renderFirstScreen(data) {
     renderDateline();
-    const late = renderTodayList(
-      document.getElementById('newcalls'), data.calls, data.targetHours,
-      'None waiting.', 'Read it', true);
-    document.getElementById('callscount').textContent = data.calls.length
-      ? `${data.calls.length} waiting`
+    todayData = data;
+    const people = gather(data);
+    const late = people.filter((who) => who.hours !== null && who.hours >= data.targetHours).length;
+    document.getElementById('todaycount').textContent = people.length
+      ? `${people.length} ${people.length === 1 ? 'person needs' : 'people need'} you`
         + (late ? ` · ${late} past ${data.targetHours} hours` : '')
       : '';
-
-    const pastTarget = renderTodayList(
-      document.getElementById('newunread'), data.unread, data.targetHours,
-      'Nothing unread.', 'Open it', data.calls.length === 0);
-    document.getElementById('unreadcount').textContent = data.unread.length
-      ? `${data.unread.length} unread`
-        + (pastTarget ? ` · ${pastTarget} past ${data.targetHours} hours` : '')
-      : '';
-
-    // Third, because the first two are somebody waiting to be read and this is somebody who has
-    // already been read and is waiting on you to act. It is still money, so it is not last.
-    const answered = data.answered || [];
-    const overdue = renderTodayList(
-      document.getElementById('newanswered'), answered, data.targetHours,
-      'None answered.', 'Open it', data.calls.length === 0 && data.unread.length === 0);
-    document.getElementById('answeredcount').textContent = answered.length
-      ? `${answered.length} waiting on you`
-        + (overdue ? ` · ${overdue} past ${data.targetHours} hours` : '')
-      : '';
-
-    // Money agreed and not arrived. The quietest thing on this screen and the easiest to let
-    // slide, because nobody chases it and the client is not waiting on an answer.
-    //
-    // This list and the one below it are different questions, and they used to answer in almost
-    // the same words -- "Nothing owed." above "Nothing owed by you." -- which read as the same
-    // list twice. One is money somebody owes; the other is work you owe. Each says which.
-    //
-    // Both are late-only: a quote agreed and not yet due is not here, so "nothing owed" was also
-    // claiming more than the query asks.
-    const owing = data.late || [];
-    renderTodayList(
-      document.getElementById('newlate'), owing, data.targetHours,
-      'No money is late.', 'Open it', false);
-    document.getElementById('latecount').textContent = owing.length
-      ? `${owing.length} quote${owing.length === 1 ? '' : 's'} past `
-        + `${owing.length === 1 ? 'its' : 'their'} date`
-      : '';
-
-    // Work taken on and not handed over. The other direction from the list above: that one is
-    // money somebody owes, this one is work you owe.
-    const owedByYou = data.owing || [];
-    renderTodayList(
-      document.getElementById('newowing'), owedByYou, data.targetHours,
-      'No work is late.', 'Open it', false);
-    document.getElementById('owingcount').textContent = owedByYou.length
-      ? `${owedByYou.length} past ${owedByYou.length === 1 ? 'its' : 'their'} date`
-      : '';
-
-    // Last, because nobody here is waiting on an answer. Somebody said they would do something
-    // and the date to ask about it has come round. It is the quietest list and the one that
-    // never happens without a screen for it.
-    const due = data.due || [];
-    renderTodayList(
-      document.getElementById('newdue'), due, data.targetHours,
-      'Nothing due.', 'Open it', false);
-    document.getElementById('duecount').textContent = due.length
-      ? `${due.length} to ask about`
-      : '';
-
+    const last = Math.max(1, Math.ceil(people.length / PER_PAGE));
+    todayPage = Math.min(todayPage, last);
+    const box = document.getElementById('todaylist');
+    box.textContent = '';
+    if (!people.length) box.append(el('p', 'Nobody is waiting on you.', 'nothing'));
+    people.slice((todayPage - 1) * PER_PAGE, todayPage * PER_PAGE).forEach((who, i) => {
+      box.append(renderWho(who, data.targetHours, todayPage === 1 && i === 0));
+    });
+    renderPages(document.getElementById('todaypager'), todayPage, last, (to) => {
+      todayPage = to;
+      renderFirstScreen(todayData);
+      document.getElementById('todayview').scrollIntoView();
+    });
     renderDemoData(Boolean(data.demoData));
   }
-
-
 
   // ---- one person ------------------------------------------------------------------
 
@@ -762,6 +761,7 @@
         + (mpage ? `&mpage=${encodeURIComponent(mpage)}` : '')
       : askedForQueue
         ? `/api/desk?action=queue&state=${encodeURIComponent(state)}&page=${page}`
+          + (asked ? `&q=${encodeURIComponent(asked)}` : '')
         : '/api/desk?action=today';
     // Drawn first, shown second. Revealing the block before rendering into it meant a render
     // that threw left a half-drawn screen on display -- a heading, a count, and no rows.

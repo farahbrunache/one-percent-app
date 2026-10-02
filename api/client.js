@@ -18,10 +18,10 @@
 import { caseForAccount, ensureSchema, findByClaimTokenHash, sql } from '../lib/db.js';
 import { underLimit } from '../lib/settings.js';
 import { callerKey, decrypt, encrypt, keyedHash } from '../lib/crypto.js';
-import { requireAccount } from '../lib/auth.js';
+import { NAME_COOKIE, requireAccount } from '../lib/auth.js';
 import { describeStatus } from '../lib/orders.js';
 import { conversationIsOpen, isQuoteAnswer, pageOf } from '../lib/desk.js';
-import { HttpError, handle, readJson, send } from '../lib/http.js';
+import { HttpError, handle, readCookie, readJson, send } from '../lib/http.js';
 
 function shape(rows) {
   return rows.map((r) => ({
@@ -257,6 +257,13 @@ async function link(req, res) {
   // there is somebody to work with, and the plan, the conversation and the quotes hang off
   // them rather than off whichever order they happened to buy.
   const caseId = await caseForAccount(account);
+  // The name from the sign-in, so the desk shows a person rather than a code from here on.
+  // Opened before it's saved: a cookie is whatever the browser sends, and only one this site
+  // sealed opens. Anything else is ignored and the desk keeps showing the code.
+  const name = nameFromCookie(readCookie(req, NAME_COOKIE));
+  if (name) {
+    await sql()`update cases set name_encrypted = ${encrypt(name)} where id = ${caseId}`;
+  }
   await sql()`
     update orders set client_account_id = ${account}, case_id = ${caseId}
      where id = ${order.id} and client_account_id is null
@@ -267,6 +274,15 @@ async function link(req, res) {
      where client_account_id = ${account} and case_id is null
   `;
   return mine(req, res);
+}
+
+function nameFromCookie(sealed) {
+  if (!sealed) return null;
+  try {
+    return decrypt(sealed).slice(0, 120) || null;
+  } catch {
+    return null;
+  }
 }
 
 export default handle(['GET', 'POST'], async (req, res) => {
