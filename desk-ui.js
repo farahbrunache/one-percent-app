@@ -143,9 +143,10 @@ export function owed(person) {
 // The one way a desk screen asks the drafting model for something.
 //
 // Every press of a button that reaches the model is a bill, so those buttons look different
-// before they're pressed: a color nothing else uses and a mark saying it costs money. This
-// refuses a press from a button without that look, so a new paid button can't ship looking
-// like a free one. scripts/checks.mjs fails the build on a draft request made anywhere else.
+// before they're pressed: a color nothing else uses and a 💸 mark, which a screen reader
+// says as "Costs money". This refuses a press from a button without that look, so a new
+// paid button can't ship looking like a free one. scripts/checks.mjs fails the build on a
+// draft request made anywhere else.
 export function askModel(button, body) {
   if (!button.classList.contains('paid')) {
     return Promise.reject(new Error(
