@@ -420,6 +420,18 @@ for (const file of files.filter((f) => f.endsWith('.html'))) {
 // the scrubber that has to know which of those is code and which is a comment.
 namesResolve({ ROOT, files, read, fail });
 
+// ---- no pictures ------------------------------------------------------------------------------
+//
+// Nothing here is an image, and the one way one arrives is a screenshot of the desk saved into
+// the checkout while checking a change. This repository is public and the desk shows people's
+// names, so a screenshot that gets committed is a page of somebody's work published for good.
+// One did reach a branch, demo rows only, and this is what stops the next.
+for (const file of files) {
+  if (/\.(png|jpe?g|gif|webp|heic|bmp|tiff?)$/i.test(file)) {
+    fail('picture', `${file.slice(ROOT.length + 1)} is an image. Nothing in this repository is; delete it, and save screenshots outside the checkout.`);
+  }
+}
+
 // ---- every module a page asks for is one the server hands out ---------------------------------
 //
 // A browser import is an address, not a file path. server.js decides which address serves which
