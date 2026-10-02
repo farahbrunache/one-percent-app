@@ -16,6 +16,7 @@ import { basename, dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { namesResolve } from './checks-names.mjs';
 import { wordsAreAllowed } from './checks-words.mjs';
+import { walkthroughNumbersHold } from './checks-walkthrough.mjs';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -441,9 +442,75 @@ for (const file of files) {
 for (const file of files) {
   const rel = file.slice(ROOT.length + 1);
   if (!/\.(js|html)$/.test(rel) || rel.includes('/') || rel === 'desk-ui.js' || rel === 'server.js') continue;
-  if (/post\(\s*['"`]draft['"`]|action=draft/.test(read(file))) {
+  if (/post\(\s*['"`](draft|quote-worth)['"`]|action=(draft|quote-worth)\b/.test(read(file))) {
     fail('paid', `${rel} asks the drafting model for something without askModel, so the button doesn't show that it costs money.`);
   }
+}
+
+// And the list of those actions comes from the server, not from memory. Any desk action whose
+// handler reaches the model -- directly, or through a function in the same file that does --
+// has to be in MODEL_ACTIONS, or its button could be written as an ordinary one. "What is this
+// worth" shipped exactly like that: billed, plain, and missed by a check that only knew about
+// drafts.
+{
+  const modelActions = new Set([...(read(join(ROOT, 'desk-ui.js'))
+    .match(/MODEL_ACTIONS = \[([^\]]*)\]/)?.[1] || '').matchAll(/'([\w-]+)'/g)].map((m) => m[1]));
+  const reaching = new Set();
+  for (const file of files.filter((f) => /\/(lib|api)\/[\w-]+\.js$/.test(f))) {
+    const text = read(file);
+    const local = text.match(/import \{[^}]*\bdraft as (\w+)[^}]*\} from '\.\/draft\.js'/)?.[1];
+    if (!local) continue;
+    const bodies = new Map([...text.matchAll(/(?:export )?async function (\w+)\([\s\S]*?\n\}\n/g)]
+      .map((m) => [m[1], m[0]]));
+    const calls = new Set([local]);
+    for (let grew = true; grew;) {
+      grew = false;
+      for (const [name, body] of bodies) {
+        if (calls.has(name)) continue;
+        if ([...calls].some((c) => new RegExp(`\\b${c}\\(`).test(body))) { calls.add(name); grew = true; }
+      }
+    }
+    for (const name of calls) if (name !== local) reaching.add(name);
+  }
+  for (const [, action, handler] of read(join(ROOT, 'api/desk.js')).matchAll(/'?([\w-]+)'?:\s*(\w+),/g)) {
+    if (reaching.has(handler) && !modelActions.has(action)) {
+      fail('paid', `the desk action '${action}' runs the model and isn't in MODEL_ACTIONS in desk-ui.js, so its button can look free.`);
+    }
+  }
+}
+
+// ---- a name read before the line that declares it --------------------------------------------
+//
+// `const` and `let` can't be read above their own line in the same function: the read throws,
+// and on a page that means the rest of the script never runs. That happened on the costs page,
+// where one sentence used the thirty-day figure two dozen lines before it was declared, so the
+// entire page came up blank whenever there was a gap to close.
+//
+// The check walks up from each declaration to the start of its block and looks for a read of
+// the same name in a block nested inside it. A name declared again inside one of those inner
+// blocks is a different variable, and its reads don't count.
+for (const file of files.filter((f) => /\.(html|js)$/.test(f) && !f.includes('/scripts/')
+  && !f.includes('/test/') && !f.includes('node_modules'))) {
+  const lines = read(file).split('\n');
+  lines.forEach((line, i) => {
+    const m = line.match(/^(\s*)(?:const|let) (\w+)\s*=/);
+    if (!m) return;
+    const [, indent, name] = m;
+    const use = new RegExp(`(^|[^\\w.'"\`])${name}\\.\\w`);
+    const again = new RegExp(`^\\s*(?:const|let) ${name}\\b`);
+    let found = [];
+    for (let j = i - 1; j >= 0; j -= 1) {
+      const l = lines[j];
+      if (!l.trim() || /^\s*(\/\/|\*)/.test(l)) continue;
+      const depth = l.match(/^\s*/)[0].length;
+      if (depth < indent.length && /[{(]\s*$/.test(l)) break;
+      if (depth > indent.length && again.test(l)) { found = []; continue; }
+      if (depth > indent.length && use.test(l.replace(/(['"]).*?\1/g, ''))) found.push(j + 1);
+    }
+    for (const at of found) {
+      fail('order', `${file.slice(ROOT.length + 1)}:${at} reads ${name} before line ${i + 1} declares it. That read throws, and nothing after it on the page runs.`);
+    }
+  });
 }
 
 // ---- every module a page asks for is one the server hands out ---------------------------------
@@ -522,6 +589,55 @@ if (!/test\/\*\.test\.mjs/.test(chain)) {
       'unrun test',
       `${name} is never run — the test script in package.json names files one by one and this one `
         + 'is not among them, so it passes by sitting there. Add it, or run the directory.',
+    );
+  }
+}
+
+walkthroughNumbersHold({ ROOT, read, fail, join });
+
+// ---- the walkthrough falling behind the code -------------------------------------------------
+//
+// WALKTHROUGH.md is what the owner walks to test the product, and what the next agent reads to find
+// out whether something already exists. Both of those fail quietly when it is out of date: a test
+// script that does not mention a screen never tests it, and an agent reading it builds a second
+// copy of something that shipped weeks ago.
+//
+// Only the mechanical half is checked. Every address the server serves and every action the desk
+// answers has to appear somewhere in the file. Whether the words around them are true is nobody's
+// job but the writer's, and no check can stand in for that.
+const walkthrough = read(join(ROOT, 'WALKTHROUGH.md'));
+const deskSource = read(join(ROOT, 'api/desk.js'));
+
+// A page address, not the module files beside them: those are how the pages are built rather than
+// things anybody visits.
+const visitable = [...read(join(ROOT, 'server.js')).matchAll(/'(\/[\w-]*)':\s*\[/g)]
+  .map((m) => m[1])
+  .filter((address) => !/\.(js|css|txt)$/.test(address));
+
+for (const address of visitable) {
+  const named = address === '/'
+    ? /`\/`|^\s*-?\s*`?\/`?\s|\s\/\s|`\/` —/m.test(walkthrough) || walkthrough.includes('`/`')
+    : walkthrough.includes(address);
+  if (named) continue;
+  fail(
+    'walkthrough',
+    `server.js serves ${address} and WALKTHROUGH.md never mentions it. That screen is not being `
+      + 'tested and the next person reading the file will not know it exists.',
+  );
+}
+
+for (const half of ['GET', 'POST']) {
+  const table = deskSource.slice(deskSource.indexOf(`${half}: {`));
+  const names = [...table.slice(0, table.indexOf('\n  },')).matchAll(/(?:^|[,{])\s*'?([\w-]+)'?\s*:/g)]
+    .map((m) => m[1])
+    // The slice starts on the method's own key, so it reads as an action name too.
+    .filter((name) => name !== 'GET' && name !== 'POST');
+  for (const name of names) {
+    if (walkthrough.includes(name) || walkthrough.includes(name.replace(/-/g, ' '))) continue;
+    fail(
+      'walkthrough',
+      `the desk answers '${name}' and WALKTHROUGH.md never mentions it, by that name or in words. `
+        + 'Describe what it does for somebody, or the feature goes untested.',
     );
   }
 }

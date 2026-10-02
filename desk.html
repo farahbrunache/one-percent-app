@@ -544,12 +544,8 @@
       if (person.planLabel) facts.push(person.planLabel);
       if (!person.linked) facts.push('No account linked yet');
       card.append(el('div', facts.join(' · '), 'meta'));
-      if (person.awaitingReply) {
-        const line = el('div', null, 'why');
-        line.append(el('span', 'Wrote to you', 'tag gold'));
-        line.append(el('span', 'Waiting on a reply', 'what'));
-        card.append(line);
-      }
+      // What's owed by you, which already starts with a message waiting on a reply when there
+      // is one -- so it isn't said again above it.
       for (const item of owed(person)) {
         if (!item.yours) continue;
         const line = el('div', null, 'why');

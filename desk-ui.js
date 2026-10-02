@@ -146,11 +146,30 @@ export function owed(person) {
 // before they're pressed: a color nothing else uses and a 💸 mark, which a screen reader
 // says as "Costs money". This refuses a press from a button without that look, so a new
 // paid button can't ship looking like a free one. scripts/checks.mjs fails the build on a
-// draft request made anywhere else.
-export function askModel(button, body) {
+// request for any of these actions made anywhere else.
+export const MODEL_ACTIONS = ['draft', 'quote-worth'];
+
+export function askModel(button, body, action = 'draft') {
+  if (!MODEL_ACTIONS.includes(action)) {
+    return Promise.reject(new Error(`${action} isn't one of the actions that run the model.`));
+  }
   if (!button.classList.contains('paid')) {
     return Promise.reject(new Error(
       'This button runs the drafting model and isn\'t marked as costing money, so nothing was sent.'));
   }
-  return post('draft', body);
+  return post(action, body);
+}
+
+// A paid button made in code rather than written into the page: the same purple and the same
+// 💸 as the ones in desk.html. Its words sit in their own span so they can change while it
+// works without taking the mark with them.
+export function paidButton(label) {
+  const button = el('button', null, 'quiet paid');
+  button.type = 'button';
+  const mark = el('span', '💸', 'paidmark');
+  mark.setAttribute('role', 'img');
+  mark.setAttribute('aria-label', 'Costs money');
+  mark.title = 'Costs money';
+  button.append(el('span', label, 'paidlabel'), mark);
+  return button;
 }

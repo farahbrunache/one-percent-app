@@ -281,7 +281,7 @@
       };
       if (c.sessions !== null) {
         say(`${c.sessions} more session${c.sessions === 1 ? '' : 's'}`,
-          `At ${money(c.perSessionLeft)} left over each, across the same ${v.days} days.`);
+          `At ${money(c.perSessionLeft)} left over each, across the same ${data.verdict.days} days.`);
       }
       say(`One piece of paid work at ${money(c.oneQuote)}`,
         'Covering all of it on its own. What it is actually worth to them is a different '
@@ -396,6 +396,9 @@
 
   document.getElementById('addline').addEventListener('submit', async (event) => {
     event.preventDefault();
+    // One press, one line: a second tap while this saves would add the same cost twice.
+    const button = event.currentTarget.querySelector('button[type="submit"]');
+    if (button) button.disabled = true;
     try {
       await post('line-add', {
         name: document.getElementById('linename').value,
@@ -407,6 +410,7 @@
       window.location.reload();
     } catch (error) {
       msg('msg', error.message, 'bad');
+      if (button) button.disabled = false;
     }
   });
 

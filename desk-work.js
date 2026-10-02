@@ -4,7 +4,7 @@
 // the way, what paid work was offered, and who they were put in touch with. The rest of the
 // record screen is about the call and the conversation, which is why it lives elsewhere.
 
-import { el, link, msg, post, money, when } from '/desk-ui.js';
+import { askModel, el, link, msg, paidButton, post, money, when } from '/desk-ui.js';
 import { once, settled, wasBefore } from '/desk-after.js';
 import { renderActions } from '/desk-actions.js';
 import { renderQuotePayment } from '/desk-payments.js';
@@ -210,21 +210,21 @@ export function renderQuotes(person) {
   worth.textContent = '';
   worthSaid.textContent = '';
   if ((person.drafting?.models || []).length && person.calls.some((call) => call.transcript)) {
-    const ask = el('button', 'What is this worth to them?', 'quiet');
-    ask.type = 'button';
+    const ask = paidButton('What is this worth to them?');
+    const label = ask.querySelector('.paidlabel');
     once(ask, 'click', async () => {
       ask.disabled = true;
-      ask.textContent = 'Reading the call…';
+      label.textContent = 'Reading the call…';
       try {
-        const answer = await post('quote-worth', { id: person.id });
+        const answer = await askModel(ask, { id: person.id }, 'quote-worth');
         worthSaid.textContent = answer.content;
-        ask.textContent = 'Read it again';
+        label.textContent = 'Read it again';
       } catch (error) {
         worthSaid.textContent = '';
         msg('rmsg', error.message, 'bad');
       } finally {
         ask.disabled = false;
-        if (ask.textContent === 'Reading the call…') ask.textContent = 'What is this worth to them?';
+        if (label.textContent === 'Reading the call…') label.textContent = 'What is this worth to them?';
       }
     });
     worth.append(ask);
