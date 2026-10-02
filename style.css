@@ -455,6 +455,9 @@ input.code-field::placeholder {
   --in-coral-soft: #cb847b;
   --in-sage: #83c1a6;
   --in-sage-bright: #a9dfbf;
+  /* Spending money on a model. Used nowhere else, so it can't be mistaken for anything else. */
+  --in-spend: #b9a2ea;
+  --in-spend-soft: #2b2540;
 
   background: var(--in-shell);
   color: var(--in-ink);
@@ -1334,3 +1337,23 @@ input.code-field::placeholder {
 }
 .inside .navlist#tabs .n.some { background: var(--in-coral); border-color: var(--in-coral); color: var(--in-cream); }
 .inside .navlist#tabs a.on .n { border-color: var(--in-shell); }
+
+/* A button that runs the drafting model, and so adds to the bill. Its own color and a mark
+   saying so, seen before it's pressed. */
+.inside button.paid {
+  border-color: var(--in-spend);
+  background: var(--in-spend-soft);
+  color: var(--in-spend);
+  gap: 0.5rem;
+}
+.inside button.paid:hover { border-color: var(--in-spend); color: var(--in-cream); }
+.inside .paidmark {
+  white-space: nowrap;
+  flex: 0 0 auto;
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  background: var(--in-spend);
+  color: var(--in-shell);
+}
