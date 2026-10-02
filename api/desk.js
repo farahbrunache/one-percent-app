@@ -65,6 +65,7 @@ import { recordPayment, setQuoteDue } from '../lib/desk-payments.js';
 import { moveWork, setWorkDue, takeOnWork } from '../lib/desk-projects.js';
 import { today } from '../lib/desk-today.js';
 import { person } from '../lib/desk-person.js';
+import { linkOwnProfile, readOwnProfile } from '../lib/desk-own-profile.js';
 import { copyTrades, pairs, setTrade } from '../lib/desk-trades.js';
 import { draftCallFields, saveCallFields } from '../lib/desk-callfields.js';
 import { STEPS, startClock, timeReport, timeStep } from '../lib/desk-time.js';
@@ -389,6 +390,7 @@ const ACTIONS = {
   GET: {
     today, queue, person, funnel, 'call-record': callRecord, 'agent-script': agentScript,
     time: timeReport, pairs, 'directory-profile': directoryProfile,
+    'own-profile': readOwnProfile,
   },
   POST: {
     decide,
@@ -419,6 +421,7 @@ const ACTIONS = {
     note: addNote,
     trade: setTrade,
     'trades-copy': copyTrades,
+    'own-profile': linkOwnProfile,
     'call-fields': saveCallFields,
     'call-fields-draft': draftCallFields,
     'funnel-pool': setPool,
