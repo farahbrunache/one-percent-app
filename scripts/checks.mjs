@@ -514,6 +514,53 @@ if (!/test\/\*\.test\.mjs/.test(chain)) {
   }
 }
 
+// ---- the walkthrough falling behind the code -------------------------------------------------
+//
+// WALKTHROUGH.md is what the owner walks to test the product, and what the next agent reads to find
+// out whether something already exists. Both of those fail quietly when it is out of date: a test
+// script that does not mention a screen never tests it, and an agent reading it builds a second
+// copy of something that shipped weeks ago.
+//
+// Only the mechanical half is checked. Every address the server serves and every action the desk
+// answers has to appear somewhere in the file. Whether the words around them are true is nobody's
+// job but the writer's, and no check can stand in for that.
+const walkthrough = read(join(ROOT, 'WALKTHROUGH.md'));
+const deskSource = read(join(ROOT, 'api/desk.js'));
+
+// A page address, not the module files beside them: those are how the pages are built rather than
+// things anybody visits.
+const visitable = [...read(join(ROOT, 'server.js')).matchAll(/'(\/[\w-]*)':\s*\[/g)]
+  .map((m) => m[1])
+  .filter((address) => !/\.(js|css|txt)$/.test(address));
+
+for (const address of visitable) {
+  const named = address === '/'
+    ? /`\/`|^\s*-?\s*`?\/`?\s|\s\/\s|`\/` —/m.test(walkthrough) || walkthrough.includes('`/`')
+    : walkthrough.includes(address);
+  if (named) continue;
+  fail(
+    'walkthrough',
+    `server.js serves ${address} and WALKTHROUGH.md never mentions it. That screen is not being `
+      + 'tested and the next person reading the file will not know it exists.',
+  );
+}
+
+for (const half of ['GET', 'POST']) {
+  const table = deskSource.slice(deskSource.indexOf(`${half}: {`));
+  const names = [...table.slice(0, table.indexOf('\n  },')).matchAll(/(?:^|[,{])\s*'?([\w-]+)'?\s*:/g)]
+    .map((m) => m[1])
+    // The slice starts on the method's own key, so it reads as an action name too.
+    .filter((name) => name !== 'GET' && name !== 'POST');
+  for (const name of names) {
+    if (walkthrough.includes(name) || walkthrough.includes(name.replace(/-/g, ' '))) continue;
+    fail(
+      'walkthrough',
+      `the desk answers '${name}' and WALKTHROUGH.md never mentions it, by that name or in words. `
+        + 'Describe what it does for somebody, or the feature goes untested.',
+    );
+  }
+}
+
 // ---- what happened --------------------------------------------------------------------------
 
 if (problems.length) {

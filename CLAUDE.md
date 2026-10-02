@@ -237,6 +237,26 @@ real data by accident. When real people are here they get a way to delete what's
 test and the real rows, and widening it to serve a customer would be exactly the accident it was
 written to prevent.
 
+## WALKTHROUGH.md is part of the change
+
+`WALKTHROUGH.md` is everything the product does, in the order somebody meets it. The owner walks it
+to test the app end to end, and an agent reads it to find out whether a thing already exists before
+building a second one.
+
+Both of those fail quietly when it is out of date. A test script that does not mention a screen
+never tests it, and an agent who reads it and does not find a feature builds the feature again.
+
+So a change that adds, alters or removes something a person can do updates that file in the same
+commit. Not a follow-up and not an issue.
+
+`scripts/checks.mjs` fails when an address the server serves, or an action the desk answers, is
+missing from it. That half is mechanical and cannot be forgotten. Whether the words around each
+line are still true is nobody's job but the writer's, so write them rather than only adding a row
+to the index at the foot.
+
+The file carries the decisions too — the things that deliberately do not exist, each with the issue
+that tabled it. A reader who cannot tell a gap from a decision will try to close the gap.
+
 ## Never leave unused code
 
 A change that strands something removes it in the same change: a column, an export, a CSS
