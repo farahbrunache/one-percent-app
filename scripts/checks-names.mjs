@@ -126,7 +126,7 @@ export function namesResolve({ ROOT, files, read, fail }) {
       .map((f) => ({ where: f.slice(ROOT.length + 1), text: read(f) })),
     // The page modules at the root, which is where every one of these has actually broken: the
     // desk's screens were split into eight files there and none of them was ever scanned. A
-    // browser rejects a whole module over one missing name and renders nothing, so this is the
+    // browser rejects an entire module over one missing name and renders nothing, so this is the
     // half of the codebase where the failure is loudest and it was the half nobody was reading.
     ...files
       .filter((f) => /^[^/]+\.js$/.test(f.slice(ROOT.length + 1)) && !f.endsWith('server.js'))
@@ -203,7 +203,7 @@ export function namesResolve({ ROOT, files, read, fail }) {
 
     // The other direction: importing a name the module does not export.
     //
-    // A browser does not fail quietly on this -- the whole module is rejected and the page renders
+    // A browser does not fail quietly on this -- the entire module is rejected and the page renders
     // nothing -- but nothing here was looking, so it took a render to find. It happened moving two
     // functions into a new file and forgetting `export` on both, which is the ordinary way a split
     // goes wrong.
@@ -221,7 +221,7 @@ export function namesResolve({ ROOT, files, read, fail }) {
         const wanted = part.trim().split(/\s+as\s+/)[0].trim();
         if (!wanted || wanted === 'type' || exported.has(wanted)) continue;
         fail('missing', `${where} imports ${wanted} from ${m[2]} and that file does not export it. `
-          + 'The browser rejects the whole module, so the page renders nothing.');
+          + 'The browser rejects the entire module, so the page renders nothing.');
       }
     }
 

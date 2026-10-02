@@ -15,6 +15,7 @@ import { execFileSync } from 'node:child_process';
 import { basename, dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { namesResolve } from './checks-names.mjs';
+import { wordsAreAllowed } from './checks-words.mjs';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -55,7 +56,7 @@ for (const file of scripts) {
 // Every page runs a module script inline, and nothing was parsing those. A copy pass put an
 // apostrophe inside a single-quoted string on three pages at once -- "it's how you get back"
 // -- and each one is a page that loads, renders nothing, and reports the error only to a
-// browser console nobody has open on a phone. Node parses the script body on its own, so the
+// browser error log nobody has open on a phone. Node parses the script body on its own, so the
 // body is written out and checked the same way a .js file is.
 const pages = files.filter((f) => f.endsWith('.html'));
 for (const file of pages) {
@@ -423,7 +424,7 @@ namesResolve({ ROOT, files, read, fail });
 //
 // A browser import is an address, not a file path. server.js decides which address serves which
 // file, so a module can exist, parse, be imported correctly and still 404 -- and when it does,
-// the import fails, the whole inline script never runs, and the page renders nothing with no
+// the import fails, the entire inline script never runs, and the page renders nothing with no
 // error anywhere a phone can see.
 //
 // That happened the moment a module was added under lib/ and served at a root address: the local
@@ -445,6 +446,34 @@ for (const file of files.filter((f) => f.endsWith('.html') || /^[^/]*\.js$/.test
   }
 }
 
+// ---- a listener attached on every draw -------------------------------------------------------
+//
+// The desk draws itself again after every write, in place, so the reader keeps their position.
+// Anything in the page's own markup survives that draw, so attaching to one of those with
+// `addEventListener` means two listeners after the first write and three after the second: one
+// press writes three times, and on this desk a write is a status moving or money being recorded.
+//
+// `once` in desk-after.js attaches at most one listener per element and event, and rows built
+// during a draw are new elements so it behaves no differently for them. Every listener in a module
+// the record screen draws goes through it, rather than anybody having to work out which kind of
+// element they are looking at.
+//
+// desk.html is exempt: its own listeners are attached once at load, outside any draw.
+const DRAWN_AGAIN = /^desk-(record|work|contacts|actions|projects|payments|recap)\.js$/;
+
+for (const file of files.filter((f) => DRAWN_AGAIN.test(f.slice(ROOT.length + 1)))) {
+  const name = file.slice(ROOT.length + 1);
+  for (const [index, line] of read(file).split('\n').entries()) {
+    if (!/\.addEventListener\(/.test(line)) continue;
+    fail(
+      'listener on every draw',
+      `${name}:${index + 1} calls addEventListener. This module is drawn again after every write, `
+        + 'so that attaches a second listener and one press writes twice. Use once() from '
+        + 'desk-after.js.',
+    );
+  }
+}
+
 // ---- a test nobody runs ----------------------------------------------------------------------
 //
 // `npm test` is a hand-typed chain of filenames, so a test written and never added to it passes
@@ -461,6 +490,8 @@ for (const file of files.filter((f) => f.endsWith('.test.mjs'))) {
       + 'there. Add it.',
   );
 }
+
+wordsAreAllowed({ ROOT, files, read, fail });
 
 // ---- what happened --------------------------------------------------------------------------
 

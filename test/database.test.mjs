@@ -90,7 +90,7 @@ check('but one that could still be running is counted until then',
 console.log('a session that never connected');
 const failed = await newOrder();
 await tagged`insert into calls (order_id, call_id) values (${failed}, 'c-failed-to-join')`;
-check('it takes the whole budget while it looks like a call in progress',
+check('it takes the entire budget while it looks like a call in progress',
   (await used(failed)) >= SESSION_BUDGET_SECONDS);
 check('the page can say it never connected',
   (await abandonCall(failed, 'c-failed-to-join', ABANDON_WITHIN_SECONDS)) === true);

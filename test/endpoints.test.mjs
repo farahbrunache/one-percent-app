@@ -308,7 +308,7 @@ check('an order buys less voice time than three full sessions',
 check('and enough for one full session plus a dropped one',
   money.SESSION_BUDGET_SECONDS > money.ASSUME_FULL_AFTER_SECONDS,
   money.SESSION_BUDGET_SECONDS);
-check('a missing webhook is assumed to have been a whole session',
+check('a missing webhook is assumed to have been an entire session',
   money.ASSUME_FULL_AFTER_SECONDS >= 30 * 60, money.ASSUME_FULL_AFTER_SECONDS);
 
 check('the queues are the four that exist',

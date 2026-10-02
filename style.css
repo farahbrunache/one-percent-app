@@ -351,7 +351,7 @@ input.code-field {
   letter-spacing: 0.08em;
 }
 /* The prompt is a sentence, not a code, so it goes back to the reading face and normal
-   spacing -- "Whole reference, as they typed it" set in spaced mono runs off a phone. */
+   spacing -- "The entire reference, as they typed it" set in spaced mono runs off a phone. */
 input.code-field::placeholder {
   font-family: "Source Sans 3", ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
   letter-spacing: normal;
@@ -1037,7 +1037,7 @@ input.code-field::placeholder {
 
 /* Dark ink on the band, not light. When every band was coral, cream read well on all five.
    The bands run coral to sage now, and cream on the sage end is close to unreadable, so the
-   text takes the one colour that works on the whole range -- which is what the shipped
+   text takes the one colour that works across the range -- which is what the shipped
    funnel already used on its bands. */
 .inside .funnel .count {
   font-family: Georgia, "Times New Roman", serif;
@@ -1074,3 +1074,50 @@ input.code-field::placeholder {
 }
 .topbar .back { margin: 0; }
 .topbar .dateline { margin: 0; }
+
+/* The line that says a write landed, and the way back where there is one.
+   Fixed to the bottom because that is where a thumb already is, and clear of the home
+   indicator on a phone that has one. It never covers the control that was just pressed:
+   the screen is redrawn under it, so what changed is above the line rather than behind it. */
+.after {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 50;
+  width: calc(100% - 32px);
+  max-width: 358px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--paper-sunk);
+  color: var(--ink);
+  font-size: 0.95rem;
+  line-height: 1.4;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+}
+
+/* Sized to be pressed rather than aimed at. A control offered for six seconds that is hard
+   to hit in six seconds is not a way back. */
+.after .undo {
+  flex: none;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.after .undo:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

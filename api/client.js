@@ -237,7 +237,7 @@ async function link(req, res) {
   }
 
   const body = await readJson(req);
-  // A whole link pasted in is the common case, so take the token out of it rather than
+  // An entire link pasted in is the common case, so take the token out of it rather than
   // telling somebody they pasted too much.
   const raw = String(body.t || '').trim();
   const token = raw.includes('t=') ? raw.split('t=').pop().split('&')[0].trim() : raw;

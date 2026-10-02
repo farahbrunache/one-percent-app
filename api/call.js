@@ -47,7 +47,7 @@ export default handle('POST', async (req, res) => {
   if (!order) throw new HttpError(404, 'No order matches this link.');
 
   // The page telling us the session never connected. Its own minutes are what this protects:
-  // a call left open counts as the whole budget, so one failure to join would otherwise spend
+  // a call left open counts as the entire budget, so one failure to join would otherwise spend
   // the order and there would be no way to start another.
   //
   // It gives nothing back that was not taken a moment ago — the window is short and a call
@@ -82,7 +82,7 @@ export default handle('POST', async (req, res) => {
   }
 
   // Minutes, not attempts. Every call already recorded against this order counts against what
-  // the order bought, and a call still running counts as the whole of it until it ends.
+  // the order bought, and a call still running counts as all of it until it ends.
   //
   // A call with no recorded length is the case worth being careful about. If it started long
   // enough ago that it could have run to the hard stop, assume it did: the webhook may simply
@@ -150,7 +150,7 @@ export default handle('POST', async (req, res) => {
   // The library is asked for the address rather than one being written here. The address
   // moved from v2 to v3 and a request to the old one is answered with a bare Not Found,
   // which reads like a wrong agent or a wrong key and is neither. Upgrading the package is
-  // now the whole of keeping up with that.
+  // now all there is to keeping up with that.
   let data;
   try {
     // The reference travels with the call so a transcript can be matched back to the
