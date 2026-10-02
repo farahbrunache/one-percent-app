@@ -48,6 +48,7 @@
       <button type="button" class="addone" id="taddone">Add one</button>
     </div>
     <p class="meta" id="todaycount"></p>
+    <p class="meta" id="todaymore" hidden></p>
     <div id="todaylist" class="who-list" aria-live="polite"></div>
     <div class="pages" id="todaypager" hidden></div>
 
@@ -663,6 +664,19 @@
       ? `${people.length} ${people.length === 1 ? 'person needs' : 'people need'} you`
         + (late ? ` · ${late} past ${data.targetHours} hours` : '')
       : '';
+    // A reason with more waiting than came back says so, with the real number, so the screen
+    // never reads as a smaller morning than it is.
+    const more = REASONS
+      .map(([key, label]) => [label, (data[key] || []).length, data.totals?.[key] || 0])
+      .filter(([, shown, total]) => total > shown)
+      .map(([label, shown, total]) => `${label}: showing the oldest ${shown} of ${total.toLocaleString()}.`);
+    const moreBox = document.getElementById('todaymore');
+    moreBox.hidden = !more.length;
+    moreBox.textContent = more.join(' ');
+    if (more.length) {
+      document.getElementById('todaycount').textContent =
+        `${people.length} people on this screen` + (late ? ` · ${late} past ${data.targetHours} hours` : '');
+    }
     const last = Math.max(1, Math.ceil(people.length / PER_PAGE));
     todayPage = Math.min(todayPage, last);
     const box = document.getElementById('todaylist');

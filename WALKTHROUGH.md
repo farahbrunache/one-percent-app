@@ -74,7 +74,7 @@ rows, never by a switch you have to remember to set.
 - [ ] **Owes you** — a quote agreed, past its date, nothing received.
 - [ ] **You owe** — work past its date, not handed over, not dropped.
 - [ ] **Ask about** — an action whose cadence date has come round.
-- [ ] Cards run in the order of the reasons above, and each reason's list runs oldest first. Each list takes its oldest 50. Fifteen cards a page, numbered paging.
+- [ ] Cards run in the order of the reasons above, and each reason's list runs oldest first. Each list takes its oldest 50. When one has more, a line under the count gives the real total, like "New call: showing the oldest 50 of 16,667", and the count says how many are on this screen. Fifteen cards a page, numbered paging.
 - [ ] A count with "N past 24 hours". Twenty-four is half the 48 the claim page promises, so a card past it is a promise at risk, not one broken.
 - [ ] Search by name or code.
 - [ ] The people-to-approach figure, with **+ Add one** for each person approached today. The line at the bottom offers Undo.
