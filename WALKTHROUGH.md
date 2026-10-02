@@ -104,6 +104,8 @@ rows, never by a switch you have to remember to set.
 ### Now
 
 - [ ] **Calls** — every call with its transcript and summary. **Everything the voice service has** fetches and saves the record yourself.
+- [ ] Four lines on each call, above the transcript: Trade, Rate, What's in the way, First customer. Type them and press Save, and the call is decided from four lines instead of thirty minutes. The demo plumber called 31 hours ago has them filled in.
+- [ ] "Fill from the call" 💸 reads that one call's transcript and puts its answers in the four boxes. Nothing is saved until you read them and press Save. **(off — `DRAFT_MODEL_A_*`)**: the boxes work the same without it.
 - [ ] **Go or no-go** — two equal buttons. Reversible. Both land on the trail.
 - [ ] **Their sheet** — the box you write in, up to 8000 characters.
 - [ ] "Start from the template" fills it with the shape: an opening line, three numbered things each with what to do and why it works for this person, a sub-bullet for where it happens, and a closing slot for which one to start with this week.
@@ -181,7 +183,7 @@ rows, never by a switch you have to remember to set.
 - [ ] A way back on the left and Refresh on the right, in one row at the top. The desk is the top of the operator side and has refresh alone.
 - [ ] Nothing says it is loading. A screen is blank for a moment and then it is the page. A failure says what failed and what to do about it, where the content would have been.
 - [ ] A control that starts work disables itself while it runs. Where the wait is long — a call starting, a draft, reading the bill — it also says what it's doing on itself.
-- [ ] Every button that runs the drafting model is purple, a color nothing else uses, and ends in 💸: Where does this stand?, Draft it from the call, Draft a reply, What is this worth to them? Nothing else is purple. The build fails if a desk screen asks the model for anything without going through `askModel`, or if an action that reaches the model is missing from `MODEL_ACTIONS`.
+- [ ] Every button that runs the drafting model is purple, a color nothing else uses, and ends in 💸: Where does this stand?, Draft it from the call, Draft a reply, What is this worth to them?, Fill from the call. Each order gets 10 drafts a day across all of them, and every one is counted on What it costs. Nothing else is purple. The build fails if a desk screen asks the model for anything without going through `askModel`, or if an action that reaches the model is missing from `MODEL_ACTIONS`.
 
 ## 10. Running on its own
 
@@ -246,6 +248,8 @@ without a line here. The check in `scripts/checks.mjs` reads this list.
 | `introduction-record` | what came of it | 6 |
 | `first-customer` | mark or unmark the end of the method | 6 |
 | `note` | a line on the trail | 6 |
+| `call-fields` | save the four lines on a call | 6 |
+| `call-fields-draft` | ask the model to fill the four lines from that call — a paid button | 6 |
 | `funnel-pool` | the size of the list being approached, or one more | 4, 5 |
 | `block` | they are waiting on somebody else | 6 |
 | `unblock` | they are not any more | 6 |

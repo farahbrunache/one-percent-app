@@ -1374,3 +1374,7 @@ input.code-field::placeholder {
   font-size: 1.125rem;
   line-height: 1;
 }
+
+/* The four lines on a call. Each box grows to what it holds, so nothing is cut off. */
+.inside .callfields textarea { min-height: 0; resize: vertical; field-sizing: content; }
+.inside .callfields .actions { margin-top: 0.25rem; }
