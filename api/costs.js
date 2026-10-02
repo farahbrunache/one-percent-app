@@ -12,6 +12,7 @@ import { requireAdmin } from '../lib/auth.js';
 import { costsNow, isCostUnit } from '../lib/costs.js';
 import { normalizeReference } from '../lib/orders.js';
 import { HttpError, handle, readJson, send } from '../lib/http.js';
+import { pullBillNow } from '../lib/desk-drafting-bill.js';
 
 async function now(req, res) {
   requireAdmin(req);
@@ -101,5 +102,9 @@ export default handle(['GET', 'POST'], async (req, res) => {
   if (req.method === 'GET' && action === 'now') return now(req, res);
   if (req.method === 'POST' && action === 'line-add') return addLine(req, res);
   if (req.method === 'POST' && action === 'line-remove') return removeLine(req, res);
-  throw new HttpError(400, 'Use action=now, action=line-add or action=line-remove.');
+  if (req.method === 'POST' && action === 'pull-bill') return pullBillNow(req, res);
+  throw new HttpError(
+    400,
+    'Use action=now, action=line-add, action=line-remove or action=pull-bill.',
+  );
 });

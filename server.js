@@ -50,6 +50,7 @@ const ENDPOINTS = {
   '/api/auth': () => import('./api/auth.js'),
   '/api/retell': () => import('./api/retell.js'),
   '/api/sweep': () => import('./api/sweep.js'),
+  '/api/drafting-bill': () => import('./api/drafting-bill.js'),
   '/api/client': () => import('./api/client.js'),
 };
 
