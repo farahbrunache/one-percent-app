@@ -43,6 +43,10 @@
              maxlength="80" enterkeyhint="search">
       <button type="submit" class="quiet">Find</button>
     </form>
+    <div class="pool">
+      <p><span class="figure" id="tpool">—</span> <span class="meta" id="tpoolsays">people to approach</span></p>
+      <button type="button" class="addone" id="taddone">Add one</button>
+    </div>
     <p class="meta" id="todaycount"></p>
     <div id="todaylist" class="who-list" aria-live="polite"></div>
     <div class="pages" id="todaypager" hidden></div>
@@ -84,6 +88,7 @@
       once.</p>
     <div id="sellingfunnel" class="funnel"></div>
     <div class="actions">
+      <button type="button" class="addone" id="qaddone">Add one</button>
       <button type="button" class="quiet" id="poolopen">Change the list size</button>
     </div>
     <form class="fields" id="poolform" hidden>
@@ -356,7 +361,7 @@
   import { el, link, msg, call, get, post, when, minutes, money, demoChip, hours, owed,
     here, personId, state, page, mpage, asked, askedForQueue } from '/desk-ui.js';
   import { renderPerson } from '/desk-record.js';
-  import { drawnBy, once, settled } from '/desk-after.js';
+  import { drawnBy, once, settled, wasBefore } from '/desk-after.js';
   import { drawBands } from '/desk-bands.js';
 
   codeFields(['otherref']);
@@ -461,6 +466,25 @@
       for (const box of [method, selling]) {
         box.textContent = '';
         box.append(el('p', error.message, 'nothing'));
+      }
+    });
+  }
+
+  // Somebody approached today goes in with one tap, from either screen, and can be taken back.
+  // The count is added to where it's stored, not on this screen, so a screen left open since
+  // yesterday still adds to today's figure.
+  for (const id of ['taddone', 'qaddone']) {
+    once(document.getElementById(id), 'click', async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        const out = await post('funnel-pool', { add: 1 });
+        await settled(`${out.pool} ${out.pool === 1 ? 'person' : 'people'} to approach.`,
+          wasBefore('funnel-pool', { pool: out.before === null ? '' : String(out.before) }));
+      } catch (error) {
+        msg(id === 'taddone' ? 'tmsg' : 'qmsg', error.message, 'bad');
+      } finally {
+        button.disabled = false;
       }
     });
   }
@@ -656,6 +680,10 @@
       renderFirstScreen(todayData);
       document.getElementById('todayview').scrollIntoView();
     });
+    document.getElementById('tpool').textContent =
+      data.pool === null || data.pool === undefined ? '—' : String(data.pool);
+    document.getElementById('tpoolsays').textContent =
+      data.pool === 1 ? 'person to approach' : 'people to approach';
     renderDemoData(Boolean(data.demoData));
   }
 

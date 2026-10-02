@@ -1334,3 +1334,25 @@ input.code-field::placeholder {
 }
 .inside .navlist#tabs .n.some { background: var(--in-coral); border-color: var(--in-coral); color: var(--in-cream); }
 .inside .navlist#tabs a.on .n { border-color: var(--in-shell); }
+
+/* The list of people to approach, and the daily tap that adds one to it. */
+.inside .pool {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--in-rule-card);
+  border-radius: 16px;
+  background: var(--in-panel);
+  margin-bottom: 0.5rem;
+}
+.inside .pool p { margin: 0; }
+.inside .pool .figure {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.5rem;
+  color: var(--in-cream);
+  font-variant-numeric: tabular-nums;
+}
+.inside button.addone { border-color: var(--in-gold); color: var(--in-gold); }
+.inside button.addone::before { content: '+'; margin-right: 0.375rem; font-size: 1rem; }
