@@ -14,7 +14,8 @@ import { readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node
 import { execFileSync } from 'node:child_process';
 import { basename, dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { namesResolve } from './checks-names.mjs';
+import { eventsAreLabelled } from './checks-events.mjs';
+import { importsAreRead, namesResolve } from './checks-names.mjs';
 import { wordsAreAllowed } from './checks-words.mjs';
 import { walkthroughNumbersHold } from './checks-walkthrough.mjs';
 import { fileURLToPath } from 'node:url';
@@ -652,6 +653,9 @@ for (const half of ['GET', 'POST']) {
     );
   }
 }
+
+eventsAreLabelled({ ROOT, files, read, fail, join });
+importsAreRead({ ROOT, files, read, fail });
 
 // ---- what happened --------------------------------------------------------------------------
 

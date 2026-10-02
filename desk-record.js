@@ -7,10 +7,8 @@
 
 import { renderTrades } from '/desk-trades.js';
 import { renderCallFields } from '/desk-callfields.js';
-import { askModel, el, link, msg, get, post, when, day, minutes, money, owed, mpage, here }
-  from '/desk-ui.js';
-import { renderPlan, renderSteps, renderQuotes, renderIntroductions, pathLabel }
-  from '/desk-work.js';
+import { askModel, el, link, msg, get, post, when, day, minutes, owed } from '/desk-ui.js';
+import { renderPlan, renderSteps, renderQuotes, renderIntroductions } from '/desk-work.js';
 import { renderContacts } from '/desk-contacts.js';
 import { renderWork } from '/desk-projects.js';
 import { once, settled, wasBefore } from '/desk-after.js';
@@ -43,7 +41,6 @@ function renderThreadPager(person) {
   box.append(el('span', `${first}–${upTo} of ${total} · page ${at} of ${last}`, 'meta'));
   if (at < last) box.append(link('Newer', to(at + 1), 'button quiet-link'));
 }
-
 
 function renderOwed(person) {
   const box = document.getElementById('owed');
