@@ -57,7 +57,8 @@ starting hands its minutes back; otherwise a start stops counting after 60 minut
 - [ ] The transcript lands here when the call ends, encrypted, filed against the order.
 - [ ] A call on a new order, by an account that already had a call, is recorded as a follow-up rather than a new person. A second call on an order that already has a transcript is refused.
 - [ ] **(off — `SWEEP_SECRET`)** An hourly job re-fetches any call record that did not arrive. The voice service forgets after seven days, so this is what keeps the history.
-- [ ] "Export the script" on the desk hands you the voice agent's configuration, to be committed.
+- [ ] Every night at 06:40 UTC a job in the private `one-percent` repository copies the voice agent's script, through `/api/sweep?action=script`, and commits it when it has changed.
+- [ ] "Export the script" on the desk is the fallback for when that job can't run. It copies the same script to the clipboard and says "Copied — commit it".
 
 ## 4. The first screen — your morning
 
