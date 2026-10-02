@@ -6,6 +6,7 @@
 // says whether the rate card was ever written.
 
 import { el, msg, post, when } from '/desk-ui.js';
+import { once, settled, wasBefore } from '/desk-after.js';
 
 const STATES = ['to do', 'doing', 'delivered', 'dropped'];
 
@@ -49,11 +50,13 @@ function moveForm(person, work) {
   save.type = 'submit';
   const date = el('button', 'Set the date', 'quiet');
   date.type = 'button';
-  date.addEventListener('click', async () => {
+  once(date, 'click', async () => {
     date.disabled = true;
     try {
+      const was = work.dueAt ? String(work.dueAt).slice(0, 10) : '';
       await post('work-due', { id: person.id, projectId: work.id, dueAt: due.value });
-      window.location.reload();
+      await settled(due.value ? `Due ${due.value}.` : 'No date on it now.',
+        wasBefore('work-due', { id: person.id, projectId: work.id, dueAt: was }));
     } catch (error) {
       date.disabled = false;
       msg('rmsg', error.message, 'bad');
@@ -62,14 +65,16 @@ function moveForm(person, work) {
   actions.append(save, date);
 
   form.append(pickField, noteField, dueField, actions);
-  form.addEventListener('submit', async (event) => {
+  once(form, 'submit', async (event) => {
     event.preventDefault();
     save.disabled = true;
     try {
+      const was = { state: work.state, note: work.note || '' };
       await post('work-move', {
         id: person.id, projectId: work.id, state: pick.value, note: note.value,
       });
-      window.location.reload();
+      await settled(`Now ${pick.value}.`,
+        wasBefore('work-move', { id: person.id, projectId: work.id, ...was }));
     } catch (error) {
       save.disabled = false;
       msg('rmsg', error.message, 'bad');
@@ -96,7 +101,7 @@ function wireAdd(person) {
 
   if (form.dataset.wired) return;
   form.dataset.wired = 'yes';
-  form.addEventListener('submit', async (event) => {
+  once(form, 'submit', async (event) => {
     event.preventDefault();
     const title = document.getElementById('worktitle');
     if (!title.value.trim()) return;
@@ -107,7 +112,7 @@ function wireAdd(person) {
         quoteId: pick.value || undefined,
         dueAt: document.getElementById('workdue').value,
       });
-      window.location.reload();
+      await settled('Added to what you owe them.');
     } catch (error) {
       msg('rmsg', error.message, 'bad');
     }

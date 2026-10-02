@@ -11,6 +11,7 @@ import { renderPlan, renderSteps, renderQuotes, renderIntroductions, pathLabel }
   from '/desk-work.js';
 import { renderContacts } from '/desk-contacts.js';
 import { renderWork } from '/desk-projects.js';
+import { once, settled, wasBefore } from '/desk-after.js';
 import { renderRecap } from '/desk-recap.js';
 import { foldLines, openWhatIsNext, sofar } from '/desk-folds.js';
 import { SHEET_LINKS, SHEET_RULES, SHEET_TEMPLATE, unfilledSlots } from '/sheet.js';
@@ -74,11 +75,13 @@ function renderDecision(person) {
     const button = el('button', label, `quiet decide ${tone}${on ? ' on' : ''}`);
     button.type = 'button';
     button.style.flex = '1';
-    button.addEventListener('click', async () => {
+    once(button, 'click', async () => {
       button.disabled = true;
       try {
+        const was = person.decision || null;
         await post('decide', { id: person.id, decision: value });
-        window.location.reload();
+        await settled(`Recorded as ${label}.`,
+          was ? wasBefore('decide', { id: person.id, decision: was }) : null);
       } catch (error) {
         button.disabled = false;
         msg('rmsg', error.message, 'bad');
@@ -161,7 +164,7 @@ function renderCalls(person) {
     const actions = el('div', null, 'actions');
     const copy = el('button', 'Copy it', 'quiet');
     copy.type = 'button';
-    copy.addEventListener('click', async () => {
+    once(copy, 'click', async () => {
       try {
         await navigator.clipboard.writeText(call.transcript);
         copy.textContent = 'Copied';
@@ -178,7 +181,7 @@ function renderCalls(person) {
     if (call.callId) {
       const everything = el('button', 'Everything the voice service has', 'quiet');
       everything.type = 'button';
-      everything.addEventListener('click', async () => {
+      once(everything, 'click', async () => {
         everything.disabled = true;
         everything.textContent = 'Asking…';
         try {
@@ -233,7 +236,7 @@ function renderRecommendations(person) {
     const chip = el('button', name, 'chip');
     chip.type = 'button';
     chip.title = href;
-    chip.addEventListener('click', () => {
+    once(chip, 'click', () => {
       const at = input.selectionStart ?? input.value.length;
       const to = input.selectionEnd ?? at;
       const before = input.value.slice(0, at);
@@ -250,7 +253,7 @@ function renderRecommendations(person) {
   }
 
   const template = document.getElementById('usetemplate');
-  template.addEventListener('click', () => {
+  once(template, 'click', () => {
     if (input.value.trim() && !window.confirm('Replace what is in the box with the template?')) {
       return;
     }
@@ -259,7 +262,7 @@ function renderRecommendations(person) {
     input.setSelectionRange(0, 0);
   });
 
-  form.addEventListener('submit', async (event) => {
+  once(form, 'submit', async (event) => {
     event.preventDefault();
     // A bracket left in is the template showing through. They read this word for word, so it
     // is caught here rather than in the sheet somebody opens tomorrow.
@@ -271,7 +274,7 @@ function renderRecommendations(person) {
     }
     try {
       await post('recommend', { id: person.id, body: input.value });
-      window.location.reload();
+      await settled('Sheet saved.');
     } catch (error) {
       msg('rmsg', error.message, 'bad');
     }
@@ -329,7 +332,7 @@ function renderThread(person) {
 
   renderThreadPager(person);
 
-  form.addEventListener('submit', async (event) => {
+  once(form, 'submit', async (event) => {
     event.preventDefault();
     const input = document.getElementById('replybody');
     try {
@@ -356,7 +359,7 @@ function renderReplyDrafting(person) {
     note.textContent = 'No drafting model is set up, so you write the reply yourself.';
     return;
   }
-  button.addEventListener('click', async () => {
+  once(button, 'click', async () => {
     const input = document.getElementById('replybody');
     button.disabled = true;
     note.textContent = 'Asking. A worker starting from cold takes up to a minute.';
@@ -397,10 +400,10 @@ function renderDrafting(person) {
       const pick = el('button', model.name + (chosen ? ' (in use)' : ''), 'quiet');
       pick.type = 'button';
       pick.disabled = chosen;
-      pick.addEventListener('click', async () => {
+      once(pick, 'click', async () => {
         try {
           await post('model', { slot: model.slot });
-          window.location.reload();
+          await settled(`Drafting with ${model.name}.`);
         } catch (error) {
           msg('rmsg', error.message, 'bad');
         }
@@ -409,7 +412,7 @@ function renderDrafting(person) {
     }
   }
 
-  button.addEventListener('click', async () => {
+  once(button, 'click', async () => {
     const input = document.getElementById('recommendbody');
     button.disabled = true;
     note.textContent = 'Asking. A worker starting from cold takes up to a minute.';
@@ -455,11 +458,12 @@ function renderFirstCustomer(person) {
     reached ? 'go-on' : 'quiet');
   button.type = 'button';
   button.style.flex = '1';
-  button.addEventListener('click', async () => {
+  once(button, 'click', async () => {
     button.disabled = true;
     try {
       await post('first-customer', { id: person.id, reached });
-      window.location.reload();
+      await settled(reached ? 'First customer recorded.' : 'Taken back off.',
+        wasBefore('first-customer', { id: person.id, reached: !reached }));
     } catch (error) {
       button.disabled = false;
       msg('rmsg', error.message, 'bad');
@@ -511,13 +515,13 @@ function renderWhoseSession(person) {
 
   const button = el('button', 'This one is mine', 'quiet');
   button.type = 'button';
-  button.addEventListener('click', async () => {
+  once(button, 'click', async () => {
     if (!window.confirm('Mark this as your own test? The seven dollars stops counting as '
       + 'revenue and this cannot be undone.')) return;
     button.disabled = true;
     try {
       await post('mine', { id: person.id });
-      window.location.reload();
+      await settled('Marked as your own test.');
     } catch (error) {
       button.disabled = false;
       msg('rmsg', error.message, 'bad');
@@ -539,12 +543,12 @@ function renderWhereItStands(person) {
   const press = (label, action, body, ask) => {
     const button = el('button', label, 'quiet');
     button.type = 'button';
-    button.addEventListener('click', async () => {
+    once(button, 'click', async () => {
       if (ask && !window.confirm(ask)) return;
       button.disabled = true;
       try {
         await post(action, { id: person.id, ...body });
-        window.location.reload();
+        await settled(`${label}.`);
       } catch (error) {
         button.disabled = false;
         msg('rmsg', error.message, 'bad');
@@ -565,7 +569,7 @@ function renderWhereItStands(person) {
     lines.push('Nothing is blocking it.');
     const start = el('button', 'Block it', 'quiet');
     start.type = 'button';
-    start.addEventListener('click', () => {
+    once(start, 'click', () => {
       form.hidden = false;
       document.getElementById('blockreason').focus();
     });
@@ -581,7 +585,7 @@ function renderWhereItStands(person) {
   why.textContent = lines.join(' ');
   sofar('state', person.blocker ? 'blocked' : person.closedAt ? 'closed' : 'open');
 
-  form.addEventListener('submit', async (event) => {
+  once(form, 'submit', async (event) => {
     event.preventDefault();
     try {
       await post('block', {
@@ -589,7 +593,7 @@ function renderWhereItStands(person) {
         reason: document.getElementById('blockreason').value,
         until: document.getElementById('blockuntil').value || null,
       });
-      window.location.reload();
+      await settled('Recorded.');
     } catch (error) {
       msg('rmsg', error.message, 'bad');
     }
@@ -624,23 +628,23 @@ export function renderPerson(person) {
   foldLines(person);
   openWhatIsNext(person);
 
-  document.getElementById('addstep').addEventListener('submit', async (event) => {
+  once(document.getElementById('addstep'), 'submit', async (event) => {
     event.preventDefault();
     const input = document.getElementById('steptitle');
     try {
       await post('milestone-add', { id: person.id, title: input.value });
-      window.location.reload();
+      await settled('Milestone added.');
     } catch (error) {
       msg('rmsg', error.message, 'bad');
     }
   });
 
-  document.getElementById('addnote').addEventListener('submit', async (event) => {
+  once(document.getElementById('addnote'), 'submit', async (event) => {
     event.preventDefault();
     const input = document.getElementById('note');
     try {
       await post('note', { id: person.id, note: input.value });
-      window.location.reload();
+      await settled('Note added.');
     } catch (error) {
       msg('rmsg', error.message, 'bad');
     }

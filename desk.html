@@ -70,8 +70,7 @@
     </div>
 
     <div class="actions">
-      <button type="button" class="quiet" id="seeddemo">Add demo data</button>
-      <button type="button" class="quiet" id="cleardemo">Delete demo data</button>
+      <button type="button" class="quiet" id="demodata"></button>
     </div>
     <div class="actions">
       <a class="button quiet-link" href="/desk?state=waiting">Everybody</a>
@@ -89,6 +88,23 @@
       <button type="button" class="quiet" id="again">Refresh</button>
     </div>
     <h1>Desk</h1>
+
+    <h2>Getting to a call, and what it led to</h2>
+    <p class="meta">The list you're working from, then what came of it. Each person counted
+      once.</p>
+    <div id="sellingfunnel" class="funnel"></div>
+    <div class="actions">
+      <button type="button" class="quiet" id="poolopen">Change the list size</button>
+    </div>
+    <form class="fields" id="poolform" hidden>
+      <div class="field">
+        <label for="poolsize">People to approach</label>
+        <span class="hint">Nothing in this app counts that list, so it's typed. Leave it empty
+          to take the row off the chart.</span>
+        <input id="poolsize" inputmode="numeric" autocomplete="off" maxlength="7">
+      </div>
+      <div class="actions"><button type="submit" class="quiet">Save it</button></div>
+    </form>
 
     <h2>How far people get</h2>
     <p class="meta">Each person counted once, no matter how many sessions they've bought.</p>
@@ -346,6 +362,8 @@
   import { el, link, msg, call, get, post, when, minutes, money, demoChip, hours, owed,
     here, personId, state, page, mpage, askedForQueue } from '/desk-ui.js';
   import { renderPerson } from '/desk-record.js';
+  import { drawnBy, once, settled } from '/desk-after.js';
+  import { drawBands } from '/desk-bands.js';
 
   codeFields(['otherref']);
 
@@ -427,64 +445,50 @@
   //
   // It is on the queue and nowhere else. A person's record is about that person, and a
   // figure covering everybody has nothing to do with the one in front of you.
-  // The colour of each step, top to bottom. Coral where everybody is, sage where the work
-  // has ended in somebody being paid -- so the shape narrows and warms at the same time.
-  const FUNNEL_COLOURS = ['#c96859', '#c08262', '#a89a6d', '#8bab84', '#6fb894'];
-
-  // The funnel's widest and narrowest bands, as a share of the row. The steps between
-  // them are even: a band has to hold a number and a line of words, and one that is
-  // literally proportional to its count does not -- one person out of twelve is a sliver.
-  // What the shape says is that there is a drop at every step. What the drop was is the
-  // number in the band and the percentage beside it.
-  const WIDEST = 100;
-  const NARROWEST = 56;
-
+  // Two funnels from one read. The selling one carries the list size, which is the only figure
+  // on this desk that is typed rather than counted, so the screen says which row that is.
   function renderFunnel() {
-    const box = document.getElementById('funnel');
+    const method = document.getElementById('funnel');
+    const selling = document.getElementById('sellingfunnel');
     return call('/api/desk?action=funnel').then((data) => {
-      box.textContent = '';
-
-      if (!data.stages[0] || !data.stages[0].count) {
-        box.append(el('p', "No calls yet, so there's nothing to chart. The first one fills "
-          + 'the top.', 'nothing'));
-        return;
-      }
-
-      // The open top of the vessel. Without it the first band is a rectangle and the
-      // shape starts as a box.
-      box.append(el('div', null, 'rim'));
-
-      // Every band tapers, the last one included. The step is the full drop divided by the
-      // number of bands rather than by the gaps between them, so the bottom of the last
-      // band is the narrowest width and nothing ends as a rectangle.
-      const step = (WIDEST - NARROWEST) / data.stages.length;
-      data.stages.forEach((stage, i) => {
-        const top = WIDEST - step * i;
-        const bottom = WIDEST - step * (i + 1);
-        const row = el('div', null, 'stage');
-        row.style.setProperty('--band', FUNNEL_COLOURS[i] || FUNNEL_COLOURS.at(-1));
-        row.style.setProperty('--top-left', `${(100 - top) / 2}%`);
-        row.style.setProperty('--top-right', `${100 - (100 - top) / 2}%`);
-        row.style.setProperty('--bottom-left', `${(100 - bottom) / 2}%`);
-        row.style.setProperty('--bottom-right', `${100 - (100 - bottom) / 2}%`);
-        // Keep the words inside the shape at its narrowest point rather than inside the
-        // row. The row is full width; the band is not, and a clipped shape cuts its own
-        // text, so the bottom label was being sliced by the taper it sat in.
-        row.style.paddingInline = `calc(${(100 - bottom) / 2}% + 0.6rem)`;
-
-        // The rate reads on the same line as the name. Put against the band's edge it was
-        // cut off, because a clipped shape clips its own text too.
-        row.append(el('div', String(stage.count), 'count'));
-        row.append(el('div',
-          stage.rate === null ? stage.label : `${stage.label} · ${stage.rate}%`, 'name'));
-
-        box.append(row);
-      });
+      drawBands(method, data.stages,
+        "No calls yet, so there's nothing to chart. The first one fills the top.");
+      drawBands(selling, data.selling?.stages,
+        'Nothing to chart yet. Type in how many people there are to approach, and the first '
+          + 'call fills the row under it.');
+      const pool = data.selling?.pool;
+      document.getElementById('poolsize').value = pool === null || pool === undefined
+        ? ''
+        : String(pool);
     }).catch((error) => {
-      box.textContent = '';
-      box.append(el('p', error.message, 'nothing'));
+      for (const box of [method, selling]) {
+        box.textContent = '';
+        box.append(el('p', error.message, 'nothing'));
+      }
     });
   }
+
+  // Behind one control rather than open on the screen. It is set once in a while and the desk is
+  // not where a form belongs.
+  once(document.getElementById('poolopen'), 'click', () => {
+    const form = document.getElementById('poolform');
+    form.hidden = !form.hidden;
+    if (!form.hidden) document.getElementById('poolsize').focus();
+  });
+
+  once(document.getElementById('poolform'), 'submit', async (event) => {
+    event.preventDefault();
+    const input = document.getElementById('poolsize');
+    try {
+      const out = await post('funnel-pool', { pool: input.value });
+      document.getElementById('poolform').hidden = true;
+      await settled(out.pool === null
+        ? 'The list size is off the chart.'
+        : `${out.pool} people to approach.`);
+    } catch (error) {
+      msg('qmsg', error.message, 'bad');
+    }
+  });
 
   function renderQueue(data) {
     renderDateline();
@@ -554,21 +558,26 @@
       if (row.status) {
         line.append(el('div', `${row.status} · ${money(row.amount)}`, 'badge open'));
       }
-      // What to ask about, and which step it sits under. Without the words the row is a
-      // reference and a date, which is a trip into the record to find out what it means.
+      // The words, once. Without them the row is a reference and a date, which is a trip into
+      // the record to find out what it means.
+      //
+      // Two kinds of row carry words -- something to ask about, and work you owe -- and this
+      // used to decide between them by looking for the words themselves, which both have. So
+      // both matched both branches: every one of these rows printed its words twice, and the
+      // work rows printed "undefined · undefined" underneath, because only an action belongs to
+      // a step. Each row now answers for what it has rather than for what it is.
       if (row.title) {
         line.append(el('div', row.title, 'said'));
-        line.append(el('div', `${row.milestone} · ${row.cadenceLabel}`, 'meta'));
+        if (row.milestone) {
+          line.append(el('div', `${row.milestone} · ${row.cadenceLabel}`, 'meta'));
+        }
       }
-      // What is owed and when it was due. A reference and a date would send you into the record
-      // to find out how much, which is the one fact that decides whether to chase it.
+      // When it was due, and how much where there is a figure. A reference and a date would send
+      // you into the record to find out how much, which is the one fact that decides whether to
+      // chase it.
       if (row.dueAt && row.amount !== undefined) {
         line.append(el('div', `${money(row.amount)} agreed, due ${when(row.dueAt)}`, 'flag'));
-      }
-      // Work you took on. The words are what decides whether to do it now, so the row carries
-      // them rather than a reference and a date.
-      if (row.title && row.dueAt && row.amount === undefined) {
-        line.append(el('div', row.title, 'said'));
+      } else if (row.dueAt) {
         line.append(el('div', `Was due ${when(row.dueAt)}`, 'flag'));
       }
       line.append(link(verb, `/desk?id=${row.id}`,
@@ -645,6 +654,8 @@
     document.getElementById('duecount').textContent = due.length
       ? `${due.length} to ask about`
       : '';
+
+    renderDemoData(Boolean(data.demoData));
   }
 
 
@@ -670,11 +681,22 @@
 
 
 
-  // Reloading without reaching for the browser's own button. The desk is a screen somebody
+  // Reading again without reaching for the browser's own button. The desk is a screen somebody
   // leaves open while the work happens elsewhere -- a call lands, a record gets kept -- so
   // the thing it shows goes out of date while nothing on the page has changed.
+  //
+  // It draws in place rather than reloading, for the same reason a write does: a reload throws
+  // away where the reader was, and on a long record that is the expensive part.
   for (const id of ['again', 'againrecord', 'todayagain']) {
-    document.getElementById(id).addEventListener('click', () => window.location.reload());
+    const button = document.getElementById(id);
+    once(button, 'click', async () => {
+      button.disabled = true;
+      try {
+        await draw();
+      } finally {
+        button.disabled = false;
+      }
+    });
   }
 
   // ---- getting started -------------------------------------------------------------
@@ -683,35 +705,39 @@
   // so the endpoint refused it and the press landed on a page of JSON saying which actions
   // exist. It is POST-only on purpose: anything that can log somebody out by being visited
   // can be triggered by a link somebody else wrote.
-  document.getElementById('seeddemo')?.addEventListener('click', async () => {
-    const button = document.getElementById('seeddemo');
-    button.disabled = true;
-    button.textContent = 'Making…';
-    try {
-      const out = await post('demo-seed', {});
-      msg('tmsg', `Made ${out.made.length} demo records. Refresh to see them.`, 'good');
-    } catch (error) {
-      msg('tmsg', error.message, 'bad');
-    }
-    button.disabled = false;
-    button.textContent = 'Add demo data';
-  });
-
-  document.getElementById('cleardemo')?.addEventListener('click', async () => {
-    if (!window.confirm('Delete every record marked DEMO? Real records are not touched.')) return;
-    const button = document.getElementById('cleardemo');
-    button.disabled = true;
-    button.textContent = 'Deleting…';
-    try {
-      const out = await post('demo-clear', {});
-      msg('tmsg', `Deleted ${out.orders} demo orders and ${out.cases} demo people. `
-        + 'Refresh to see.', 'good');
-    } catch (error) {
-      msg('tmsg', error.message, 'bad');
-    }
-    button.disabled = false;
-    button.textContent = 'Delete demo data';
-  });
+  // Demo data is one control, because it is one fact with two sides and only one of them can be
+  // true. Two buttons side by side read as a choice between two things you might want, and the
+  // one that did not apply was the louder half of the pair -- offering to add a second set on top
+  // of the first, which is what pressing it actually did: the seed stamps every run, so it adds
+  // rather than doing nothing.
+  //
+  // Which one it is comes from the row rather than from anything the reader sets, the same way
+  // every other decision on this desk is made.
+  function renderDemoData(there) {
+    const button = document.getElementById('demodata');
+    if (!button) return;
+    button.textContent = there ? 'Delete demo data' : 'Add demo data';
+    once(button, 'click', async () => {
+      const deleting = button.textContent === 'Delete demo data';
+      if (deleting && !window.confirm('Delete every record marked DEMO? Real records are not '
+        + 'touched.')) return;
+      button.disabled = true;
+      button.textContent = deleting ? 'Deleting…' : 'Making…';
+      try {
+        if (deleting) {
+          const out = await post('demo-clear', {});
+          await settled(`Deleted ${out.orders} demo orders and ${out.cases} demo people.`);
+        } else {
+          const out = await post('demo-seed', {});
+          await settled(`Made ${out.made.length} demo records.`);
+        }
+      } catch (error) {
+        msg('tmsg', error.message, 'bad');
+        button.textContent = deleting ? 'Delete demo data' : 'Add demo data';
+      }
+      button.disabled = false;
+    });
+  }
 
   for (const [id, box] of [['logout', 'qmsg'], ['tlogout', 'tmsg']]) {
     document.getElementById(id)?.addEventListener('click', async () => {
@@ -725,7 +751,10 @@
     });
   }
 
-  async function start() {
+  // Reading the screen and drawing it. One function, used for the first draw and for every draw
+  // after a write, so what a reader sees after recording something is built the same way as what
+  // they saw before it rather than by a second path that can disagree.
+  async function draw() {
     // No person and no queue asked for means the first screen. The queue is still reachable
     // and still works; it is just not what the morning opens on.
     const url = personId
@@ -763,7 +792,10 @@
     }
   }
 
-  start();
+  // How a write redraws the screen it landed on.
+  drawnBy(draw);
+
+  draw();
 </script>
 
 </body>
