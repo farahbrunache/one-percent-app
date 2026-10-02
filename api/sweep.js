@@ -9,6 +9,7 @@
 // sign-in. There is no person here to sign in, and an admin session is not something a workflow
 // should be able to hold.
 
+import { refreshTrades } from '../lib/trades.js';
 import Retell from 'retell-sdk';
 
 import { ensureSchema, sql } from '../lib/db.js';
@@ -65,6 +66,12 @@ async function records(res, retell) {
 export default handle('POST', async (req, res) => {
   requireSweeper(req);
 
+  // The trade list, copied from Charging The Future once a day. Asked first because it has
+  // nothing to do with the voice service and shouldn't wait on its key.
+  if (new URL(req.url, 'https://placeholder.invalid').searchParams.get('action') === 'trades') {
+    return send(res, 200, await refreshTrades());
+  }
+
   const apiKey = process.env.RETELL_SECRET_KEY;
   if (!apiKey) throw new HttpError(503, 'RETELL_SECRET_KEY is not set, so nothing can be asked.');
 
@@ -82,5 +89,5 @@ export default handle('POST', async (req, res) => {
     return send(res, 200, await agentScriptExport(retell, agentId));
   }
 
-  throw new HttpError(400, 'The jobs here are: records, script.');
+  throw new HttpError(400, 'The jobs here are: records, script, trades.');
 });

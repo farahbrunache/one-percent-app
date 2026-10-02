@@ -84,6 +84,11 @@
     <div id="people" class="who-list" aria-live="polite"></div>
     <div class="pages" id="pager" hidden></div>
 
+    <h2>Introductions to make</h2>
+    <p class="meta">Two people told yes, in the same sector, not introduced yet. Set a trade on a
+      record and they show here.</p>
+    <div id="pairs" class="rows"></div>
+
     <h2>Getting to a call, and what it led to</h2>
     <p class="meta">The list you're working from, then what came of it. Each person counted
       once.</p>
@@ -295,6 +300,7 @@
 
     <details class="panel fold" id="fold-intros">
       <summary><h2>Introductions</h2><span class="sofar" id="sofar-intros"></span></summary>
+      <div id="trades" class="rows"></div>
       <div id="intros" class="rows"></div>
       <form class="fields" id="introduce" novalidate>
         <div class="field">
@@ -373,6 +379,7 @@
   import { el, link, msg, call, get, post, when, minutes, money, demoChip, hours, owed,
     here, personId, state, page, mpage, asked, askedForQueue } from '/desk-ui.js';
   import { renderPerson } from '/desk-record.js';
+  import { renderPairs } from '/desk-trades.js';
   import { renderMinutes } from '/desk-minutes.js';
   import { drawnBy, once, settled, wasBefore } from '/desk-after.js';
   import { drawBands } from '/desk-bands.js';
@@ -824,6 +831,7 @@
         renderQueue(data);
         document.getElementById('queue').hidden = false;
         renderFunnel();
+        renderPairs();
         renderMinutes();
       } else {
         renderFirstScreen(data);

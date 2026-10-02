@@ -65,6 +65,7 @@ import { recordPayment, setQuoteDue } from '../lib/desk-payments.js';
 import { moveWork, setWorkDue, takeOnWork } from '../lib/desk-projects.js';
 import { today } from '../lib/desk-today.js';
 import { person } from '../lib/desk-person.js';
+import { copyTrades, pairs, setTrade } from '../lib/desk-trades.js';
 import { draftCallFields, saveCallFields } from '../lib/desk-callfields.js';
 import { STEPS, startClock, timeReport, timeStep } from '../lib/desk-time.js';
 import { funnel, setPool } from '../lib/desk-funnel.js';
@@ -387,7 +388,7 @@ async function addNote(req, res) {
 const ACTIONS = {
   GET: {
     today, queue, person, funnel, 'call-record': callRecord, 'agent-script': agentScript,
-    time: timeReport, 'directory-profile': directoryProfile,
+    time: timeReport, pairs, 'directory-profile': directoryProfile,
   },
   POST: {
     decide,
@@ -416,6 +417,8 @@ const ACTIONS = {
     'introduction-record': recordIntroduction,
     'first-customer': firstCustomer,
     note: addNote,
+    trade: setTrade,
+    'trades-copy': copyTrades,
     'call-fields': saveCallFields,
     'call-fields-draft': draftCallFields,
     'funnel-pool': setPool,

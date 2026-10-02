@@ -88,11 +88,12 @@ rows, never by a switch you have to remember to set.
 - [ ] Four tabs with live counts: **New calls**, **Wrote to you**, **Working**, **Closed**. Membership is derived, so a count and its list cannot disagree.
 - [ ] Search across all four by reference or name. Names are sealed, so matching happens after decryption.
 - [ ] Twenty-five a page, Newer and Older. Each card: name and code, DEMO chip, decision badge, call date and length, how many calls, the path, whether an account is linked, and what you owe them next.
+- [ ] **Introductions to make** — pairs across everybody: two people told yes, in the same sector, not introduced yet, newest first, ten at a time. **Introduce** records it in one tap.
 - [ ] **Getting to a call, and what it led to** — people to approach (the one figure you type), bought a call, answered a quote, work handed over.
 - [ ] **+ Add one** adds a person to that figure. "Change the list size" opens one field to type it. Empty takes the row off the chart. The row says **typed** so it is never mistaken for a measurement.
 - [ ] **How far people get** — calls that came back, worth going on with, on a path, someone to approach, approached somebody, first paying customer.
 - [ ] Both are cumulative subsets and count one person once, so every drop is a real rate.
-- [ ] **Where your minutes go** — over the last 30 days, each kind of step (reading the call, go or no-go, writing the sheet, replying, quotes, introductions, the path, following up, people to approach, work you owe, notes), how many times, the typical time and the total, and about how many minutes each person took. Opening a record starts a clock for that person, each write records the time since the last one, and a gap over 30 minutes isn't counted. The demo records carry a few invented times.
+- [ ] **Where your minutes go** — over the last 30 days, each kind of step (reading the call, go or no-go, writing the sheet, replying, quotes, introductions, their trade, the path, following up, people to approach, work you owe, notes), how many times, the typical time and the total, and about how many minutes each person took. Opening a record starts a clock for that person, each write records the time since the last one, and a gap over 30 minutes isn't counted. The demo records carry a few invented times.
 
 ## 6. A person's record
 
@@ -128,6 +129,8 @@ rows, never by a switch you have to remember to set.
 - [ ] Marking somebody a paying customer also sets the first-customer date on the case.
 - [ ] **Quotes** — a break-even floor so you do not quote under cost, the list with answer, due, paid, discount and late flags, and a form to write one. At most three outstanding at a time. **Counter it** on a change request. A warning when quoting somebody given a no-go. No form until an account is linked.
 - [ ] "What is this worth to them?" reads the call with the model **(off — `DRAFT_MODEL_A_*`, and only once a call has a transcript)**
+- [ ] **Their trade** — a picker of Charging The Future's trades, grouped by sector. Setting it shows who could work with them: **Also** the same trade (overflow work and what to charge) and **Elsewhere in** the sector (people who send each other jobs). Only people told yes, never two already introduced. **Introduce** on any of them records it in one tap, with the reason written for you. Free: the list is a copy, the suggestions are a query.
+- [ ] Before the list has been copied, the section says so and **Copy the trade list** copies it now. The demo records carry three invented trades in one invented sector.
 - [ ] **Introductions** — by the other person's reference code, with a reason. Three outcomes: waiting, worked, went nowhere. It shows on both records, and you cannot introduce somebody to themselves.
 
 ### The account
@@ -192,6 +195,7 @@ Times are UTC.
 
 - [ ] **(off — `SWEEP_SECRET`)** Hourly, seventeen past: fetch any missing call record, 25 a run.
 - [ ] **(off — `RUNPOD_API_KEY`, `SWEEP_SECRET` and `APP_URL`)** Daily, 05:41: read the drafting bill per endpoint and revise the day's figure. It reads nothing unless a drafting model's address is a RunPod one.
+- [ ] **(off — `TAXONOMY_URL`, `TAXONOMY_TOKEN` and `SWEEP_SECRET`)** Daily, 06:23: copy the trade list from Charging The Future. A title gone from their list is marked inactive here, never deleted. The token is sent as `name.secret`.
 - [ ] Deploy runs on a push to `main`, or by hand: checks, tests, settings written from Infisical to Render (skipped, and said so, while the Infisical secrets aren't set), then it waits for the site to come back.
 - [ ] Checks and tests run on every pull request.
 - [ ] The GPU worker image is built by hand when the model changes.
@@ -250,6 +254,9 @@ without a line here. The check in `scripts/checks.mjs` reads this list.
 | `introduction-record` | what came of it | 6 |
 | `first-customer` | mark or unmark the end of the method | 6 |
 | `note` | a line on the trail | 6 |
+| `trade` | set their trade from the list | 6 |
+| `trades-copy` | copy the trade list now | 6 |
+| `pairs` | introductions to make, across everybody | 5 |
 | `call-fields` | save the four lines on a call | 6 |
 | `call-fields-draft` | ask the model to fill the four lines from that call — a paid button | 6 |
 | `funnel-pool` | the size of the list being approached, or one more | 4, 5 |

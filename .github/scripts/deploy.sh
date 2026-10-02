@@ -79,6 +79,10 @@ OPTIONAL_KEYS=(
   DRAFT_MODEL_B_URL
   DRAFT_MODEL_B_KEY
   RUNPOD_API_KEY
+  # Charging The Future's address and the read-only credential it issued for the trade list.
+  # Without them the copy here stays as it is and every page works.
+  TAXONOMY_URL
+  TAXONOMY_TOKEN
   # Reading claimed Directory profiles on the desk. Off when either is empty: the link field hides.
   DIRECTORY_SERVICE_URL
   DIRECTORY_SERVICE_TOKEN
