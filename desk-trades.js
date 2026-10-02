@@ -48,6 +48,74 @@ function option(text, value, selected) {
   return item;
 }
 
+// Their own Directory profile: paste the link once, and each time the record opens the job title
+// they gave there is read and offered as their trade. Only the profile id is saved here.
+function ownProfile(person) {
+  const wrap = el('div', null, 'ownprofile');
+  if (!person.ownProfileLinked) {
+    const form = el('form', null, 'fields');
+    form.noValidate = true;
+    const field = el('div', null, 'field');
+    const label = el('label', 'Their Directory profile');
+    label.htmlFor = 'ownprofilelink';
+    const input = el('input');
+    input.id = 'ownprofilelink';
+    input.autocomplete = 'off';
+    input.placeholder = 'Paste the profile link';
+    field.append(label, input);
+    const save = el('button', 'Link it', 'quiet');
+    save.type = 'submit';
+    const actions = el('div', null, 'actions');
+    actions.append(save);
+    form.append(field, actions);
+    once(form, 'submit', async (event) => {
+      event.preventDefault();
+      save.disabled = true;
+      try {
+        await post('own-profile', { id: person.id, link: input.value });
+        await settled('Linked their Directory profile.');
+      } catch (error) {
+        save.disabled = false;
+        msg('rmsg', error.message, 'bad');
+      }
+    });
+    wrap.append(form);
+    return wrap;
+  }
+
+  const line = el('p', null, 'meta');
+  wrap.append(line);
+  get(`own-profile&id=${encodeURIComponent(person.id)}`).then((found) => {
+    if (!found.jobTitle) {
+      line.textContent = 'Their Directory profile has no job title on it.';
+      return;
+    }
+    line.textContent = `Their Directory profile says: ${found.jobTitle}`
+      + (found.sector ? `, in ${found.sector}.` : '.');
+    if (found.tradeId && found.tradeId !== person.trade?.id) {
+      const use = el('button', 'Use it', 'quiet');
+      use.type = 'button';
+      once(use, 'click', async () => {
+        use.disabled = true;
+        try {
+          await post('trade', { id: person.id, trade: found.tradeId });
+          await settled(`Trade set: ${found.jobTitle}.`);
+        } catch (error) {
+          use.disabled = false;
+          msg('rmsg', error.message, 'bad');
+        }
+      });
+      wrap.append(use);
+    } else if (!found.tradeId) {
+      wrap.append(el('p', "That title isn't on the trade list copied here yet. Copy the list again, "
+        + 'or pick the closest one below.', 'meta'));
+    }
+  }).catch((error) => {
+    line.textContent = error.message;
+  });
+  return wrap;
+}
+
 export function renderTrades(person) {
   const box = document.getElementById('trades');
   box.textContent = '';
@@ -70,6 +138,8 @@ export function renderTrades(person) {
     box.append(copy);
     return;
   }
+
+  if (person.directoryRead && person.hasCase) box.append(ownProfile(person));
 
   // One trade from the list, in their sectors. A native picker, so it scrolls the way the phone
   // already knows how to.

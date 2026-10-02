@@ -130,6 +130,7 @@ rows, never by a switch you have to remember to set.
 - [ ] **Quotes** — a break-even floor so you do not quote under cost, the list with answer, due, paid, discount and late flags, and a form to write one. At most three outstanding at a time. **Counter it** on a change request. A warning when quoting somebody given a no-go. No form until an account is linked.
 - [ ] "What is this worth to them?" reads the call with the model **(off — `DRAFT_MODEL_A_*`, and only once a call has a transcript)**
 - [ ] **Their trade** — a picker of Charging The Future's trades, grouped by sector. Setting it shows who could work with them: **Also** the same trade (overflow work and what to charge) and **Elsewhere in** the sector (people who send each other jobs). Only people told yes, never two already introduced. **Introduce** on any of them records it in one tap, with the reason written for you. Free: the list is a copy, the suggestions are a query.
+- [ ] **Their Directory profile** — once somebody has signed in, paste their Skills Economy Directory profile link above the trade picker. Each time the record opens, the desk reads the profile live and says which job title and sector it gives, with **Use it** to make that their trade in one tap. Only the profile id is saved; a title the copied list doesn't have yet gets a line saying so. **(off — `DIRECTORY_SERVICE_URL` and `DIRECTORY_SERVICE_TOKEN`)**. There's no demo row for it: the Directory only holds real people.
 - [ ] Before the list has been copied, the section says so and **Copy the trade list** copies it now. The demo records carry three invented trades in one invented sector.
 - [ ] **Introductions** — by the other person's reference code, with a reason. Three outcomes: waiting, worked, went nowhere. It shows on both records, and you cannot introduce somebody to themselves.
 
@@ -256,6 +257,7 @@ without a line here. The check in `scripts/checks.mjs` reads this list.
 | `note` | a line on the trail | 6 |
 | `trade` | set their trade from the list | 6 |
 | `trades-copy` | copy the trade list now | 6 |
+| `own-profile` | link their own Directory profile, or read the trade it gives | 6 |
 | `pairs` | introductions to make, across everybody | 5 |
 | `call-fields` | save the four lines on a call | 6 |
 | `call-fields-draft` | ask the model to fill the four lines from that call — a paid button | 6 |
