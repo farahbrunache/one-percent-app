@@ -46,6 +46,7 @@ const FACTS = [
   ['payments history page', 'api/payments.js', /const PER_PAGE = (\d+);/, (n) => `${inWords(n)} a page with Newer`],
   ['records per sweep', 'api/sweep.js', /const PER_RUN = (\d+);/, (n) => `${n} a run`],
   ['the underwater window', 'lib/costs.js', /VERDICT_DAYS = ([\d_ *]+);/, (n) => `over ${n} days`],
+  ['pairs at a time', 'lib/trades.js', /pairsToIntroduce\(limit = (\d+)\)/, (n) => `${inWords(n)} at a time`],
   ['the weeks', 'lib/costs.js', /WEEKS_BACK = ([\d_ *]+);/, (n) => `over ${inWords(n)} weeks`],
 ];
 

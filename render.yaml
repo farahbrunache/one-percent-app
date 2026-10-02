@@ -68,3 +68,7 @@ services:
       # says which it is using.
       - key: RUNPOD_API_KEY
         sync: false
+      - key: TAXONOMY_URL
+        sync: false
+      - key: TAXONOMY_TOKEN
+        sync: false

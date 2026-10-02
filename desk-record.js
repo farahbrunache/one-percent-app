@@ -5,6 +5,7 @@
 // they're doing -- the path, the milestones, the quotes, the introductions -- is its own module,
 // imported and rendered in place.
 
+import { renderTrades } from '/desk-trades.js';
 import { askModel, el, link, msg, get, post, when, day, minutes, money, owed, mpage, here }
   from '/desk-ui.js';
 import { renderPlan, renderSteps, renderQuotes, renderIntroductions, pathLabel }
@@ -625,6 +626,7 @@ export function renderPerson(person) {
   renderContacts(person);
   renderQuotes(person);
   renderIntroductions(person);
+  renderTrades(person);
   renderFirstCustomer(person);
   renderWhereItStands(person);
   renderWhoseSession(person);

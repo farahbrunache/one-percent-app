@@ -79,6 +79,10 @@ OPTIONAL_KEYS=(
   DRAFT_MODEL_B_URL
   DRAFT_MODEL_B_KEY
   RUNPOD_API_KEY
+  # Charging The Future's address and the read-only credential it issued for the trade list.
+  # Without them the copy here stays as it is and every page works.
+  TAXONOMY_URL
+  TAXONOMY_TOKEN
 )
 
 die() { echo "::error title=Deploy stopped::$*"; exit 1; }
