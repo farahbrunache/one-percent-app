@@ -46,6 +46,8 @@ const FACTS = [
   ['payments history page', 'api/payments.js', /const PER_PAGE = (\d+);/, (n) => `${inWords(n)} a page with Newer`],
   ['records per sweep', 'api/sweep.js', /const PER_RUN = (\d+);/, (n) => `${n} a run`],
   ['the underwater window', 'lib/costs.js', /VERDICT_DAYS = ([\d_ *]+);/, (n) => `over ${n} days`],
+  ['the minutes window', 'lib/desk-time.js', /REPORT_DAYS = (\d+);/, (n) => `over the last ${n} days, each kind of step`],
+  ['an idle gap', 'lib/desk-time.js', /IDLE_MINUTES = (\d+);/, (n) => `a gap over ${n} minutes isn't counted`],
   ['the weeks', 'lib/costs.js', /WEEKS_BACK = ([\d_ *]+);/, (n) => `over ${inWords(n)} weeks`],
 ];
 

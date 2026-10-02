@@ -59,8 +59,11 @@ export function get(action) {
   return call(`/api/desk?action=${action}`);
 }
 
+// A write on a person's record says which record it came from, so the desk can time the step.
+// The body already names the order, but the server times the step after the body is spent.
 export function post(action, body) {
-  return call(`/api/desk?action=${action}`, {
+  const on = personId ? `&on=${encodeURIComponent(personId)}` : '';
+  return call(`/api/desk?action=${action}${on}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
