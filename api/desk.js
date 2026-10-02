@@ -60,6 +60,7 @@ import { chooseModel, writeDraft } from '../lib/desk-drafts.js';
 import { addMilestone, recordMilestone, setPlan } from '../lib/desk-plan.js';
 import { addAction, pushAction, recordAction } from '../lib/desk-actions.js';
 import { addContact, moveContact, reachOut } from '../lib/desk-contacts.js';
+import { directoryProfile } from '../lib/desk-directory.js';
 import { recordPayment, setQuoteDue } from '../lib/desk-payments.js';
 import { moveWork, setWorkDue, takeOnWork } from '../lib/desk-projects.js';
 import { today } from '../lib/desk-today.js';
@@ -387,7 +388,7 @@ async function addNote(req, res) {
 const ACTIONS = {
   GET: {
     today, queue, person, funnel, 'call-record': callRecord, 'agent-script': agentScript,
-    time: timeReport, pairs,
+    time: timeReport, pairs, 'directory-profile': directoryProfile,
   },
   POST: {
     decide,

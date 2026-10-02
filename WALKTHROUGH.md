@@ -124,6 +124,7 @@ rows, never by a switch you have to remember to set.
 - [ ] "Asked, still going" pushes the date out a full cycle without closing the item.
 - [ ] **Work you owe them** — to do, doing, delivered, dropped. A due date, a note, and the quote it came from.
 - [ ] **People to approach** — name, where, why, and five states: to approach, reached out, talking, said no, paying customer. "Said no" is a real state; the count of nos is the evidence the work happened.
+- [ ] **Somebody from the Directory** — paste a claimed Skills Economy Directory profile link instead of typing a name. Only the profile id is saved, sealed. Their name, trade, skills, profile link and location are read from Skills Economy each time the record opens and are never stored here; an unclaimed or removed profile says so where the details would be. (off — DIRECTORY_SERVICE_URL and DIRECTORY_SERVICE_TOKEN; the link field hides)
 - [ ] One outreach row per time somebody was actually approached: what was said, what came back.
 - [ ] Marking somebody a paying customer also sets the first-customer date on the case.
 - [ ] **Quotes** — a break-even floor so you do not quote under cost, the list with answer, due, paid, discount and late flags, and a form to write one. At most three outstanding at a time. **Counter it** on a change request. A warning when quoting somebody given a no-go. No form until an account is linked.
@@ -225,6 +226,7 @@ without a line here. The check in `scripts/checks.mjs` reads this list.
 | `funnel` | both funnels in one read | 5 |
 | `time` | where your minutes go, step by step | 5 |
 | `call-record` | the kept voice-service record for one call | 3 |
+| `directory-profile` | one contact's claimed Directory profile, read live from Skills Economy | 6 |
 | `agent-script` | exports the voice agent's configuration | 3 |
 | `decide` | go or no-go | 6 |
 | `plan` | set the path in force | 6 |

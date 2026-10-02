@@ -35,7 +35,7 @@ const GLOBALS = new Set([
   'clearInterval', 'queueMicrotask', 'atob', 'btoa', 'encodeURIComponent',
   'decodeURIComponent', 'parseInt', 'parseFloat', 'isNaN', 'isFinite', 'String', 'Number',
   'Boolean', 'Array', 'Object', 'Error', 'TypeError', 'RangeError', 'Promise', 'Map', 'Set',
-  'Date', 'RegExp', 'JSON', 'Math', 'URL', 'URLSearchParams', 'TextEncoder', 'TextDecoder',
+  'Date', 'RegExp', 'JSON', 'Math', 'URL', 'WeakMap', 'AbortController', 'URLSearchParams', 'TextEncoder', 'TextDecoder',
   'Buffer', 'process', 'console', 'if', 'for', 'while', 'switch', 'catch', 'return',
   'typeof', 'await', 'function', 'super', 'this', 'async', 'constructor', 'else', 'do',
   'new', 'delete', 'void', 'in', 'of', 'yield', 'throw', 'case',
@@ -157,6 +157,10 @@ export function namesResolve({ ROOT, files, read, fail }) {
     }
     for (const m of text.matchAll(/import\s+(\w+)\s+from/g)) declared.add(m[1]);
     for (const m of text.matchAll(/(?:^|\s)(?:async\s+)?function\s+(\w+)/g)) declared.add(m[1]);
+    for (const m of text.matchAll(/(?:^|\s)class\s+(\w+)/g)) declared.add(m[1]);
+    // Declared now and assigned later, as a module loaded on demand is: `let Client;` then
+    // `({ Client } = await import(...))`.
+    for (const m of text.matchAll(/(?:let|var)\s+(\w+)\s*;/g)) declared.add(m[1]);
     for (const m of text.matchAll(/(?:const|let|var)\s+(\w+)\s*=/g)) declared.add(m[1]);
     // `for (const x of ...)` and `for (const x in ...)`, which bind without an `=` and were being
     // read as references to nothing. Three loop variables shared a name with an export next door
@@ -198,6 +202,15 @@ export function namesResolve({ ROOT, files, read, fail }) {
             ? ` The page has an element with id="${name}", so the call resolves to that element`
               + ' and throws when the screen runs rather than when the page loads.'
             : ''));
+      }
+    }
+
+    // A class constructed and never imported. The call match above reads lowercase names only, so
+    // `throw new HttpError(404, ...)` in a module that never imported HttpError went unseen: the
+    // record screen answered a missing order with a 500 instead of the 404 it was written to give.
+    for (const m of withoutStrings.matchAll(/\bnew\s+([A-Z][\w$]*)\s*\(/g)) {
+      if (!declared.has(m[1])) {
+        fail('missing', `${where} constructs ${m[1]} and nothing here declares or imports it.`);
       }
     }
 

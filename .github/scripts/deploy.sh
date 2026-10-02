@@ -83,6 +83,9 @@ OPTIONAL_KEYS=(
   # Without them the copy here stays as it is and every page works.
   TAXONOMY_URL
   TAXONOMY_TOKEN
+  # Reading claimed Directory profiles on the desk. Off when either is empty: the link field hides.
+  DIRECTORY_SERVICE_URL
+  DIRECTORY_SERVICE_TOKEN
 )
 
 die() { echo "::error title=Deploy stopped::$*"; exit 1; }

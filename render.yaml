@@ -72,3 +72,9 @@ services:
         sync: false
       - key: TAXONOMY_TOKEN
         sync: false
+      # Reading claimed Skills Economy Directory profiles on the desk. Optional: without both, the
+      # desk's Directory link field hides.
+      - key: DIRECTORY_SERVICE_URL
+        sync: false
+      - key: DIRECTORY_SERVICE_TOKEN
+        sync: false

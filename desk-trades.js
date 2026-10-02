@@ -41,6 +41,13 @@ function suggestion(person, other, reason) {
   return row;
 }
 
+function option(text, value, selected) {
+  const item = el('option', text);
+  item.value = value;
+  item.selected = selected;
+  return item;
+}
+
 export function renderTrades(person) {
   const box = document.getElementById('trades');
   box.textContent = '';
@@ -71,7 +78,7 @@ export function renderTrades(person) {
   label.htmlFor = 'tradepick';
   const pick = el('select');
   pick.id = 'tradepick';
-  pick.append(new Option('Not set', ''));
+  pick.append(option('Not set', '', false));
   let group = null;
   for (const trade of person.trades) {
     if (!group || group.label !== trade.sector) {
@@ -79,7 +86,7 @@ export function renderTrades(person) {
       group.label = trade.sector;
       pick.append(group);
     }
-    group.append(new Option(trade.title, trade.id, false, person.trade?.id === trade.id));
+    group.append(option(trade.title, trade.id, person.trade?.id === trade.id));
   }
   once(pick, 'change', async () => {
     pick.disabled = true;
