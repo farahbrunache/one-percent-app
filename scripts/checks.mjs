@@ -432,6 +432,20 @@ for (const file of files) {
   }
 }
 
+// ---- a press that costs money looks like one -----------------------------------------------
+//
+// The drafting model is billed per request, so the buttons that reach it carry their own color
+// and a mark saying so. askModel in desk-ui.js refuses a button without that look. This makes
+// sure nothing goes around it: a draft request anywhere else would be a paid press on a button
+// that looks free.
+for (const file of files) {
+  const rel = file.slice(ROOT.length + 1);
+  if (!/\.(js|html)$/.test(rel) || rel.includes('/') || rel === 'desk-ui.js' || rel === 'server.js') continue;
+  if (/post\(\s*['"`]draft['"`]|action=draft/.test(read(file))) {
+    fail('paid', `${rel} asks the drafting model for something without askModel, so the button doesn't show that it costs money.`);
+  }
+}
+
 // ---- every module a page asks for is one the server hands out ---------------------------------
 //
 // A browser import is an address, not a file path. server.js decides which address serves which

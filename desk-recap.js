@@ -7,7 +7,7 @@
 // It is a read rather than a record. Nothing is saved, because a saved recap is wrong the moment
 // somebody types another line, and a recap that is quietly out of date is worse than none.
 
-import { msg, post } from '/desk-ui.js';
+import { askModel, msg } from '/desk-ui.js';
 import { once } from '/desk-after.js';
 
 export function renderRecap(person) {
@@ -27,7 +27,7 @@ export function renderRecap(person) {
     button.disabled = true;
     note.textContent = 'Reading the record. A worker starting from cold takes up to a minute.';
     try {
-      const written = await post('draft', { id: person.id, of: 'recap' });
+      const written = await askModel(button, { id: person.id, of: 'recap' });
       out.textContent = written.content;
       out.hidden = false;
       note.textContent = 'Nothing here is saved, and nobody else sees it. '
