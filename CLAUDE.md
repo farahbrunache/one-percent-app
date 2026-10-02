@@ -197,6 +197,33 @@ is live and helping people, and when there are credits the same work goes faster
 The drafting slots are already the pattern: empty means not configured, the button hides, and
 nothing calls a model that is not there. Extend it rather than inventing a second shape.
 
+## Everything done here is something the next one learns from (owner decision, 2026-10-02)
+
+Every decision, sheet, reply, quote, introduction and outcome the owner records is kept as
+material to make the owner's next one faster. The sheet for the forty-first plumber in a small
+town starts from what was written for the first forty, the quote that was agreed shows beside
+the next one, and the introduction that worked suggests the next pairing. Everything a client
+does is kept the same way, for that client: what they said on the call, what they tried, what
+came of it.
+
+That's the point of storing structured fields rather than free text, and of keeping outcomes
+and not just actions. Nothing the owner does should have to be done from nothing twice.
+
+**Isolation is what makes it allowed.** Two contexts, and nothing crosses between people:
+
+- The owner's context is the owner's own judgment, and it works across everybody the owner has
+  worked with. What carries from one person to the next is the owner's writing and the shape of
+  what worked, never the person: no name, no place, no detail somebody could be recognized by,
+  and nothing they said in their own words.
+- A client's context is theirs. It shapes what they're shown and nothing anybody else sees.
+- Nothing derived from one person is ever shown or sold to another.
+- No outside service trains on any of it. Whatever does the learning — a search over past
+  sheets, a model, anything later — runs on what this product owns, and the voice service and
+  any drafting service have training switched off.
+
+So a feature that reuses past work says which context it reads from, and a feature that reads
+from one person's record for another person's screen is the bug this rule exists to prevent.
+
 ## State decides the screen, never a toggle
 
 A filter somebody forgets to set is a filter that hides a person who was waiting, and at the
