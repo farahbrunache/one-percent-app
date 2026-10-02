@@ -9,8 +9,15 @@ The page One Percent is sold from is a separate repository, `one-percent-landing
 `farahbrunache.com`, and that one is static and stays on Vercel. That split is deliberate: a change to sales copy must not redeploy the
 code that holds money, and the two do not share environment variables.
 
-One Percent is paid work and a separate product from Skills Economy, which is free and
-self-service. Nothing here requires an account anywhere.
+One Percent is the paid tier of Skills Economy, run as a separate product with its own
+repositories, settings and books. Skills Economy stays free and self-service. Nothing here
+requires an account anywhere.
+
+The desk will read claimed Directory profiles from Skills Economy, so people already entered
+there aren't entered twice (owner decision, 2026-10-02). A record here stores the profile id and
+nothing else about the person. The read goes one way, shows only on the owner's desk, and never
+sits in the path of a payment, a call or a sheet. The full limits are in the private
+`one-percent` repository and in `chargingthefuture/chargingthefuture`. The route isn't built yet.
 
 The stylesheet is a copy of the landing page's, taken at the split. The two are expected to
 drift as these screens grow. Do not build a shared package for one CSS file.
@@ -196,6 +203,33 @@ is live and helping people, and when there are credits the same work goes faster
 
 The drafting slots are already the pattern: empty means not configured, the button hides, and
 nothing calls a model that is not there. Extend it rather than inventing a second shape.
+
+## Everything done here is something the next one learns from (owner decision, 2026-10-02)
+
+Every decision, sheet, reply, quote, introduction and outcome the owner records is kept as
+material to make the owner's next one faster. The sheet for the forty-first plumber in a small
+town starts from what was written for the first forty, the quote that was agreed shows beside
+the next one, and the introduction that worked suggests the next pairing. Everything a client
+does is kept the same way, for that client: what they said on the call, what they tried, what
+came of it.
+
+That's the point of storing structured fields rather than free text, and of keeping outcomes
+and not just actions. Nothing the owner does should have to be done from nothing twice.
+
+**Isolation is what makes it allowed.** Two contexts, and nothing crosses between people:
+
+- The owner's context is the owner's own judgment, and it works across everybody the owner has
+  worked with. What carries from one person to the next is the owner's writing and the shape of
+  what worked, never the person: no name, no place, no detail somebody could be recognized by,
+  and nothing they said in their own words.
+- A client's context is theirs. It shapes what they're shown and nothing anybody else sees.
+- Nothing derived from one person is ever shown or sold to another.
+- No outside service trains on any of it. Whatever does the learning — a search over past
+  sheets, a model, anything later — runs on what this product owns, and the voice service and
+  any drafting service have training switched off.
+
+So a feature that reuses past work says which context it reads from, and a feature that reads
+from one person's record for another person's screen is the bug this rule exists to prevent.
 
 ## State decides the screen, never a toggle
 

@@ -106,6 +106,10 @@
     <p class="meta">Each person counted once, no matter how many sessions they've bought.</p>
     <div id="funnel" class="funnel"></div>
 
+    <h2>Where your minutes go</h2>
+    <p class="meta" id="minutessaid"></p>
+    <div id="minutes" class="rows"></div>
+
     <div class="actions">
       <button type="button" class="quiet" id="script">Export the script</button>
       <button type="button" class="quiet" id="logout">Sign out</button>
@@ -362,6 +366,7 @@
   import { el, link, msg, call, get, post, when, minutes, money, demoChip, hours, owed,
     here, personId, state, page, mpage, asked, askedForQueue } from '/desk-ui.js';
   import { renderPerson } from '/desk-record.js';
+  import { renderMinutes } from '/desk-minutes.js';
   import { drawnBy, once, settled, wasBefore } from '/desk-after.js';
   import { drawBands } from '/desk-bands.js';
 
@@ -812,6 +817,7 @@
         renderQueue(data);
         document.getElementById('queue').hidden = false;
         renderFunnel();
+        renderMinutes();
       } else {
         renderFirstScreen(data);
         document.getElementById('todayview').hidden = false;

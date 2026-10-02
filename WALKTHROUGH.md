@@ -92,6 +92,7 @@ rows, never by a switch you have to remember to set.
 - [ ] **+ Add one** adds a person to that figure. "Change the list size" opens one field to type it. Empty takes the row off the chart. The row says **typed** so it is never mistaken for a measurement.
 - [ ] **How far people get** — calls that came back, worth going on with, on a path, someone to approach, approached somebody, first paying customer.
 - [ ] Both are cumulative subsets and count one person once, so every drop is a real rate.
+- [ ] **Where your minutes go** — over the last 30 days, each kind of step (reading the call, go or no-go, writing the sheet, replying, quotes, introductions, the path, following up, people to approach, work you owe, notes), how many times, the typical time and the total, and about how many minutes each person took. Opening a record starts a clock for that person, each write records the time since the last one, and a gap over 30 minutes isn't counted. The demo records carry a few invented times.
 
 ## 6. A person's record
 
@@ -218,6 +219,7 @@ without a line here. The check in `scripts/checks.mjs` reads this list.
 | `queue` | one of the four tabs, paged and searchable | 5 |
 | `person` | one person entire; opening it marks their messages read | 6 |
 | `funnel` | both funnels in one read | 5 |
+| `time` | where your minutes go, step by step | 5 |
 | `call-record` | the kept voice-service record for one call | 3 |
 | `agent-script` | exports the voice agent's configuration | 3 |
 | `decide` | go or no-go | 6 |
